@@ -1,15 +1,17 @@
+extern crate regex;
+
 use std::fs::File;
 use std::io::{self, BufRead};
 use std::path::Path;
 use std::env;
+use regex::Regex;
 
 
 fn main() {
     let args: Vec<String> = env::args().collect();
-    
-    read_file("./file");
+    let file_path = &args[1];
+    read_file(file_path);
 }
-
 
 
 fn read_file(file_path : &str)  {
@@ -18,7 +20,11 @@ fn read_file(file_path : &str)  {
         // Consumes the iterator, returns an (Optional) String
         for line in lines {
             if let Ok(line) = line {
-                println!("{}", line);
+                let re = Regex::new(r"add \$(([avtsk][0-9])|[0-9]|zero|at)+, \$(([avtsk][0-9])|[0-9]|zero|at)+, \$(([avtsk][0-9])|[0-9]|zero|at)+").unwrap();
+                for cap in re.captures_iter(line) {
+                    println!("Reg 1: {} Reg 2: {} Reg 3: {}", &cap[1], &cap[2], &cap[3]);
+                }                   
+                //println!("{}", line);
             }
         }
     }else{
