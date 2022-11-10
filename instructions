@@ -1,0 +1,41 @@
+ Type R Instructions
+ Form example: add $t0, $s1, $s2
+ Regex: command \$(([avtsk][0-9])|[0-9]|zero|at),(\s|)\$(([avtsk][0-9])|[0-9]|zero|at),(\s|)\$(([avtsk][0-9])|[0-9]|zero|at)
+ Instructions: 
+	add
+	sub
+	nor
+	or
+	and
+	slt
+
+ Type I Instructions (Arithmetic)
+ Form example: addi $s1, $s2, 4
+ Instructions:
+        addi
+
+ Type I Instructions (Data transfer)
+ Form example: lw $t0, 24($s2)
+ Regex: command 
+ Instructions:
+	lw 
+	sw
+
+ Type B Instructions (Branch
+ Form example: beq $t4, $zero, label
+ Regex: command
+ Instructions: 
+	beq
+
+ Type J Instructions (Jump) 
+ Form example: j Lbl 
+ Regex: command 
+ Instructions: 
+	j
+	jr
+
+ nop is also something we need to support :)
+
+
+
+   

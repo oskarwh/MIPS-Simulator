@@ -1,10 +1,14 @@
 extern crate regex;
+<<<<<<< HEAD
 use regex::Regex;
+=======
+>>>>>>> 7f0ece76dc35b64e99bcefa2353363b5371330d8
 
 use std::fs::File;
 use std::io::{self, BufRead};
 use std::path::Path;
 use std::env;
+use regex::Regex;
 
 enum error_type {
     bad_string,
@@ -13,6 +17,7 @@ enum error_type {
 
 
 fn main() {
+<<<<<<< HEAD
     //let args: Vec<String> = env::args().collect();
     
     //read_file("./file");
@@ -27,8 +32,12 @@ fn main() {
     {
         // No labels
     }
+=======
+    let args: Vec<String> = env::args().collect();
+    let file_path = &args[1];
+    read_file(file_path);
+>>>>>>> 7f0ece76dc35b64e99bcefa2353363b5371330d8
 }
-
 
 
 fn read_file(file_path : &str)  {
@@ -37,7 +46,11 @@ fn read_file(file_path : &str)  {
         // Consumes the iterator, returns an (Optional) String
         for line in lines {
             if let Ok(line) = line {
-                println!("{}", line);
+                let re = Regex::new(r"add \$(([avtsk][0-9])|[0-9]|zero|at)+, \$(([avtsk][0-9])|[0-9]|zero|at)+, \$(([avtsk][0-9])|[0-9]|zero|at)+").unwrap();
+                for cap in re.captures_iter(line) {
+                    println!("Reg 1: {} Reg 2: {} Reg 3: {}", &cap[1], &cap[2], &cap[3]);
+                }                   
+                //println!("{}", line);
             }
         }
     }else{
