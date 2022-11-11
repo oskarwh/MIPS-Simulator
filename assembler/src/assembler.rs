@@ -6,50 +6,73 @@ use std::path::Path;
 use std::env;
 use regex::Regex;
 
-enum error_type {
-    bad_string,
-    harmless_err,
+enum ErrorType {
+    BadString,
+    HarmlessErr,
 }
 
 
 fn main() {
-    let string = "Hee:asdds";
     let args: Vec<String> = env::args().collect();
-    let file_path = &args[1];
-    read_file(file_path);
 
-
-    if let Ok(index) = locate_comment(string) {
-        println!("{}", index);
+    //Check that the program has the right amount of arguments
+    if args.len() < 2 || args.len() > 2{
+        panic!("Usage: ./assembler filename\n");
     }
-    
-    if let Ok(label) = locate_labels(string) {
-        // Save label
-    } else
-    {
-        // No labels
-    }
+    let file_path = &args[1]; 
+    parse_file(file_path);
 
-    
+
 }
 
 
-fn read_file(file_path : &str)  {
+fn parse_file(file_path : &str)  {
     // File hosts must exist in current path before this produces output
     if let Ok(lines) = read_lines(file_path) {
         // Consumes the iterator, returns an (Optional) String
         for line in lines {
-            if let Ok(line) = line {
-                let re = Regex::new(r"(nor) (\s*)\$(([avtsk][0-9])|[0-9]|zero|at),(\s*)\$(([avtsk][0-9])|[0-9]|zero|at),(\s*)\$(([avtsk][0-9])|[0-9]|zero|at)").unwrap();
-                for cap in re.captures_iter(&line) {
-                    println!("Operation: {} Reg 1: {} Reg 2: {} Reg 3: {}", &cap[1], &cap[3], &cap[6], &cap[9]);
-                }                   
-                //println!("{}", line);
+            if let Ok(line) = line{
+                if line.len() > 0 {
+
+                    //Check for comments
+                    let comment = if let Ok(i) = locate_comment(&line){
+                        i
+                    }
+                    else{
+                        //no comment found, set a standard value
+                        let i= line.len() - 1;
+                        i
+                    };
+
+                
+                    /* 
+                    if let Ok(label) = locate_labels(string) {
+                        // Save label
+                    } else
+                    {
+                        // No labels
+                    }*/
+
+                    //Take a slice of the line from start to where a comment was found
+                    let line_slice = &line[..comment];
+                    capture_command(line_slice);
+
+                } 
             }
         }
     }else{
         panic!("File does not exist in current path!\n");
     }
+}
+
+/**
+ * Captures commands from a text
+ */
+fn capture_command(text: &str){
+    let re = Regex::new(r"(and) \s*\$([avtsk][0-9]|[0-9]|zero|at),\s*\$([avtsk][0-9]|[0-9]|zero|at),\s*\$([avtsk][0-9]|[0-9]|zero|at)").unwrap();
+    for cap in re.captures_iter(text) {
+        println!("Operation: {} Reg 1: {} Reg 2: {} Reg 3: {}", &cap[1], &cap[2], &cap[3], &cap[4]);
+    }    
 }
 
 // The output is wrapped in a Result to allow matching on errors
@@ -60,7 +83,7 @@ where P: AsRef<Path>, {
     Ok(io::BufReader::new(file).lines())
 }
 
-fn locate_comment(line: &str) -> Result<usize, error_type>{
+fn locate_comment(line: &str) -> Result<usize, ErrorType>{
     // Will itterate over "line" string and search for "#"
     // Will return first "#" found, if no "#" is found will return empty error.
     /*let index = Regex::new("#").unwrap().find(line).unwrap();
@@ -75,10 +98,10 @@ fn locate_comment(line: &str) -> Result<usize, error_type>{
     for cap in Regex::new("#").unwrap().find_iter(line) {
         return Ok(cap.start());
     }
-    return Err(error_type::harmless_err);
+    return Err(ErrorType::HarmlessErr);
 }
 
-fn locate_labels(line: &str) -> Result<String, error_type> {
+fn locate_labels(line: &str) -> Result<String, ErrorType> {
     for cap in Regex::new("([a-z]|[A-z]|[0-9])+[:]").unwrap().find_iter(line) {
         if cap.start() == 0 {
             println!("{:?}", cap);
@@ -86,5 +109,5 @@ fn locate_labels(line: &str) -> Result<String, error_type> {
             
         }
     }
-    return Err(error_type::bad_string);
+    return Err(ErrorType::BadString);
 }
