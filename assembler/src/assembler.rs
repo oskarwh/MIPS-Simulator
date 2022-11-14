@@ -6,10 +6,18 @@ use std::path::Path;
 use std::env;
 use regex::Regex;
 
+
+
 enum ErrorType {
     BadString,
     HarmlessErr,
+
 }
+/* 
+struct instruction{
+    command : str,
+    machine_code : u32
+}*/
 
 struct label_data {
     label_string: String,
@@ -18,8 +26,9 @@ struct label_data {
 
 
 fn main() {
-    let args: Vec<String> = env::args().collect();
 
+    let args: Vec<String> = env::args().collect();
+    
     //Check that the program has the right amount of arguments
     if args.len() < 2 || args.len() > 2{
         panic!("Usage: ./assembler filename\n");
@@ -97,6 +106,7 @@ where P: AsRef<Path>, {
     let file = File::open(filename)?;
     Ok(io::BufReader::new(file).lines())
 }
+
 
 fn locate_comment(line: &str) -> Result<usize, ErrorType>{
     // Will itterate over "line" string and search for "#"
