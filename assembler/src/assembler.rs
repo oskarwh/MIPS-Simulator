@@ -5,20 +5,25 @@ use std::io::{self, BufRead};
 use std::path::Path;
 use std::env;
 use regex::Regex;
-
+/* 
 enum error_type {
     bad_string,
     harmless_err,
 }
 
+struct instruction{
+    command : str,
+    machine_code : u32
+}*/
+
 
 fn main() {
-    let string = "Hee:asdds";
+   // let string = "Hee:asdds";
     let args: Vec<String> = env::args().collect();
     let file_path = &args[1];
     read_file(file_path);
 
-
+/* 
     if let Ok(index) = locate_comment(string) {
         println!("{}", index);
     }
@@ -29,7 +34,7 @@ fn main() {
     {
         // No labels
     }
-
+*/
     
 }
 
@@ -40,11 +45,11 @@ fn read_file(file_path : &str)  {
         // Consumes the iterator, returns an (Optional) String
         for line in lines {
             if let Ok(line) = line {
-                let re = Regex::new(r"(nor) (\s*)\$(([avtsk][0-9])|[0-9]|zero|at),(\s*)\$(([avtsk][0-9])|[0-9]|zero|at),(\s*)\$(([avtsk][0-9])|[0-9]|zero|at)").unwrap();
+                let re = Regex::new(r"(add) (\s*)\$(([avtsk][0-9])|[0-9]|zero|at),(\s*)\$(([avtsk][0-9])|[0-9]|zero|at),(\s*)\$(([avtsk][0-9])|[0-9]|zero|at)").unwrap();
                 for cap in re.captures_iter(&line) {
                     println!("Operation: {} Reg 1: {} Reg 2: {} Reg 3: {}", &cap[1], &cap[3], &cap[6], &cap[9]);
                 }                   
-                //println!("{}", line);
+               
             }
         }
     }else{
@@ -59,7 +64,7 @@ where P: AsRef<Path>, {
     let file = File::open(filename)?;
     Ok(io::BufReader::new(file).lines())
 }
-
+/* 
 fn locate_comment(line: &str) -> Result<usize, error_type>{
     // Will itterate over "line" string and search for "#"
     // Will return first "#" found, if no "#" is found will return empty error.
@@ -87,4 +92,4 @@ fn locate_labels(line: &str) -> Result<String, error_type> {
         }
     }
     return Err(error_type::bad_string);
-}
+}*/
