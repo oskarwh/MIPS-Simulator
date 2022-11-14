@@ -13,11 +13,27 @@ enum ErrorType {
     HarmlessErr,
 
 }
+
+
+enum InstructionType{
+    R,
+    I1,
+    I2,
+    J1,
+    J2
+}
 /* 
-struct instruction{
+struct command{
+    capture : Captures,
+    regex : String,
+
+}*/
+
+
+struct table_instruction{
     command : str,
     machine_code : u32
-}*/
+}
 
 
 fn main() {
@@ -34,12 +50,15 @@ fn main() {
 
 
 fn parse_file(file_path : &str)  {
+
     // File hosts must exist in current path before this produces output
     if let Ok(lines) = read_lines(file_path) {
         // Consumes the iterator, returns an (Optional) String
         for line in lines {
             if let Ok(line) = line{
                 if line.len() > 0 {
+                    let regex :String;
+                    let type: InstructionType;
 
                     //Check for comments
                     let comment = if let Ok(i) = locate_comment(&line){
@@ -62,24 +81,55 @@ fn parse_file(file_path : &str)  {
 
                     //Take a slice of the line from start to where a comment was found
                     let line_slice = &line[..comment];
-                    capture_command(line_slice);
+                    (regex, type) = identify_type(line_slice).unwrap();
+                    
+                    Captures cap = capture_command(line_slice, &regex);
 
+
+                    match type
+                    
                 } 
             }
         }
     }else{
-        panic!("File does not exist in current path!\n");
+        panic!();
     }
+}
+
+
+
+fn identify_type(text: &str)->Option<(String, InstructionType)>{
+    let r_type = Regex::new(r"(and|sub|nor|or|and|slt)").unwrap();
+    let i1_type = Regex::new(r"(addi|beq)").unwrap();
+    let i2_type = Regex::new(r"(lw|sw)").unwrap();
+    let j_type = Regex::new(r"(j|jr)").unwrap();
+
+    if r_type.is_match(text) {
+        return ("(and|sub|nor|or|and|slt)) \s*\$([avtsk][0-9]|[0-9]+|zero|at),\s*\$([avtsk][0-9]|[0-9]+|zero|at),\s*\$([avtsk][0-9]|[0-9]+|zero|at)".to_string(), R);
+    }
+    else if i1_type.is_match(text){
+        return ("(addi|beq) \s*\$([avtsk][0-9]|[0-9]+|zero|at),\s*\$([avtsk][0-9]+|[0-9]|zero|at),\s*-*[0-9]+".to_string(), I1);
+    }
+    else if i2_type.is_match(text){
+        return ("(lw|sw) \s*\$([avtsk][0-9]|[0-9]+|zero|at),\s*([0-9]*)\(\$([avtsk][0-9])\)".to_string(), I2);
+    }
+    else if j1_type.is_match(text){
+        return ("(j)\s+\w+",J1);
+    }else if j2_type.is_match(text){
+        return ("(jr) ",J2);
+    }else{
+        return None;
+    }
+    
 }
 
 /**
  * Captures commands from a text
  */
-fn capture_command(text: &str){
-    let re = Regex::new(r"(and) \s*\$([avtsk][0-9]|[0-9]|zero|at),\s*\$([avtsk][0-9]|[0-9]|zero|at),\s*\$([avtsk][0-9]|[0-9]|zero|at)").unwrap();
-    for cap in re.captures_iter(text) {
-        println!("Operation: {} Reg 1: {} Reg 2: {} Reg 3: {}", &cap[1], &cap[2], &cap[3], &cap[4]);
-    }    
+fn capture_command(text: &str, regex:&str) -> Captures{
+    let re = Regex::new(regex).unwrap();
+    re.captures(text).
+
 }
 
 // The output is wrapped in a Result to allow matching on errors
