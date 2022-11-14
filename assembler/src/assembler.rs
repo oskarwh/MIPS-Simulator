@@ -35,6 +35,11 @@ struct table_instruction{
     machine_code : u32
 }
 
+struct label_data {
+    label_string: String,
+    memory_addr: u32,
+}
+
 
 fn main() {
 
@@ -45,11 +50,17 @@ fn main() {
         panic!("Usage: ./assembler filename\n");
     }
     let file_path = &args[1]; 
+
     parse_file(file_path);
 }
 
 
 fn parse_file(file_path : &str)  {
+
+     // Init table for labels
+    let mut labels = Vec::new();
+    // Index of line in file
+    let index = 0;
 
     // File hosts must exist in current path before this produces output
     if let Ok(lines) = read_lines(file_path) {
@@ -57,6 +68,7 @@ fn parse_file(file_path : &str)  {
         for line in lines {
             if let Ok(line) = line{
                 if line.len() > 0 {
+
                     let regex :String;
                     let type: InstructionType;
 
@@ -71,13 +83,16 @@ fn parse_file(file_path : &str)  {
                     };
 
                 
-                    /* 
+                    
                     if let Ok(label) = locate_labels(string) {
-                        // Save label
+                        let new_label = label_data {
+                            label_string = label,
+                            memory_addr = index,
+                        }
                     } else
                     {
                         // No labels
-                    }*/
+                    }
 
                     //Take a slice of the line from start to where a comment was found
                     let line_slice = &line[..comment];
@@ -85,9 +100,11 @@ fn parse_file(file_path : &str)  {
                     
                     Captures cap = capture_command(line_slice, &regex);
 
-
                     match type
                     
+
+                    index++;
+
                 } 
             }
         }
