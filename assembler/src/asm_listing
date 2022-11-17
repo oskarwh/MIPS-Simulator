@@ -1,6 +1,0 @@
-                        # This is an example
-                        labl0:
-0x00000000  0x20090001  label24: addi  $t1, $zero, 1   # A comment
-0x00000004  0x200a0002          addi  $t2, $zero, 2
-0x00000008  0x200b0003          addi  $t3, $zero, 3
-0x0000000c  0x200cfffc          addi  $t4, $zero, -4
