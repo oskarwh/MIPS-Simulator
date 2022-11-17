@@ -5,18 +5,19 @@ use std::io::{self, BufRead};
 use std::path::Path;
 use std::env;
 use regex::Regex;
+use regex::Captures;
 use std::collections::hash_map;
 
 const RS_POS: u32 = 21;
 const RT_POS: u32 = 16;
 const RD_POS: u32 = 11;
 const SHAMT_POS: u32 = 6;
-const MAX_IMME_SIZE :u32 = (2^16)-1;
+const MAX_IMME_SIZE: u32 = (2^16)-1;
+const ERR_BAD_VALUE: u32 = 100;
 
 enum ErrorType {
     BadString,
     HarmlessErr,
-
 }
 
 
@@ -50,20 +51,20 @@ fn main() {
     let parsed_file = parse_file(file_path);
 }
 
-fn parse_file(file_path : &str) -> (Vec<u32>, Vec<String, bool>) {
+fn parse_file(file_path : &str) -> (Vec<u32>, Vec<(String, bool)>, hash_map::HashMap<String, u32>) {
 
     let mut registers = hash_map::HashMap::new();
-    let mut instruction = hash_map::HashMap::new();
+    let mut instructions = hash_map::HashMap::new();
     setup_registers_table(&mut registers);
-    setup_instruction_table(&mut instruction);
+    setup_instruction_table(&mut instructions);
     // Init table for labels
     let mut labels = hash_map::HashMap::new();
 
     // Init vector for rows with undefined labels
-    let mut undefined_j = Vec::new();
+    let mut undefined_j :Vec<UndefinedLabel>= Vec::new();
     // Init vector for storing generated machine code & assembler code
     let mut machine_code = Vec::new();
-    let mut assembler_code = Vec::new();s
+    let mut assembler_code = Vec::new();
     // Index of line in file
     let mut index = 0;
     // File hosts must exist in current path before this produces output
@@ -73,7 +74,7 @@ fn parse_file(file_path : &str) -> (Vec<u32>, Vec<String, bool>) {
             if let Ok(line) = line{
                 if line.len() > 0 {
 
-                    //Check for comments
+                    //Check for comments // ErrorVALUE
                     let comment = if let Ok(i) = locate_comment(&line){
                         i
                     }
@@ -82,6 +83,7 @@ fn parse_file(file_path : &str) -> (Vec<u32>, Vec<String, bool>) {
                         let i= line.len() - 1;
                         i
                     };
+
 
                     // Locate label on line if it exists.
                     if let Ok(label) = locate_labels(&line) {
@@ -94,40 +96,41 @@ fn parse_file(file_path : &str) -> (Vec<u32>, Vec<String, bool>) {
                     let mut contain_code = true;
                     
                     // If the line contains an identifyable command, assemble the line to machine code and push it to vector
-                    if let Some(regex, inst_type) = identify_type(line_slice){
+                    if let Some((regex, inst_type)) = identify_type(line_slice){
                         let cap = capture_command(line_slice, &regex);
                         let line_code = match inst_type {
-                            R => assemble_r_type(cap, &registers, &instructions),
-                            I1 => assemble_i1_type(cap, &registers, &instructions),
-                            I2 => assemble_i2_type(index, cap, &mut labels, &mut undefined_j, &registers, &instructions),
-                            I3 => assemble_i3_type(cap, &registers, &instructions),
-                            J1 => assemble_j1_type(index, cap, &mut labels, &mut undefined_j, &instructions),
-                            J2 => assemble_j2_type(cap, &registers, &instructions)
+                            InstructionType::R => assemble_r_type(cap, &registers, &instructions),
+                            InstructionType::I1 => assemble_i1_type(cap, &registers, &instructions),
+                            InstructionType::I2 => assemble_i2_type(index, cap, &labels, &mut undefined_j, &registers, &instructions),
+                            InstructionType::I3 => assemble_i3_type(cap, &registers, &instructions),
+                            InstructionType::J1 => assemble_j1_type(index, cap, &labels, &mut undefined_j, &instructions),
+                            InstructionType::J2 => assemble_j2_type(cap, &registers, &instructions)
                         };
                         machine_code.push(line_code); 
                     }else{
                         contain_code = false;    
                     }
                     // Push tuple to assembler code vector.
-                    assembler_code.push((line, contain_code));
-                    index += 1; 
+                    assembler_code.push((line, contain_code)); 
+                    index += 1;
                 }
+            }
         }
     }else{
         panic!();
     }
 
-    (machine_code, assembler_code)
+
+    (machine_code, assembler_code, labels) 
 }
 
-
 fn assemble_r_type(cap:Captures, registers : &hash_map::HashMap<&'static str ,u32>, instructions : &hash_map::HashMap<&'static str ,u32>) -> u32{
-    let cmnd = cap[1];
-    let rs = cap[2];
-    let rt = cap[3];
-    let rd = cap[4];
+    let cmnd = &cap[1];
+    let rs = &cap[2];
+    let rt = &cap[3];
+    let rd = &cap[4];
     
-    let mut instr = instructions.get(&cmnd).unwrap();
+    let mut instr = *instructions.get(&cmnd).unwrap();
 
     instr = instr |  parse_register(rs, registers) << RS_POS;
     instr = instr |  parse_register(rt, registers) << RT_POS;
@@ -136,147 +139,154 @@ fn assemble_r_type(cap:Captures, registers : &hash_map::HashMap<&'static str ,u3
 }
 
 
-
-fn assemble_i1_type(cap:Captures, registers : hash_map::HashMap<&'static str ,u32>, instructions : hash_map::HashMap<&'static str ,u32>) -> u32{
-    let cmnd = cap[1];
-    let rs = cap[2];
-    let rt = cap[3];
-    let imme = cap[4].parse::<u32>();
+fn assemble_i1_type(cap:Captures, registers : &hash_map::HashMap<&'static str ,u32>, instructions : &hash_map::HashMap<&'static str ,u32>) -> Result<u32, &'static str>{
+    let cmnd = &cap[1];
+    let rs = &cap[2];
+    let rt = &cap[3];
+    let imme = (&cap[4]).parse::<u32>();
     
-    let mut instr = instructions.get(&cmnd).unwrap();
+    let mut instr = *instructions.get(&cmnd).unwrap();
 
-    instr = instr |  parse_register(rs, registers) << RS_POS;
-    instr = instr |  parse_register(rt, registers) << RT_POS;
+    instr = instr |  parse_register(rs, registers).unwrap() << RS_POS;
+    instr = instr |  parse_register(rt, registers).unwrap() << RT_POS;
 
-    instr | if imme == Err || imme.unwrap() > MAX_IMME_SIZE{
-        //error
+    let imme_val=  if imme.is_err() {
+         // ErrorVALUE
+         Err("")
     }else{
-        imme.unwrap()
-    }
-    instr
-}
-
-fn assemble_i2_type(index:u32, cap:Captures, labels: &mut hash_map::HashMap<String, u32>, undefined_j: &mut vector,  registers : hash_map::HashMap<&'static str ,u32>,instructions : &hash_map::HashMap<&'static str ,u32>) -> u32{
-    let cmnd = cap[1];
-    let rs = cap[2];
-    let rt = cap[3];
-    let label = cap[4];
-    let mut addr: u32 = 0;
-    
-    let mut instr = instructions.get(&cmnd).unwrap();
-
-    instr = instr |  parse_register(rs, registers) << RS_POS;
-    instr = instr |  parse_register(rt, registers) << RT_POS;
-
-    if let Some(dest) = labels.get(label) {
-        addr = dest;
-    }else {
-        let temp = UndefinedLabel {
-            row_index: index,
-            label_string: dest,
-            relative_jump:true
+        let imme_unwrap = imme.unwrap();
+        if imme.unwrap() > MAX_IMME_SIZE{
+            //error
+            Err("")
+        }else{
+            Ok(imme_unwrap)
         }
-        undefined_j.push(temp);
     }
 
-    instr = instr | (addr-index)
+    // Check if immi vlaue created error if so return error
+    if imme_val.is_err() {
+        Err("")
+    }else {
+        instr = instr | imme_val.unwrap();
+        Ok(instr)
+    }   
 }
 
-fn assemble_i2_type(index:u32, cap:Captures, labels: &mut hash_map::HashMap<String, u32>, undefined_j: &mut vector,  registers : hash_map::HashMap<&'static str ,u32>,instructions : &hash_map::HashMap<&'static str ,u32>) -> u32{
-    let cmnd = cap[1];
-    let rs = cap[2];
-    let rt = cap[3];
-    let label = cap[4];
+fn assemble_i2_type(index:u32, cap:Captures, labels: &hash_map::HashMap<String, u32>, undefined_j: &mut Vec<UndefinedLabel>,  registers : &hash_map::HashMap<&'static str ,u32>,instructions : &hash_map::HashMap<&'static str ,u32>) -> u32{
+    let cmnd = &cap[1];
+    let rs = &cap[2];
+    let rt = &cap[3];
+    let label = &cap[4];
     let mut addr: u32 = 0;
     
-    let mut instr = instructions.get(&cmnd).unwrap();
+    let mut instr = 0;
+    instr = *instructions.get(&cmnd).unwrap();
 
-    instr = instr |  parse_register(rs, registers) << RS_POS;
-    instr = instr |  parse_register(rt, registers) << RT_POS;
-    r type mips
+    instr = instr |  parse_register(rs, registers).unwrap() << RS_POS;
+    instr = instr |  parse_register(rt, registers).unwrap() << RT_POS;
+
     if let Some(dest) = labels.get(label) {
-        addr = dest;
+        addr = *dest;
     }else {
         let temp = UndefinedLabel {
             row_index: index,
-            label_string: dest,
+            label_string: (label).to_string(),
             relative_jump:true
-        }
+        };
         undefined_j.push(temp);
-    }
+    };
 
-    instr = instr | (addr-index)
-}
-
-fn assemble_i3_type(cap:Captures, registers : hash_map::HashMap<&'static str ,u32>,instructions : &hash_map::HashMap<&'static str ,u32>) -> u32{
-    let cmnd = cap[1];
-    let rs = cap[2];
-    let rt = cap[4];
-    let offset = cap[3].parse::<u32>();
+    instr | (addr-index)
     
-    let mut instr = instructions.get(&cmnd).unwrap();
+}
 
-    instr = instr |  parse_register(rs, registers) << RS_POS;
-    instr = instr |  parse_register(rt, registers) << RT_POS;
 
-    instr | if offset == Err || imme.unwrap() > MAX_IMME_SIZE{
-        //error
-    }else{
-        offset.unwrap()
+fn assemble_i3_type(cap:Captures, registers : &hash_map::HashMap<&'static str ,u32>,instructions : &hash_map::HashMap<&'static str ,u32>) -> Result<u32, &'static str> {
+    let cmnd = &cap[1];
+    let rs = &cap[2];
+    let rt = &cap[4];
+    let offset = (&cap[3]).parse::<u32>();
+    
+    let mut instr = *instructions.get(&cmnd).unwrap();
+
+    instr = instr |  parse_register(rs, registers).unwrap() << RS_POS;
+    instr = instr |  parse_register(rt, registers).unwrap() << RT_POS;
+
+    let offset_val = if offset.is_err() {
+        // Error
+        Err("")
+    }else {
+        let offset_unwrap = offset.unwrap();
+        if offset_unwrap > MAX_IMME_SIZE{
+            // Error
+            Err("")
+        }else{
+            Ok(offset_unwrap)
+        }
     }
-    instr = instr | offset
+    
+    if offset_val.is_err() {
+        Err("")
+    }else {
+        instr = instr | offset_val.unwrap();
+        Ok(instr)
+    }   
 }
 
 
 
 
-fn assemble_j1_type(index:u32, cap:Captures, labels: &mut hash_map::HashMap<String, u32>, undefined_j: &mut vector, instructions : &hash_map::HashMap<&'static str ,u32>) -> u32{
-    let cmnd = cap[1];
-    let label = cap[2];
+fn assemble_j1_type(index:u32, cap:Captures, labels: &hash_map::HashMap<String, u32>, undefined_j: &mut Vec<UndefinedLabel>, instructions : &hash_map::HashMap<&'static str ,u32>) -> u32{
+    let cmnd = &cap[1];
+    let label = &cap[2];
     let mut addr: u32 = 0;
 
     let mut instr = instructions.get(&cmnd).unwrap();
 
-    if let Some(dest) = labels.get(label) {
+    if let Some(&dest) = labels.get(label) {
         addr = dest;
     }else {
         let temp = UndefinedLabel {
             row_index: index,
-            label_string: dest,
+            label_string: label.to_string(),
             relative_jump:false
-        }
+        };
         undefined_j.push(temp);
-    }
-
-    instr = instr | addr
+    };
+    instr | addr
 } 
 
-fn assemble_j2_type(cap:Captures, registers : hash_map::HashMap<&'static str ,u32>, instructions : hash_map::HashMap<&'static str ,u32>) -> u32{
-    let cmnd = cap[1];
-    let dest = cap[2];
+fn assemble_j2_type(cap:Captures, registers : &hash_map::HashMap<&'static str ,u32>, instructions : &hash_map::HashMap<&'static str ,u32>) -> u32{
+    let cmnd = &cap[1];
+    let dest = &cap[2];
 
-    let mut instr = instructions.get(&cmnd).unwrap();
-    instr = instr |  parse_register(dest, registers);
-    instr
+    let mut instr = *instructions.get(&cmnd).unwrap();
+    instr | parse_register(dest, registers).unwrap()
 } 
 
 /**
  * Returns code for register as u32, if register is invalid, returns None
  */
-fn parse_register(reg_cap:String, registers : hash_map::HashMap<&'static str ,u32>)->Option<u32>{
+fn parse_register(reg_cap:&str, registers : &hash_map::HashMap<&'static str ,u32>)->Result<u32, &'static str>{
     // Check if register can be found in register table
-    let reg = if let Some(r) = registers.get(&reg_cap){ 
-       r
+   let reg = if let Some(&r) = registers.get(&reg_cap){ 
+       Ok(r)
    } else {
        // Register not found in table, use data as register number
-       let r = rs.parse::<u32>();
-       if r == Err || r.unwrap() > 31{
-            //Invalid register
-           return None;
-       }else{
-           r.unwrap()
+       let r = reg_cap.parse::<u32>();
+       if r.is_err() {
+            // Error
+            Err("")
+       }else {
+            let r_value = r.unwrap();
+            if r_value > 31{
+                //Invalid register
+                Err("")
+            }else{
+                Ok(r_value)
+            }
        }
-   }
+   };
 
    reg
 }
@@ -286,7 +296,7 @@ fn parse_register(reg_cap:String, registers : hash_map::HashMap<&'static str ,u3
 fn identify_type(text: &str)->Option<(String, InstructionType)>{
     let r_type = Regex::new(r"(and|sub|nor|or|and|slt)").unwrap();
     let i1_type = Regex::new(r"(addi|beq)").unwrap();
-    let i1_type = Regex::new(r"(beq)").unwrap();
+    let i2_type = Regex::new(r"(beq)").unwrap();
     let i3_type = Regex::new(r"(lw|sw)").unwrap();
     let j1_type = Regex::new(r"(j)").unwrap();
     let j2_type = Regex::new(r"(jr)").unwrap();
@@ -360,14 +370,14 @@ fn locate_labels(line: &str) -> Result<String, ErrorType> {
     return Err(ErrorType::BadString);
 }
 
-fn write_files(machine_code: mut Vec<String>, assembler_code: mut Vec<String>) {
+/*fn write_files(machine_code: Vec<String>, assembler_code:  Vec<String>) {
     let mut listing_file = File::open("asm_listing")?;
     let mut machine_file = File::open("asm_instr")?;
     
     for machine_line in machine_file.iter() {
         
     }
-}
+}*/
 
 fn setup_registers_table(registers: &mut hash_map::HashMap<&'static str ,u32>){
    
