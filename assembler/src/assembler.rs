@@ -1,7 +1,7 @@
 extern crate regex;
 
 use std::fs::File;
-use std::io::{self, BufRead};
+use std::io::{self, BufRead, BufWriter, Write};
 use std::path::Path;
 use std::env;
 use regex::Regex;
@@ -47,7 +47,7 @@ fn main() {
     let parsed_file = parse_file(file_path);
 }
 
-fn parse_file(file_path : &str) -> (Vec<u32>, Vec<String, bool>) {
+fn parse_file(file_path : &str) -> (Vec<u32>, Vec<(String, bool)>) {
 
     let mut registers = hash_map::HashMap::new();
     let mut instruction = hash_map::HashMap::new();
@@ -156,7 +156,7 @@ fn assemble_i_type() -> u32{
 
 
 fn assemble_j1_type(index:u32, cap:Captures, labels: &mut hash_map::HashMap<String, u32>, undefined_j: &mut vector, instructions : &hash_map::HashMap<&'static str ,u32>) -> u32{
-    let cmnd = cap[1];
+    let cmnd = cap[1];let parsed_file = parse_file(file_path);
     let dest = cap[2];
     let mut addr: u32 = 0;
 
@@ -277,13 +277,29 @@ fn locate_labels(line: &str) -> Result<String, ErrorType> {
     return Err(ErrorType::BadString);
 }
 
-fn write_files(machine_code: mut Vec<String>, assembler_code: mut Vec<String>) {
-    let mut listing_file = File::open("asm_listing")?;
-    let mut machine_file = File::open("asm_instr")?;
+fn write_files(machine_code: Vec<u32>, assembler_code: Vec<(String, bool)>, symbol_table::HashMap<String, u32>) {
+    let listing_file = File::create("asm_listing").unwrap();
+    let machine_file = File::create("asm_instr").unwrap();
+    let mut list_writer = BufWriter::new(&listing_file);
+    let mut machine_writer = BufWriter::new(&machine_file);
     
-    for machine_line in machine_file.iter() {
-        
+    let mut i = 0; 
+    for assembler_line in assembler_code.iter() {
+        // Check if line contains machine code
+        if assembler_line.1 {
+            // Write to listing file with 
+            write!(&mut list_writer, "{:#010x}  {:#010x}  {}\n", i*4, machine_code[i], assembler_line.0);
+            write!(&mut machine_writer, "{:#010x}\n", machine_code[i]);
+            i+=1; 
+        } else {
+            write!(&mut list_writer, "{:24}{}\n", "",assembler_line.0);
+        }
     }
+
+    for (label, addr) in &symbol_table {
+        write!(&mut machine_writer, "{:#010x}\n", machine_code[i]);
+    }
+    
 }
 
 fn setup_registers_table(registers: &mut hash_map::HashMap<&'static str ,u32>){
