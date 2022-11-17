@@ -44,11 +44,10 @@ fn main() {
     }
     let file_path = &args[1]; 
 
-    parse_file(file_path);
+    let parsed_file = parse_file(file_path);
 }
 
-
-fn parse_file(file_path : &str)  {
+fn parse_file(file_path : &str) -> (Vec<u32>, Vec<String, bool>) {
 
     let mut registers = hash_map::HashMap::new();
     let mut instruction = hash_map::HashMap::new();
@@ -59,14 +58,14 @@ fn parse_file(file_path : &str)  {
 
     // Init vector for rows with undefined labels
     let mut undefined_j = Vec::new();
+    // Init vector for storing generated machine code & assembler code
+    let mut machine_code = Vec::new();
+    let mut assembler_code = Vec::new();
 
-    println!("{} {}", registers.get(&"zero").unwrap(), instruction.get(&"add").unwrap());
-    // Init machine code vector
-    //let mut machine_code = Vec::new();
- 
+    //println!("{} {}", registers.get(&"zero").unwrap(), instruction.get(&"add").unwrap());
+    
     // Index of line in file
     let mut index = 0;
-
     // File hosts must exist in current path before this produces output
     if let Ok(lines) = read_lines(file_path) {
         // Consumes the iterator, returns an (Optional) String
@@ -84,36 +83,40 @@ fn parse_file(file_path : &str)  {
                         i
                     };
 
-
+                    // Locate label on line if it exists.
                     if let Ok(label) = locate_labels(&line) {
                         labels.insert(label, index);
-                    } else
-                    {
-                        // No labels
                     }
 
                     //Take a slice of the line from start to where a comment was found
                     let line_slice = &line[..comment];
-                    let (regex, inst_type) = identify_type(line_slice).unwrap();
+                    // Bool to check if line contains machine code
+                    let mut contain_code = true;
                     
-                    let cap = capture_command(line_slice, &regex);
-
-                    //Generate machine code
-                    let line_code = match inst_type {
-                        R => assemble_r_type(cap),
-                        I1 => assemble_i_type(cap),
-                        I2 => assemble_i_type(cap),
-                        J1 => assemble_j1_type(index, cap, &mut labels, &mut undefined_j, &instruction),
-                        J2 => assemble_j2_type(cap),registers : hash_map::HashMap<&'static str ,u32>
+                    // If the line contains an identifyable command, assemble the line to machine code and push it to vector
+                    if let Some(regex, inst_type) = identify_type(line_slice){
+                        let cap = capture_command(line_slice, &regex);
+                        let line_code = match inst_type {
+                            R => assemble_r_type(cap),
+                            I1 => assemble_i_type(cap),
+                            I2 => assemble_i_type(cap),
+                            J1 => assemble_j1_type(index, cap, &mut labels, &mut undefined_j, &instruction),
+                            J2 => assemble_j2_type(cap),registers : hash_map::HashMap<&'static str ,u32>,
+                        };
+                        machine_code.push(line_code); 
+                    }else{
+                        contain_code = false;    
                     }
-                index += 1; 
-            }
+                    // Push tuple to assembler code vector.
+                    assembler_code.push((line, contain_code));
+                    index += 1; 
+                }
         }
     }else{
         panic!();
     }
-    // Iterrate over undefined jump rows
 
+    (machine_code, assembler_code)
 }
 
 
@@ -125,11 +128,10 @@ fn assemble_r_type(cap:Captures, registers : hash_map::HashMap<&'static str ,u32
     let mut instr = instructions.get(&cmnd).unwrap();
 
     // Add RS
-    instr = instr | if let Some(i) = registers.get(&rs){
+    instr = instr | if let Some(i) = registers.get(&rs){ 
         i<<RS_POS
-    }
-    else{
-        // register not found in table use data as register number
+    } else {
+        // Register not found in table, use data as register number
         let i = rs.parse::<u32>();
         if i == Err || i.unwrap() > 31{
             //error
@@ -275,6 +277,14 @@ fn locate_labels(line: &str) -> Result<String, ErrorType> {
     return Err(ErrorType::BadString);
 }
 
+fn write_files(machine_code: mut Vec<String>, assembler_code: mut Vec<String>) {
+    let mut listing_file = File::open("asm_listing")?;
+    let mut machine_file = File::open("asm_instr")?;
+    
+    for machine_line in machine_file.iter() {
+        
+    }
+}
 
 fn setup_registers_table(registers: &mut hash_map::HashMap<&'static str ,u32>){
    
