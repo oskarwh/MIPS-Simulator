@@ -7,17 +7,14 @@
 	or  $t4, $t2, $t1
 	slt $t5, $t1, $t2
 	add $t5, $t3, $t1
-	beq $t4, $zero, label
 	sw  $t2, 4($t5)
 	lw  $t4, 4($t5)
 	nop
 
-
-
 label:	nop
-beq $t4, $zero, label
 	nop
 	nop
 	sub $t4, $t3, $t3
 	beq $t4, $zero, label
 	nop
+

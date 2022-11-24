@@ -103,8 +103,10 @@ fn parse_file(file_path : &str) -> (Vec<u32>, Vec<(String, bool)>, hash_map::Has
                     // Locate label on line if it exists.
                     let (label_index, label_found) = if let Some((label, i)) = locate_labels(&line) {
                         labels.insert(label, addr_index);   
-                        (label_index ,label_found)       
-                    }
+                        (i ,true)       
+                    }else{ 
+                        (0,false)
+                    };
                     
                     //Take a slice of the line from start to where a comment was found
                     let line_slice = &line[label_index..comment_index];
@@ -414,7 +416,7 @@ fn locate_comment(line: &str) -> Option<usize>{
     return None;
 }
 
-fn locate_labels(line: &str) -> Option<usize> {
+fn locate_labels(line: &str) -> Option<(String,usize) > {
     for cap in Regex::new("([a-z]|[A-z]|[0-9])+[:]").unwrap().find_iter(line) {
         if cap.start() == 0 {
             
