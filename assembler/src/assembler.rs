@@ -76,31 +76,37 @@ fn parse_file(file_path : &str) -> (Vec<u32>, Vec<(String, bool)>, hash_map::Has
     // Index of line in file
     let mut file_row :u32 = 0;
 
+
+
     // File hosts must exist in current path before this produces output
     if let Ok(lines) = read_lines(file_path) {
         // Consumes the iterator, returns an (Optional) String
         for line in lines {
             if let Ok(mut line) = line{
                 if line.len() > 0 {
-
-                    //Check for comments // ErrorVALUE
-                    let comment = if let Ok(i) = locate_comment(&line){
-                        i
+                    
+                    //Check for comments
+                    let comment_index = if let Ok(index) = locate_comment(&line){
+                        //Comment found, set comment index to where comment was found
+                        index
                     }
                     else{
-                        //no comment found, set a standard value
-                        let i= line.len();
-                        i
+                        //no comment found, set index to end of line
+                        let index= line.len();
+                        index
                     };
 
-
                     // Locate label on line if it exists.
-                    if let Ok(label) = locate_labels(&line) {
-                        labels.insert(label, addr_index);              
+                    let mut label_index :usize = 0;
+                    let mut label_found = false;
+                    if let Ok((label, i)) = locate_labels(&line) {
+                        labels.insert(label, addr_index);   
+                        label_index = i;    
+                        label_found = true;       
                     }
 
-                    //Take a slice of the line from start to where a comment was found
-                    let line_slice = &line[..comment];
+                    //Take a slice of the line from end of label to where a comment was found
+                    let line_slice = &line[label_index..comment_index ];
 
                     // Bool to check if line contains valid code
                     let mut contain_code = true;
@@ -120,20 +126,26 @@ fn parse_file(file_path : &str) -> (Vec<u32>, Vec<(String, bool)>, hash_map::Has
                                 InstructionType::N => Ok(0)
                             };
     
-                            if line_code.is_err(){
+                            if let Err(error) = line_code{
                                 //HANDLE ERROR ON LINE         
-                                line = "Error: Some error on this line".to_string();
+                                line.push_str("     Error: ");
+                                line.push_str(error);
+                                contain_code = false; 
                             }else{                    
                                 machine_code.push(line_code.unwrap()); 
                             }
                         }else{
-                             //HANDLE ERROR ON LINE         
-                             line = "Error: Some error on this line".to_string();
+                            //HANDLE ERROR ON LINE         
+                            line.push_str("     Error: wrong format on instruction");
+                            contain_code = false; 
                         }
                         
                         
                         addr_index += 1;
+                    }else if label_found || line_slice.len() < 1{
+                        contain_code = false; 
                     }else{
+                        line.push_str("     Error: instruction not recognized");
                         contain_code = false; 
                     }
 
@@ -148,8 +160,9 @@ fn parse_file(file_path : &str) -> (Vec<u32>, Vec<(String, bool)>, hash_map::Has
     
     if let Err(error_row) = fix_undef_labels(undefined_labels, &mut machine_code, &labels) {
         //Something wrong with the called labels!
-        let line = "Error: Label undefined!".to_string();
-        assembler_code[error_row as usize] = (line, true ); 
+        let (line, bool) = &mut assembler_code[error_row as usize];
+        line.push_str("     Error: Label undefined!");
+        assembler_code[error_row as usize] = (line.to_string(), true ); 
     }
 
     (machine_code, assembler_code, labels) 
@@ -183,22 +196,22 @@ fn assemble_i1_type(cap:Captures, registers : &hash_map::HashMap<&'static str ,u
     instr = instr |  (parse_register(rs, registers)?) << RS_POS;
     instr = instr |  (parse_register(rt, registers)?) << RT_POS;
 
-    let imme_val=  if imme.is_err() {
+    let imme_val =  if imme.is_err() {
          // ErrorVALUE
-         Err("")
+         Err("the immediate value is not a number")
     }else{
         let imme_unwrap = imme.unwrap();
         if imme_unwrap > MAX_IMME_SIZE{
             //error
-            Err("")
+            Err("the immediate value is too big")
         }else{
             Ok(imme_unwrap)
         }
     };
 
-    // Check if immi vlaue created error if so return error
+    // Check if immi value created error if so return error
     if imme_val.is_err() {
-        Err("")
+        return imme_val;
     }else {
         instr = instr | imme_val.unwrap();
         Ok(instr)
@@ -238,10 +251,10 @@ fn assemble_i2_type(file_row:u32,addr_index:u32, cap:Captures, labels: &hash_map
    
     // Check if relative jump is to far away
     if offset > MAX_BEQ_OFFSET {
-        return Err("");
+        return Err("relative jump is too big");
     }
 
-     // Otherwise negate the relative jump as it will be behind us
+    // Otherwise negate the relative jump as it will be behind us
     offset = ((!offset)) & mask;
     
     return Ok(instr | offset);
@@ -261,19 +274,19 @@ fn assemble_i3_type(cap:Captures, registers : &hash_map::HashMap<&'static str ,u
 
     let offset_val = if offset.is_err() {
         // Error
-        Err("")
+        Err("offset is not a number")
     }else {
         let offset_unwrap = offset.unwrap();
         if offset_unwrap > MAX_IMME_SIZE{
             // Error
-            Err("")
+            Err("offset is too big")
         }else{
             Ok(offset_unwrap)
         }
     };
     
     if offset_val.is_err() {
-        return Err("");
+        return offset_val;
     }else {
         instr = instr | offset_val.unwrap();
         return Ok(instr);
@@ -327,12 +340,12 @@ fn parse_register(reg_cap:&str, registers : &hash_map::HashMap<&'static str ,u32
        let r = reg_cap.parse::<u32>();
        if r.is_err() {
             // Error
-            Err("")
+            Err("register does not exist")
        }else {
             let r_value = r.unwrap();
             if r_value > 31{
                 //Invalid register
-                Err("")
+                Err("register should be between 0-31")
             }else{
                 Ok(r_value)
             }
@@ -345,6 +358,7 @@ fn parse_register(reg_cap:&str, registers : &hash_map::HashMap<&'static str ,u32
 
 
 fn identify_type(text: &str)->Option<(String, InstructionType)>{
+
     let r_type = Regex::new(r"(add|sub|nor|or|and|slt)").unwrap();
     let i1_type = Regex::new(r"(addi)").unwrap();
     let i2_type = Regex::new(r"(beq)").unwrap();
@@ -399,26 +413,18 @@ where P: AsRef<Path>, {
 fn locate_comment(line: &str) -> Result<usize, ErrorType>{
     // Will itterate over "line" string and search for "#"
     // Will return first "#" found, if no "#" is found will return empty error.
-    /*let index = Regex::new("#").unwrap().find(line).unwrap();
-    match index {
-        Option<Match<None>> => {
-            return Err(error_type::harmless_err);
-        }
-        _=> {
-        return Ok(index.start());
-        }
-    }*/
+
     for cap in Regex::new("#").unwrap().find_iter(line) {
         return Ok(cap.start());
     }
     return Err(ErrorType::HarmlessErr);
 }
 
-fn locate_labels(line: &str) -> Result<String, ErrorType> {
+fn locate_labels(line: &str) -> Result<(String, usize), ErrorType> {
     for cap in Regex::new("([a-z]|[A-z]|[0-9])+[:]").unwrap().find_iter(line) {
         if cap.start() == 0 {
             //println!("{:?}", cap);
-            return Ok(line[0..cap.end()-1].to_string());
+            return Ok((line[0..cap.end()-1].to_string(), cap.end()));
             
         }
     }
@@ -475,11 +481,11 @@ fn write_files(machine_code: Vec<u32>, assembler_code: Vec<(String, bool)>, symb
         }
     }
 
-    i = 0;
+    /*i = 0;
     for (label, addr) in &symbol_table {
        // write!(&mut list_writer, "{:#010x}\n", label);
         i+=1;
-    }
+    }*/
 
 }
 
