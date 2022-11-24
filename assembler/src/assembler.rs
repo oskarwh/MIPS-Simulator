@@ -42,14 +42,16 @@ fn main() {
 
     let args: Vec<String> = env::args().collect();
 
-    
     //Check that the program has the right amount of arguments
     if args.len() < 2 || args.len() > 2{
         panic!("Usage: ./assembler filename\n");
     }
     let file_path = &args[1]; 
 
+    //Parse the file and generate machine code
     let (machine_code, assembler_code, labels) = parse_file(file_path);
+
+    //Make output files
     write_files(machine_code, assembler_code, labels);
 }
 
@@ -88,7 +90,7 @@ fn parse_file(file_path : &str) -> (Vec<u32>, Vec<(String, bool)>, hash_map::Has
                 if line.len() > 0 {
                     
                     //Check for comments
-                    let comment_index = if let Ok(index) = locate_comment(&line){
+                    let comment_index = if let Some(index) = locate_comment(&line){
                         //Comment found, set comment index to where comment was found
                         index
                     }
@@ -99,12 +101,9 @@ fn parse_file(file_path : &str) -> (Vec<u32>, Vec<(String, bool)>, hash_map::Has
                     };
 
                     // Locate label on line if it exists.
-                    let mut label_index :usize = 0;
-                    let mut label_found = false;
-                    if let Ok((label, i)) = locate_labels(&line) {
+                    let (label_index, label_found) = if let Some((label, i)) = locate_labels(&line) {
                         labels.insert(label, addr_index);   
-                        label_index = i;    
-                        label_found = true;       
+                        (label_index ,label_found)       
                     }
                     
                     //Take a slice of the line from start to where a comment was found
@@ -129,7 +128,6 @@ fn parse_file(file_path : &str) -> (Vec<u32>, Vec<(String, bool)>, hash_map::Has
                                 //HANDLE ERROR ON LINE         
                                 line.push_str("     Error: ");
                                 line.push_str(error);
-                                contain_code = false; 
                             }else{      
                                 contain_code = true; 
                                 machine_code.push(line_code.unwrap()); 
@@ -140,9 +138,8 @@ fn parse_file(file_path : &str) -> (Vec<u32>, Vec<(String, bool)>, hash_map::Has
                         }
                         
                         addr_index += 1;
-                    } else {
+                    }else if !label_found && line_slice.len() > 1 {
                         line.push_str("     Error: instruction not recognized");
-                        contain_code = false; 
                     }
 
                       
@@ -181,13 +178,13 @@ fn assemble_r_type(cap:Captures, registers : &hash_map::HashMap<&'static str ,u3
 }
 
 
+
 fn assemble_i1_type(cap:Captures, registers : &hash_map::HashMap<&'static str ,u32>, instructions : &hash_map::HashMap<&'static str ,u32>) -> Result<u32, &'static str>{
     let cmnd = &cap[1];
     let rt = &cap[2];
     let rs = &cap[3];
   
     let imme = (&cap[4]).parse::<u32>();
-    
     let mut instr = *instructions.get(&cmnd).unwrap();
 
     instr = instr |  (parse_register(rs, registers)?) << RS_POS;
@@ -244,7 +241,7 @@ fn assemble_i2_type(file_row:u32,addr_index:u32, cap:Captures, labels: &hash_map
 
     let mut offset: u32;
     // Calculate the relative jump
-    offset = addr_index - label_addr;
+    offset = addr_index - label_addr ;
    
     // Check if relative jump is to far away
     if offset > MAX_BEQ_OFFSET {
@@ -356,19 +353,19 @@ fn parse_register(reg_cap:&str, registers : &hash_map::HashMap<&'static str ,u32
 
 fn identify_type(text: &str)->Option<(String, InstructionType)>{
 
-    let r_type = Regex::new(r"(add|sub|nor|or|and|slt)").unwrap();
-    let i1_type = Regex::new(r"(addi)").unwrap();
-    let i2_type = Regex::new(r"(beq)").unwrap();
-    let i3_type = Regex::new(r"(lw|sw)").unwrap();
-    let j1_type = Regex::new(r"(j)").unwrap();
-    let j2_type = Regex::new(r"(jr)").unwrap();
+    let r_type = Regex::new(r"(add |sub |nor |or |and |slt )").unwrap();
+    let i1_type = Regex::new(r"(addi )").unwrap();
+    let i2_type = Regex::new(r"(beq )").unwrap();
+    let i3_type = Regex::new(r"(lw |sw )").unwrap();
+    let j1_type = Regex::new(r"(j )").unwrap();
+    let j2_type = Regex::new(r"(jr )").unwrap();
     let nop_type = Regex::new(r"(nop)").unwrap();
 
     if r_type.is_match(text) {
         return Some((r"(add|sub|nor|or|and|slt)\s+\$([avtsk][0-9]|[0-9]+|zero|at|gp|sp|fp|ra),\s*\$([avtsk][0-9]|[0-9]+|zero|at|gp|sp|fp|ra),\s*\$([avtsk][0-9]|[0-9]+|zero|at|gp|sp|fp|ra)".to_string(), InstructionType::R));
     }
     else if i1_type.is_match(text){
-        return Some((r"(addi)\s+\$([avtsk][0-9]|[0-9]+|zero|at),\s*\$([avtsk][0-9]+|[0-9]|zero|at),\s*-*[0-9]+".to_string(), InstructionType::I1));
+        return Some((r"(addi)\s+\$([avtsk][0-9]|[0-9]+|zero|at),\s*\$([avtsk][0-9]+|[0-9]|zero|at),\s*(-*[0-9]+)".to_string(), InstructionType::I1));
     }
     else if i2_type.is_match(text){
         return Some((r"(beq)\s+\$([avtsk][0-9]|[0-9]+|zero|at),\s*\$([avtsk][0-9]+|[0-9]|zero|at),\s*(\w+)".to_string(), InstructionType::I2));
@@ -407,25 +404,24 @@ where P: AsRef<Path>, {
 }
 
 
-fn locate_comment(line: &str) -> Result<usize, ErrorType>{
+fn locate_comment(line: &str) -> Option<usize>{
     // Will itterate over "line" string and search for "#"
     // Will return first "#" found, if no "#" is found will return empty error.
 
     for cap in Regex::new("#").unwrap().find_iter(line) {
-        return Ok(cap.start());
+        return Some(cap.start());
     }
-    return Err(ErrorType::HarmlessErr);
+    return None;
 }
 
-fn locate_labels(line: &str) -> Result<(String, usize), ErrorType> {
+fn locate_labels(line: &str) -> Option<usize> {
     for cap in Regex::new("([a-z]|[A-z]|[0-9])+[:]").unwrap().find_iter(line) {
         if cap.start() == 0 {
-            //println!("{:?}", cap);
-            return Ok((line[0..cap.end()-1].to_string(), cap.end()));
             
+            return Some((line[0..cap.end()-1].to_string(), cap.end()));
         }
     }
-    return Err(ErrorType::BadString);
+    return None;
 }
 
 
@@ -445,7 +441,7 @@ fn fix_undef_labels(undefined_labels: Vec<UndefinedLabel>, machine_code: &mut Ve
             let label_addr = labels.get(&label).unwrap();
 
             // Calculate the relative jump
-            let mut offset  =  label_addr - addr_index;
+            let mut offset  =  label_addr - addr_index - 1; // Minus one as the pc counter will jump one before excecuting instruction
 
             // Check if relative jump is to far away
             if offset > MAX_BEQ_OFFSET {
