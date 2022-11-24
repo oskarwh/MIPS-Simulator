@@ -83,6 +83,8 @@ fn parse_file(file_path : &str) -> (Vec<u32>, Vec<(String, bool)>, hash_map::Has
         // Consumes the iterator, returns an (Optional) String
         for line in lines {
             if let Ok(mut line) = line{
+                // Bool to check if line contains valid code
+                let mut contain_code = false;
                 if line.len() > 0 {
                     
                     //Check for comments
@@ -104,15 +106,12 @@ fn parse_file(file_path : &str) -> (Vec<u32>, Vec<(String, bool)>, hash_map::Has
                         label_index = i;    
                         label_found = true;       
                     }
-
-                    //Take a slice of the line from end of label to where a comment was found
-                    let line_slice = &line[label_index..comment_index ];
-
-                    // Bool to check if line contains valid code
-                    let mut contain_code = true;
+                    
+                    //Take a slice of the line from start to where a comment was found
+                    let line_slice = &line[label_index..comment_index];
                     
                     // If the line contains an identifyable command, assemble the line to machine code and push it to vector
-                    if let Some((regex, inst_type)) = identify_type(line_slice){
+                    if let Some((regex, inst_type)) = identify_type(line_slice) {
                         let cap = capture_command(line_slice, &regex);
                         if cap.is_some(){
                             let cap = cap.unwrap();
@@ -131,27 +130,25 @@ fn parse_file(file_path : &str) -> (Vec<u32>, Vec<(String, bool)>, hash_map::Has
                                 line.push_str("     Error: ");
                                 line.push_str(error);
                                 contain_code = false; 
-                            }else{                    
+                            }else{      
+                                contain_code = true; 
                                 machine_code.push(line_code.unwrap()); 
                             }
                         }else{
                             //HANDLE ERROR ON LINE         
                             line.push_str("     Error: wrong format on instruction");
-                            contain_code = false; 
                         }
                         
-                        
                         addr_index += 1;
-                    }else if label_found || line_slice.len() < 1{
-                        contain_code = false; 
-                    }else{
+                    } else {
                         line.push_str("     Error: instruction not recognized");
                         contain_code = false; 
                     }
 
-                    assembler_code.push((line, contain_code));   
+                      
                     file_row +=1;
                 }
+                assembler_code.push((line, contain_code)); 
             }
     }
     }else{
@@ -462,7 +459,12 @@ fn fix_undef_labels(undefined_labels: Vec<UndefinedLabel>, machine_code: &mut Ve
 }
 
 
-
+///
+/// 
+/// 
+/// 
+/// 
+/// 
 fn write_files(machine_code: Vec<u32>, assembler_code: Vec<(String, bool)>, symbol_table: hash_map::HashMap<String, u32>) {
     let listing_file = File::create("asm_listing").unwrap();
     let machine_file = File::create("asm_instr").unwrap();
@@ -481,11 +483,12 @@ fn write_files(machine_code: Vec<u32>, assembler_code: Vec<(String, bool)>, symb
         }
     }
 
-    /*i = 0;
+    write!(&mut list_writer, "\n  {:10}   {:10}\n", "Label name", "Address");
+    write!(&mut list_writer, "┌-----------┬------------┐\n");
     for (label, addr) in &symbol_table {
-       // write!(&mut list_writer, "{:#010x}\n", label);
-        i+=1;
-    }*/
+        write!(&mut list_writer, "│{:10} │ {:#010x} │\n", label, addr);
+    }
+    write!(&mut list_writer, "└-----------┴------------┘\n");
 
 }
 
