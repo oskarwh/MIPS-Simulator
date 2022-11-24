@@ -106,9 +106,9 @@ fn parse_file(file_path : &str) -> (Vec<u32>, Vec<(String, bool)>, hash_map::Has
                         label_index = i;    
                         label_found = true;       
                     }
-
+                    
                     //Take a slice of the line from start to where a comment was found
-                    let line_slice = &line[..comment];
+                    let line_slice = &line[label_index..comment_index];
                     
                     // If the line contains an identifyable command, assemble the line to machine code and push it to vector
                     if let Some((regex, inst_type)) = identify_type(line_slice) {

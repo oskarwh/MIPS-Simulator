@@ -1,4 +1,4 @@
-                        # Test program for assignment 1 - a MIPS Assembler
+                        # Test program for assignment 1 - a MIPS Assembler     Error: instruction not recognized
 0x00000000  0x00004827  	nor $t1, $zero, $zero
 0x00000004  0x00094822  	sub $t1, $zero, $t1
 0x00000008  0x01295020  	add $t2, $t1, $t1
@@ -10,11 +10,20 @@
 0x0000001c  0xadaa0004  	sw  $t2, 4($t5)
 0x00000020  0x8dac0004  	lw  $t4, 4($t5)
 0x00000024  0x00000000  	nop
-0x00000028  0x11800000  	beq $t4, $zero, labe     Error: Label undefined!
+0x00000028  0x11800000  	beq $t4, $zero, labe
                         hjalsdfjkha     Error: wrong format on instruction
-0x0000002c  0x00000000  label:	nop
+0x0000002c  0x00000008  label:	nop
 0x00000030  0x00000000  	nop
 0x00000034  0x00000000  	nop
 0x00000038  0x016b6022  	sub $t4, $t3, $t3
 0x0000003c  0x1180fffb  	beq $t4, $zero, label
 0x00000040  0x00000000  	nop
+0x00000044  0x00000000  labe: nop
+0x00000048  0x00000000  lable2: nop
+
+  Label name   Address   
+┌-----------┬------------┐
+│labe       │ 0x00000013 │
+│lable2     │ 0x00000014 │
+│label      │ 0x0000000d │
+└-----------┴------------┘
