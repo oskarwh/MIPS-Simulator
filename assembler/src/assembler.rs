@@ -383,8 +383,10 @@ fn write_files(machine_code: Vec<u32>, assembler_code: Vec<(String, bool)>, symb
         }
     }
 
+    write!(&mut list_writer, "\nSymbols\n{:10} | {:10}\n", "Label", "Address");
+    write1(&mut list_writer, "------------------------");
     for (label, addr) in &symbol_table {
-        write!(&mut machine_writer, "{:#010x}\n", machine_code[i]);
+        write!(&mut machine_writer, "{:10} | {:10}\n", label, addr);
     }
     
 }
