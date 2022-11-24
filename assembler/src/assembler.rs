@@ -111,7 +111,7 @@ fn parse_file(file_path : &str) -> (Vec<u32>, Vec<(String, bool)>, hash_map::Has
                     let line_slice = &line[..comment];
                     
                     // If the line contains an identifyable command, assemble the line to machine code and push it to vector
-                    if let Some((regex, inst_type)) = identify_type(line_slice){
+                    if let Some((regex, inst_type)) = identify_type(line_slice) {
                         let cap = capture_command(line_slice, &regex);
                         if cap.is_some(){
                             let cap = cap.unwrap();
@@ -130,20 +130,17 @@ fn parse_file(file_path : &str) -> (Vec<u32>, Vec<(String, bool)>, hash_map::Has
                                 line.push_str("     Error: ");
                                 line.push_str(error);
                                 contain_code = false; 
-                            }else{                    
+                            }else{      
+                                contain_code = true; 
                                 machine_code.push(line_code.unwrap()); 
                             }
                         }else{
                             //HANDLE ERROR ON LINE         
                             line.push_str("     Error: wrong format on instruction");
-                            contain_code = false; 
                         }
                         
-                        contain_code = true;
                         addr_index += 1;
-                    }else if label_found || line_slice.len() < 1{
-                        contain_code = false; 
-                    }else{
+                    } else {
                         line.push_str("     Error: instruction not recognized");
                         contain_code = false; 
                     }
