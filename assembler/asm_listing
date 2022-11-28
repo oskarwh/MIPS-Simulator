@@ -1,18 +1,32 @@
-                        # Test program: j, jr
+                        # Test program 1
+0x00000000  0x00004827  	nor $t1, $zero, $zero
+0x00000004  0x00094822  	sub $t1, $zero, $t1
+0x00000008  0x01295020  	add $t2, $t1, $t1
+0x0000000c  0x01495820  	add $t3, $t2, $t1
+0x00000010  0x014b6024  	and $t4, $t2, $t3
+0x00000014  0x01a96025  	or  $t4, $t5, $t1
+0x00000018  0x012a682a  	slt $t5, $t1, $t2
                         
-0x00000000  0x20080040      addi    $t0, $zero, 64
-0x00000004  0x20090014      addi    $t1, $zero, 20
-0x00000008  0x01098025      or      $s0, $t0, $t1
-0x0000000c  0x00000009      jr      $t1
-0x00000010  0x00000000      nop
-                        jump_here:
-0x00000014  0x01308822      sub     $s1, $t1, $s0
-0x00000018  0x00000000      nop
-0x0000001c  0x00000000      nop
-0x00000020  0x01109020      add     $s2, $t0, $s0
-0x00000024  0x08000005      j       jump_here
+                        label1:
+0x0000001c  0x02174820      add $t1, $s0, $s7
+0x00000020  0x11800004      beq $t4, $zero, loop
+0x00000024  0x01495820      add $t3, $t2, $t1
+0x00000028  0x2298000c  	addi $t8, $s4, 12
+                        	or  $t4, $p9, $t1 #Contains undefined register     Error: wrong format on instruction
+0x0000002c  0x012a682a  	slt $t5, $t1, $t2
+                        
+                        # This is an ugly little loop
+                        loop:
+0x00000030  0x11200000      beq $t1, $zero, exit
+0x00000034  0x21080003      addi $t0, $t0, 1
+0x00000038  0x200a0002      addi $t2, $zero, 2
+                            adu $v0, $t3, 3 #undefined instruction     Error: instruction not recognized
+0x0000003c  0x08000000      j    undef_label     Error: Label undefined!
+                        exit:
 
   Label name   Address   
 ┌-----------┬------------┐
-│jump_here  │ 0x00000005 │
+│loop       │ 0x0000000d │
+│label1     │ 0x00000007 │
+│exit       │ 0x00000011 │
 └-----------┴------------┘

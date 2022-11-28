@@ -174,8 +174,9 @@ fn parse_file(
                         line.push_str("     Error: instruction not recognized");
                     }
 
-                    file_row += 1;
+                    
                 }
+                file_row += 1;
                 assembler_code.push((line, contain_code));
             }
         }
