@@ -1,1 +1,1 @@
-/home/c20/c20jlg/edu/Uni/DARK/dark-rust/assembler/target/debug/assembler: /home/c20/c20jlg/edu/Uni/DARK/dark-rust/assembler/src/assembler.rs
+/mnt/c/Users/maxth/University/dark-rust/assembler/target/debug/assembler: /mnt/c/Users/maxth/University/dark-rust/assembler/src/assembler.rs

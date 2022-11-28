@@ -4,8 +4,8 @@ path = "src/assembler.rs"
  
 [package]
 name = "assembler"
-version = "0.1.0"
-authors = ["c20jlg <c20jlg@cs.umu.se>"]
+version = "1.0.0"
+authors = ["c20jlg <c20jlg@cs.umu.se>", "c20mtn <c20mtn@cs.umu.se>", "c20own <c20own@cs.umu.se>"]
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
