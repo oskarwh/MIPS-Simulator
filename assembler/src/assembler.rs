@@ -9,8 +9,8 @@ use std::io::{self, BufRead, BufWriter, Write};
 use std::path::Path;
 
 /// An assembler for converting instructions written in the assembly programming language into machine code instructions.
-/// The assembler produces a file containing machinecode instructions and a listing file containing additional information about the placement of
-/// instructions in memory.
+/// The assembler produces a file containing machinecode instructions and a listing file containing additional 
+/// information about the placement of instructions in memory.
 ///
 /// Authors: Jakob Lindehag (c20jlg@cs.umu.se)
 ///          Oskar Westerlund Holmgren (c20own@cs.umu.se)
@@ -19,11 +19,13 @@ use std::path::Path;
 /// Version information:
 ///    v1.0 2022-11-25: First complete version.
 
+
+
 const RS_POS: u32 = 21;
 const RT_POS: u32 = 16;
 const RD_POS: u32 = 11;
-const MAX_IMME_SIZE: u32 = u16::MAX as u32;
-const MAX_BEQ_OFFSET: u32 = i16::MAX as u32;
+const MAX_IMME_SIZE: u32 = u16::MAX as u32;//Maximum value that are used in arithmetic immediate commands
+const MAX_BEQ_OFFSET: u32 = i16::MAX as u32;//Maximum value for branch-jumps
 
 /// Enumerates the different types of instructions.
 enum InstructionType {
@@ -94,7 +96,7 @@ fn parse_file(
     let mut instructions = hash_map::HashMap::new();
     setup_registers_table(&mut registers);
     setup_instruction_table(&mut instructions);
-    // Init table for labels
+    // Init table for labels, key to table is a label-string which leads to the address-index (the row) of that label
     let mut labels = hash_map::HashMap::new();
 
     // Init vector for rows with undefined labels
@@ -103,13 +105,13 @@ fn parse_file(
     let mut machine_code = Vec::new();
     let mut assembler_code = Vec::new();
 
-    // Index of machine code address
+    // Index of machine code address (the row of the machine code innstruction)
     let mut addr_index: u32 = 0;
 
     // Index of line in file
     let mut file_row: u32 = 0;
 
-    // File hosts must exist in current path before this produces output
+    // File must exist in current path
     if let Ok(lines) = read_lines(file_path) {
         // Consumes the iterator, returns an (Optional) String
         for line in lines {
@@ -128,15 +130,18 @@ fn parse_file(
                     };
 
                     // Locate label on line if it exists.
-                    let (label_index, label_found) = if let Some((label, i)) = locate_labels(&line)
-                    {
+                    let (label_index, label_found) = if let Some((label, index)) = locate_labels(&line)
+                    {   
+                        //Label found, insert current address-index into label-table
                         labels.insert(label, addr_index);
-                        (i, true)
+                        //set label index to where comment was found
+                        (index, true)
                     } else {
+                        //No label found, set label index to beginning of line
                         (0, false)
                     };
 
-                    //Take a slice of the line from start to where a comment was found
+                    //Take a slice of the line from end of found label to where a comment was found
                     let line_slice = &line[label_index..comment_index];
 
                     // If the line contains an identifyable command, assemble the line to machine code and push it to vector
@@ -144,41 +149,13 @@ fn parse_file(
                         let cap = capture_command(line_slice, &regex);
                         if cap.is_some() {
                             let cap = cap.unwrap();
-                            let line_code = match inst_type {
-                                InstructionType::R => {
-                                    assemble_r_type(cap, &registers, &instructions)
-                                }
-                                InstructionType::I1 => {
-                                    assemble_i1_type(cap, &registers, &instructions)
-                                }
-                                InstructionType::I2 => assemble_i2_type(
-                                    file_row,
-                                    addr_index,
-                                    cap,
-                                    &labels,
-                                    &mut undefined_labels,
-                                    &registers,
-                                    &instructions,
-                                ),
-                                InstructionType::I3 => {
-                                    assemble_i3_type(cap, &registers, &instructions)
-                                }
-                                InstructionType::J1 => assemble_j1_type(
-                                    file_row,
-                                    addr_index,
-                                    cap,
-                                    &labels,
-                                    &mut undefined_labels,
-                                    &instructions,
-                                ),
-                                InstructionType::J2 => {
-                                    assemble_j2_type(cap, &registers, &instructions)
-                                }
-                                InstructionType::N => Ok(0),
-                            };
 
+                            //Assemble the line and collect the code in a Result<>
+                            let line_code = assemble_line(inst_type, file_row, addr_index, cap, &labels, 
+                                    &mut undefined_labels, &registers, &instructions);
+                                
                             if let Err(error) = line_code {
-                                //HANDLE ERROR ON LINE
+                                //ERROR: Something went wrong trying to assemble the line
                                 line.push_str("     Error: ");
                                 line.push_str(error);
                             } else {
@@ -186,12 +163,14 @@ fn parse_file(
                                 machine_code.push(line_code.unwrap());
                             }
                         } else {
-                            //HANDLE ERROR ON LINE
+                            //ERROR: No instruction could be captured on the line
                             line.push_str("     Error: wrong format on instruction");
                         }
 
                         addr_index += 1;
                     } else if !label_found && line_slice.len() > 1 {
+                        //No label was found and the line is longer than 1 + no instruction was recognized
+                        // => Error
                         line.push_str("     Error: instruction not recognized");
                     }
 
@@ -201,9 +180,10 @@ fn parse_file(
             }
         }
     } else {
-        panic!();
+        panic!("Cannot open file");
     }
 
+    //update commands that referred to previously undefined labels that are now defined
     if let Err(error_row) = fix_undef_labels(undefined_labels, &mut machine_code, &labels) {
         //Something wrong with the called labels!
         let (line, bool) = &mut assembler_code[error_row as usize];
@@ -214,13 +194,77 @@ fn parse_file(
     (machine_code, assembler_code, labels)
 }
 
+
+/// Assembles a line using strings for each individual part of the command contained in a regex::Captures
+///
+/// # Arguments
+///
+/// * `ìnst_type` - type of instruction that was captured
+/// * `file_row` - the current row of the file
+/// * `addr_index` - the current row of the machine code
+/// * `cap` - A regex::Captures, contains the individual part of the command in assembly code
+/// * `labels` - table with found labels and their address-index
+/// * `undefined_labels` - Storage for commands that uses labels that have not yet been found
+/// * `registers` - A reference to a hashmap containing all registers.
+/// * `instruction` - A reference to a hashmap containing all instructions.
+///
+/// # Returns
+///
+/// *  Result<u32, &'static str> - Where the u32 is the converted instruction.
+///
+fn assemble_line(
+    inst_type: InstructionType,
+    file_row: u32,
+    addr_index: u32,
+    cap: Captures,
+    labels: &hash_map::HashMap<String, u32>,
+    undefined_labels: &mut Vec<UndefinedLabel>,
+    registers: &hash_map::HashMap<&'static str, u32>,
+    instructions: &hash_map::HashMap<&'static str, u32>,
+)-> Result<u32, &'static str>{
+    let line_code = match inst_type {
+        InstructionType::R => {
+            assemble_r_type(cap, &registers, &instructions)
+        }
+        InstructionType::I1 => {
+            assemble_i1_type(cap, &registers, &instructions)
+        }
+        InstructionType::I2 => assemble_i2_type(
+            file_row,
+            addr_index,
+            cap,
+            labels,
+            undefined_labels,
+            registers,
+            instructions,
+        ),
+        InstructionType::I3 => {
+            assemble_i3_type(cap, &registers, &instructions)
+        }
+        InstructionType::J1 => assemble_j1_type(
+            file_row,
+            addr_index,
+            cap,
+            labels,
+            undefined_labels,
+            instructions,
+        ),
+        InstructionType::J2 => {
+            assemble_j2_type(cap, registers, instructions)
+        }
+        InstructionType::N => Ok(0),
+    };
+
+    line_code
+}
+
 /// Creates a R-type instruction.  
 ///
 /// # Arguments
 ///
-/// * `cap` - The path to the file
-/// * `registers` - A refrence to a hashmap containing all registers.
-/// * `instruction` - A refrence to a hashmap containing all instructions.
+/// * `cap` - A regex::Captures, contains the individual part of the command in assembly code
+/// * `registers` - A reference to a hashmap containing all registers.
+/// * `instruction` - A reference to a hashmap containing all instructions.
 ///
 /// # Returns
 ///
@@ -248,7 +292,7 @@ fn assemble_r_type(
 ///
 /// # Arguments
 ///
-/// * `cap` - The path to the file
+/// * `cap` - A regex::Captures, contains the individual part of the command in assembly code
 /// * `registers` - A refrence to a hashmap containing all registers.
 /// * `instruction` - A refrence to a hashmap containing all instructions.
 ///
@@ -297,9 +341,13 @@ fn assemble_i1_type(
 ///
 /// # Arguments
 ///
-/// * `cap` - The path to the file
-/// * `registers` - A refrence to a hashmap containing all registers.
-/// * `instruction` - A refrence to a hashmap containing all instructions.
+/// * `file_row` - the current row of the file
+/// * `addr_index` - the current row of the machine code
+/// * `cap` - A regex::Captures, contains the individual part of the command in assembly code
+/// * `labels` - table with found labels and their address-index
+/// * `undefined_labels` - Storage for commands that uses labels that have not yet been found
+/// * `registers` - A reference to a hashmap containing all registers.
+/// * `instruction` - A reference to a hashmap containing all instructions.
 ///
 /// # Returns
 ///
@@ -358,7 +406,7 @@ fn assemble_i2_type(
 ///
 /// # Arguments
 ///
-/// * `cap` - The path to the file
+/// * `cap` - A regex::Captures, contains the individual part of the command in assembly code
 /// * `registers` - A refrence to a hashmap containing all registers.
 /// * `instruction` - A refrence to a hashmap containing all instructions.
 ///
@@ -406,9 +454,12 @@ fn assemble_i3_type(
 ///
 /// # Arguments
 ///
-/// * `cap` - The path to the file
-/// * `registers` - A refrence to a hashmap containing all registers.
-/// * `instruction` - A refrence to a hashmap containing all instructions.
+/// * `file_row` - the current row of the file
+/// * `addr_index` - the current row of the machine code
+/// * `cap` - A regex::Captures, contains the individual part of the command in assembly code
+/// * `labels` - table with found labels and their address-index
+/// * `undefined_labels` - Storage for commands that uses labels that have not yet been found
+/// * `instruction` - A reference to a hashmap containing all instructions.
 ///
 /// # Returns
 ///
@@ -446,7 +497,7 @@ fn assemble_j1_type(
 ///
 /// # Arguments
 ///
-/// * `cap` - The path to the file
+/// * `cap` - A regex::Captures, contains the individual part of the command in assembly code
 /// * `registers` - A refrence to a hashmap containing all registers.
 /// * `instruction` - A refrence to a hashmap containing all instructions.
 ///
@@ -468,7 +519,7 @@ fn assemble_j2_type(
     Ok(instr)
 }
 
-/// Returns code for register as u32, if register is invalid, returns None.
+/// Returns code for register as u32, if register is invalid, returns Err.
 ///
 /// # Arguments
 ///
@@ -527,9 +578,11 @@ fn identify_type(text: &str) -> Option<(String, InstructionType)> {
     let nop_type = Regex::new(r"(nop)").unwrap();
 
     if r_type.is_match(text) {
-        return Some((r"(add|sub|nor|or|and|slt)\s+\$([avtsk][0-9]|[0-9]+|zero|at|gp|sp|fp|ra),\s*\$([avtsk][0-9]|[0-9]+|zero|at|gp|sp|fp|ra),\s*\$([avtsk][0-9]|[0-9]+|zero|at|gp|sp|fp|ra)".to_string(), InstructionType::R));
+        return Some((r"(add|sub|nor|or|and|slt)\s+\$([avtsk][0-9]|[0-9]+|zero|at|gp|sp|fp|ra),\s*\$([avtsk][0-9]|[0-9]
+               +|zero|at|gp|sp|fp|ra),\s*\$([avtsk][0-9]|[0-9]+|zero|at|gp|sp|fp|ra)".to_string(), InstructionType::R));
     } else if i1_type.is_match(text) {
-        return Some((r"(addi)\s+\$([avtsk][0-9]|[0-9]+|zero|at),\s*\$([avtsk][0-9]+|[0-9]|zero|at),\s*(-*[0-9]+)".to_string(), InstructionType::I1));
+        return Some((r"(addi)\s+\$([avtsk][0-9]|[0-9]+|zero|at),\s*\$([avtsk][0-9]+|[0-9]|zero|at),\s*(-*[0-9]+)"
+                .to_string(), InstructionType::I1));
     } else if i2_type.is_match(text) {
         return Some((
             r"(beq)\s+\$([avtsk][0-9]|[0-9]+|zero|at),\s*\$([avtsk][0-9]+|[0-9]|zero|at),\s*(\w+)"
@@ -593,7 +646,7 @@ where
     Ok(io::BufReader::new(file).lines())
 }
 
-/// Locates a comment in a line. Returns the offset for of the first comment found.
+/// Locates a comment in a line. Returns the offset for of the first comment found wrapped in an Option.
 /// If no comment could be found, returns None.
 ///
 /// # Arguments
@@ -613,6 +666,18 @@ fn locate_comment(line: &str) -> Option<usize> {
     return None;
 }
 
+/// Locates a label in a line. Returns the end-index for a found label and the label itself wrapped in an Option.
+/// If no label could be found, returns None.
+///
+/// # Arguments
+///
+/// * `line` - Line to be checked for labels.
+///
+/// # Returns
+///
+/// *  Option<(String,usize)> - where usize is the end-index for the label and String is the label found.
+/// 
+///
 fn locate_labels(line: &str) -> Option<(String, usize)> {
     for cap in Regex::new("([a-z]|[A-z]|[0-9])+[:]")
         .unwrap()
@@ -625,7 +690,7 @@ fn locate_labels(line: &str) -> Option<(String, usize)> {
     return None;
 }
 
-/// Fixes previously undefined labels that are now defined.
+/// Fixes machine-code that addresses previously undefined labels that are now defined.
 ///
 /// # Arguments
 ///
@@ -652,20 +717,23 @@ fn fix_undef_labels(
         } = undef_label;
         let row_index = addr_index as usize;
         if !labels.contains_key(&label) {
+            //Label is still undefined! indicate error
             return Err(file_row);
         } else if !rel_jump {
+            //Command indicates absolute jump, insert jump into machine-code
             machine_code[row_index] = machine_code[row_index] | labels.get(&label).unwrap();
         } else {
+            //Command indicates relative jump
             let label_addr = labels.get(&label).unwrap();
 
             // Calculate the relative jump
-            let mut offset = label_addr - addr_index - 1; // Minus one as the pc counter will jump one before excecuting instruction
+            let mut offset = label_addr - addr_index - 1;// Minus one as the pc counter will jump one before excecuting instruction
 
             // Check if relative jump is to far away
             if offset > MAX_BEQ_OFFSET {
                 return Err(file_row);
             }
-
+            // insert jump into machine-code
             machine_code[row_index] = machine_code[row_index] | offset;
         }
     }
