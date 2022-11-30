@@ -1,1 +1,1 @@
-/mnt/c/Users/jakob/Google\ Drive/Uni/åk3/DARK/dark-rust/assembler/target/debug/assembler: /mnt/c/Users/jakob/Google\ Drive/Uni/åk3/DARK/dark-rust/assembler/src/assembler.rs
+/home/c20/c20jlg/edu/Uni/DARK/dark-rust/assembler/target/debug/assembler: /home/c20/c20jlg/edu/Uni/DARK/dark-rust/assembler/src/assembler.rs
