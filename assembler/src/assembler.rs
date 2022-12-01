@@ -156,7 +156,7 @@ fn parse_file(
                                 
                             if let Err(error) = line_code {
                                 //ERROR: Something went wrong trying to assemble the line
-                                line.push_str("     Error: ");
+                                line.push_str("     <-- Error: ");
                                 line.push_str(error);
                             } else {
                                 contain_code = true;
@@ -164,14 +164,14 @@ fn parse_file(
                             }
                         } else {
                             //ERROR: No instruction could be captured on the line
-                            line.push_str("     Error: wrong format on instruction");
+                            line.push_str("     <-- Error: wrong format on instruction");
                         }
 
                         addr_index += 1;
                     } else if !label_found && line_slice.len() > 1 {
                         //No label was found and the line is longer than 1 + no instruction was recognized
                         // => Error
-                        line.push_str("     Error: instruction not recognized");
+                        line.push_str("     <-- Error: instruction not recognized");
                     }
 
                     
@@ -188,7 +188,7 @@ fn parse_file(
     if let Err(error_row) = fix_undef_labels(undefined_labels, &mut machine_code, &labels) {
         //Something wrong with the called labels!
         let (line, bool) = &mut assembler_code[error_row as usize];
-        line.push_str("     Error: Label undefined!");
+        line.push_str("     <-- Error: Label undefined!");
         assembler_code[error_row as usize] = (line.to_string(), true);
     }
 
