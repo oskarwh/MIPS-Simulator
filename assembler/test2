@@ -6,8 +6,8 @@
     jr      $t1
     nop
 jump_here:
-    sub     $s1, $t1, $s0
+    sub     $s1, $11, $s0
     nop
     nop
-    add     $s2, $t0, $s0
+    add     $s2, $9, $s0
     j       jump_here
