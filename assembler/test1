@@ -8,7 +8,7 @@
 	slt $t5, $t1, $t2
 
 label1:
-    add &t1, &s0, &s7
+    add $t1, $s0, $s7
     beq $t4, $zero, loop
     add $t3, $t2, $t1
 	addi $t8, $s4, 12
