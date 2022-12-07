@@ -1,5 +1,6 @@
 pub trait Unit{
     pub fn receive(&self, input_id : u32, data : BitSlice::<LocalBits, usize>;);
+    pub fn receive_signal(&self, signal_id: u32);
 }
 
 mod mux{
@@ -43,6 +44,7 @@ mod mux{
         }
 
         fn execute(&self){
+            // Some type of loop so the signal doesnt go unnoticed
             if signal{
                 output_unit.receive(self.output_id, data1);
             }else{
