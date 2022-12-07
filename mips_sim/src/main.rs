@@ -1,6 +1,6 @@
 #![warn(clippy::all, rust_2018_idioms)]
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
-use mips_sim::TemplateApp;
+use mips_sim::*;
 
 // When compiling natively:
 #[cfg(not(target_arch = "wasm32"))]
@@ -12,6 +12,6 @@ fn main() {
     eframe::run_native(
         "eframe template",
         native_options,
-        Box::new(|cc| Box::new(mips_sim::TemplateApp::new(cc))),
+        Box::new(|cc| Box::new(MipsApp::new(cc))),
     );
 }
