@@ -1,51 +1,60 @@
+#[derive(Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))] 
+enum DataFormat {
+    Hex,
+    Dec,
+}
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
-#[derive(serde::Deserialize, serde::Serialize)]
-#[serde(default)] // if we add new fields, give them default values when deserializing old state
-pub struct TemplateApp {
+/// if we add new fields, give them default values when deserializing old state
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))] 
+pub struct MipsApp {
     // Example stuff:
+    selected: DataFormat,
     label: String,
-
     // this how you opt-out of serialization of a member
-    #[serde(skip)]
     value: f32,
 }
 
-impl Default for TemplateApp {
+impl Default for MipsApp {
     fn default() -> Self {
         Self {
             // Example stuff:
+            selected: DataFormat::Hex,
             label: "Hello World!".to_owned(),
             value: 2.7,
         }
     }
 }
 
-impl TemplateApp {
+impl MipsApp {
     /// Called once before the first frame.
-    pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
+    pub fn new(_cc: &eframe::CreationContext<'_>) -> Self {
         // This is also where you can customized the look at feel of egui using
         // `cc.egui_ctx.set_visuals` and `cc.egui_ctx.set_fonts`.
 
         // Load previous app state (if any).
         // Note that you must enable the `persistence` feature for this to work.
-        if let Some(storage) = cc.storage {
-            return eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default();
-        }
+        //if let Some(storage) = cc.storage {
+        //    return eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default();
+        //}
 
         Default::default()
     }
 }
 
-impl eframe::App for TemplateApp {
+impl eframe::App for MipsApp {
     /// Called by the frame work to save state before shutdown.
-    fn save(&mut self, storage: &mut dyn eframe::Storage) {
-        eframe::set_value(storage, eframe::APP_KEY, self);
-    }
+    //fn save(&mut self, storage: &mut dyn eframe::Storage) {
+    //    eframe::set_value(storage, eframe::APP_KEY, self);
+    //}
 
     /// Called each time the UI needs repainting, which may be many times per second.
     /// Put your widgets into a `SidePanel`, `TopPanel`, `CentralPanel`, `Window` or `Area`.
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        let Self { label, value } = self;
+        let Self {
+            selected, 
+            label,
+             value, } = self;
 
         // Examples of how to create different panels and windows.
         // Pick whichever suits you.
@@ -64,8 +73,8 @@ impl eframe::App for TemplateApp {
             });
         });
 
-        egui::SidePanel::left("side_panel").show(ctx, |ui| {
-            ui.heading("Side Panel");
+        egui::SidePanel::left("left_side_panel").show(ctx, |ui| {
+            ui.heading("Data memory panel");
 
             ui.horizontal(|ui| {
                 ui.label("Write something: ");
@@ -91,6 +100,18 @@ impl eframe::App for TemplateApp {
                 });
             });
         });
+        egui::SidePanel::right("right_side_panel").show(ctx, |ui| {
+            // The right panel holding information about registers. 
+            ui.horizontal(|ui| {
+                ui.label("PC: 0");
+                egui::ComboBox::from_label("Data format")
+                .selected_text(format!("{:?}", selected))
+                .show_ui(ui, |ui| {
+                    ui.selectable_value( selected, DataFormat::Hex, "Hex");
+                    ui.selectable_value( selected, DataFormat::Dec, "Decimal");
+                });
+            });   
+        });
 
         egui::CentralPanel::default().show(ctx, |ui| {
             // The central panel the region left after adding TopPanel's and SidePanel's
@@ -112,5 +133,7 @@ impl eframe::App for TemplateApp {
                 ui.label("You would normally chose either panels OR windows.");
             });
         }
+
+        
     }
 }
