@@ -45,14 +45,6 @@ mod control {
 
 
     impl Unit for control {
-        // Define control signals for data memory, since it has two signals
-        const mem_write = 0;
-        const mem_read = 1;
-        // Define control signals for alu control op code, also tow signals
-        const alu_op0 = 0;
-        const alu_op1 = 1;
-        // Define default signal const for all components with just one signal.
-        const default_signal = 0;
 
         pub fn new(
             mux_reg_dst: &impl Mux,
@@ -74,17 +66,10 @@ mod control {
                 alu_ctrl: alu_ctrl,
                 reg_file: reg_file,
                 data_memory: data_memory
-            }
-        }
-
-        /*
-        pub fn set_ctrl_signals() {
-
-        }*/
-
-        pub fn receive (&self, input_id : u32, data : BitVec::<LocalBits, usize>;) {
-            // Clear all signals
-            reset_signals();
+            }branch: bool = false;
+            jump: bool = false;
+            
+            mem_read: bool
 
             match data
 
@@ -128,42 +113,44 @@ mod control {
                 
         }
 
-        pub fn set_r_signals() {
+        fn set_r_signals() {
             mux_reg_dst.receive_signal(default_signal);
             reg_file.receive_signal(default_signal);
             // Since alu ctrl has two signals we have to define which signal to assert.
-            alu_ctrl.receive_signal(alu_op1);
+            alu_ctrl.receive_signal(alu_op1_signal);
         }
 
-        pub fn set_lw_signals() {
+        fn set_lw_signals() {
             mux_alu_src.receive_signal(default_signal);
             mux_mem_to_reg.receive_signal(default_signal);
             reg_file.receive_signal(default_signal);
             // Since data mem has two signals we to define which signal to assert,
             // in this case it is the read signal
-            data_memory.receive_signal(mem_read);
+            data_memory.receive_signal(mem_read_signal);
         }
 
-        pub fn set_sw_signals() {
-            mux_alu_src.receive_signal(default_signal);
-            data_memory.receive_signal()
-        }
-
-        pub fn set_beq_signals() {
+        fn set_sw_signals() {
             mux_alu_src.receive_signal(default_signal);
             // Since data mem has two signals we to define which signal to assert,
             // in this case it is the write signal
-            data_memory.receive_signal(mem_write);
-            // Since alu ctrl has two signals we have to define which signal to assert.
-            alu_ctrl.receive_signal(alu_op0);
+            data_memory.receive_signal(mem_write_signal)
         }
 
-        pub fn set_j_signals() {
+        fn set_beq_signals() {
+            mux_alu_src.receive_signal(default_signal);
+            // Since data mem has two signals we to define which signal to assert,
+            // in this case it is the write signal
+            data_memory.receive_signal(mem_write_signal);
+            // Since alu ctrl has two signals we have to define which signal to assert.
+            alu_ctrl.receive_signal(alu_op0_signal);
+        }
+
+        fn set_j_signals() {
             mux_jump.receive_signal(default_signal);
         }
 
         // Reset all outoing signals
-        pub fn reset_signals() {
+        fn reset_signals() {
             reg_dst: bool = false;
             reg_write: bool = false;
             alu_src: bool = false;

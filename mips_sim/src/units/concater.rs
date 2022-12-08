@@ -9,7 +9,7 @@ mod concater {
         has_instr: mut bool;
         has_addr : mut bool;
    
-        mux : &impl Mux;
+        mux_jump : &impl (Unit + Mux);
 
     }
 
@@ -17,23 +17,26 @@ mod concater {
     impl concater{
 
         pub fn new() -> instruction_memory{
-            concater{}
+            concater{
+                has_addr:false,
+                has_instr:false,
+            }
         }
 
 
         ///Execute unit with thread
         pub fn execute(&self){
 
-            if has_addr && has_instr{
+            if self.has_addr && self.has_instr{
                 //Append bits from instruction memory with address from PC+4
-                addr.append(&instr);
-                mux.receive(MUX_IN_1_ID, addr.to_bitvec());
+                self.addr.append(&instr);
+                self.mux_jump.receive(MUX_IN_1_ID, self.addr.to_bitvec());
             }
         }
 
         /// Set Functions
-        pub fn setMux(&self, mux: &impl (Unit + Mux);){
-            self.mux = mux;
+        pub fn set_mux_jump(&self, mux: &impl (Unit + Mux);){
+            self.mux_jump = mux;
         }
 
         ///Stop this thread
@@ -47,11 +50,11 @@ mod concater {
 
         pub fn receive(&self, input_id: u32, data : Word){
             if input_id == CONC_IN_1_ID{
-                instr = data;
-                has_instr;
+                self.instr = data;
+                self.has_instr = true;
             }else if input_id == CONC_IN_2_ID{
-                addr = data;
-                has_addr;
+                self.addr = data;
+                self.has_addr = true;
             }
         }
 
