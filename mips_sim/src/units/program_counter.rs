@@ -28,8 +28,6 @@ mod program_counter {
             }
 
         }
-        
-
     }
 
     impl Unit for program_counter{
@@ -44,6 +42,11 @@ mod program_counter {
             
         }
         
+
+        pub fn set_instr_memory(&self, instr_mem: &Unit) {
+            self.instr_mem = instr_mem;
+        }
+
     }
 
 }
