@@ -9,6 +9,7 @@ edition = "2021"
 
 [dependencies]
 egui = "0.19.0"
+egui_extras = "0.19.0"
 eframe = { version = "0.19.0", features = ["persistence"] }
 bitvec = "1"
 
