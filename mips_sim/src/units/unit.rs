@@ -4,7 +4,7 @@ mod unit {
     type Word = BitVec::<u32, Lsb0>;
 
     pub trait Unit{
-        pub fn receive(&self, input_id : u32, data :BitVec::<u32, LocalBits> );
+        pub fn receive(&self, input_id : u32, data :Word);
         pub fn receive_signal(&self ,signal_id:u32);
     }
 
