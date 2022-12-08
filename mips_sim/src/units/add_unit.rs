@@ -4,13 +4,13 @@ mod add_unit {
 
     struct add_unit {
 
-        addr : BitVec::<u32, LocalBits> ;
-        sign_ext_instr : BitVec::<u32, LocalBits> ;
+        addr : Word;
+        sign_ext_instr : Word;
         has_instr: mut bool;
         has_addr : mut bool;
    
    
-        mux : &impl Mux;
+        mux_branch : &impl (Unit+Mux);
 
 
     }
@@ -20,22 +20,23 @@ mod add_unit {
         //Define MUX id's
         pub fn new() -> instruction_memory{
             add_unit{
-
+                has_instr:false,
+                has_address:false,
             }
         }
 
         ///Execute unit with thread
         pub fn execute(&self){
 
-            if has_addr && has_instr{
-                addr.
-                mux.receive(MUX_IN_1_ID, addr.to_bitvec());
+            if self.has_addr && self.has_instr{
+                let res = add(self.addr, self.sign_ext_instr)
+                self.mux_branch.receive(MUX_IN_1_ID, res);
             }
         }
 
         /// Set Functions
-        pub fn setMux(&self, mux: &impl (Unit + Mux);){
-            self.mux = mux;
+        pub fn set_mux_branch(&self, mux: &impl (Unit + Mux)){
+            self.mux_branch = mux;
         }
 
         ///Stop this thread
@@ -43,22 +44,26 @@ mod add_unit {
             stop =true;
         }
 
-        fn add(word1 : BitVec::<u32, LocalBits> ,word2 : BitVec::<u32, LocalBits> ;){
-                
-        }
+        fn add(word1 : Word, word2 : Word) -> Word {
+            let num1 = word1.into_vec()[0];
+            let num2 = word12.into_vec()[0];
 
+            let res = num1 + num1;
+
+            res.view_bits::<Lsb0>().to_bitvec();
+        }
 
     }
 
     impl Unit for add_unit{
 
-        pub fn receive(&self, input_id: u32, data : BitVec::<u32, LocalBits> ){
+        pub fn receive(&self, input_id: u32, data : Word){
             if input_id == ADD_IN_1_ID{
-                addr = data;
-                has_addr;
+                self.addr = data;
+                self.has_addr = true;
             }else if input_id == ADD_IN_2_ID{
-                sign_ext_instr = data;
-                has_instr;
+                self.sign_ext_instr = data;
+                self.has_instr = true;
             }
         }
 
