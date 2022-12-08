@@ -4,8 +4,8 @@ mod instruction_memory {
 
     struct instruction_memory {
 
-        instructions : Vec<BitVec::<u32, LocalBits> >;
-        current_instruction : BitVec::<u32, LocalBits>;
+        instructions : Vec<Word>;
+        current_instruction : Word;
         current_address : u32;
         has_address : mut bool;
 
@@ -20,7 +20,7 @@ mod instruction_memory {
 
     impl instruction_memory{
         //Define MUX id's
-        pub fn new(instr: Vec<BitVec::<u32 ,LocalBits>>) -> instruction_memory{
+        pub fn new(instr: Vec<Word>) -> instruction_memory{
             instruction_memory{instructions:instr}
         }
 
@@ -34,7 +34,9 @@ mod instruction_memory {
                     current_instruction = instructions[current_address.shift_right(2).into_vec()[0]];
 
                     //Send instruction to other units
-                    concater.receive(CONC_IN_1_ID, current_instruction[0...25].shift_left(2).to_bitvec() );
+                    let borrow = &mut current_instruction[0...25];
+                    borrow.shift_right(2);
+                    concater.receive(CONC_IN_1_ID, borrow.to_bitvec() );
                     reg.receive(REG_READ_1_ID, current_instruction[21...25].to_bitvec());
                     reg.receive(REG_READ_2_ID, current_instruction[16...20].to_bitvec());
                     control.receive(CTRL_IN_ID, current_instruction[26...31].to_bitvec());
@@ -79,8 +81,8 @@ mod instruction_memory {
 
     impl Unit for instruction_memory{
 
-        pub fn receive(&self, input_id: u32, address : BitVec::<LocalBits, usize>){
-            if input_id ==  self.read_address_id{
+        pub fn receive(&self, input_id: u32, address : Word){
+            if input_id ==  IM_READ_ADDRESS_ID{
                 current_address = address;
                 has_address = true;
             }else{

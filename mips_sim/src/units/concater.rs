@@ -4,8 +4,8 @@ mod concater {
 
     struct concater {
 
-        addr : BitVec::<u32, LocalBits> ;
-        instr : BitVec::<u32, LocalBits> ;
+        addr : Word;
+        instr : Word;
         has_instr: mut bool;
         has_addr : mut bool;
    
@@ -17,7 +17,7 @@ mod concater {
     impl concater{
 
         pub fn new() -> instruction_memory{
-            concater{instructions:instr}
+            concater{}
         }
 
 
@@ -25,6 +25,7 @@ mod concater {
         pub fn execute(&self){
 
             if has_addr && has_instr{
+                //Append bits from instruction memory with address from PC+4
                 addr.append(&instr);
                 mux.receive(MUX_IN_1_ID, addr.to_bitvec());
             }
@@ -44,7 +45,7 @@ mod concater {
 
     impl Unit for concater{
 
-        pub fn receive(&self, input_id: u32, data : BitVec::<u32, LocalBits> ){
+        pub fn receive(&self, input_id: u32, data : Word){
             if input_id == CONC_IN_1_ID{
                 instr = data;
                 has_instr;
