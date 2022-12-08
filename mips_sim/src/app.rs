@@ -107,10 +107,29 @@ impl eframe::App for MipsApp {
                 egui::ComboBox::from_label("Data format")
                 .selected_text(format!("{:?}", selected))
                 .show_ui(ui, |ui| {
+                    // TODO: Add to so it actually impacts format of values.
                     ui.selectable_value( selected, DataFormat::Hex, "Hex");
                     ui.selectable_value( selected, DataFormat::Dec, "Decimal");
                 });
-            });   
+            });
+            // Start adding grid with registers. 
+            ui.vertical(|ui| {
+                egui::ScrollArea::vertical().show(ui, |ui| {
+                    egui::Grid::new("Register grid").show(ui, |ui| {
+                        ui.label("Register");
+                        ui.label("Name");
+                        ui.label("Data");
+                        ui.end_row();
+                        for n in 0..10 {
+                            // Add register, name and data value.
+                            ui.label(format!("{:#010x}", n * 4));
+                            ui.label("$temp");
+                            ui.label(format!("{:#010x}", 0));
+                            ui.end_row();
+                        } 
+                    });
+                });
+            });
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {
