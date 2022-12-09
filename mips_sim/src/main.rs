@@ -1,4 +1,4 @@
-#![warn(clippy::all, rust_2018_idioms)]
+/*#![warn(clippy::all, rust_2018_idioms)]
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 use mips_sim::*;
 use std::{thread::{self, sleep}, sync::{Arc, Mutex}};
@@ -20,7 +20,7 @@ fn main() {
         Box::new(|cc| Box::new(MipsApp::new(cc))),
     );
 
-    // Create all objects 
+    // Create all objects
     let pc: Unit = program_counter.new();
     // Add file with instructions
     let instr_mem: Unit = instruction_memory.new();
@@ -57,4 +57,22 @@ fn main() {
     let instr_mem_thread = thread::spawn(move||{
         pc_ref.execute();
     });
+}
+*/
+#![warn(clippy::all, rust_2018_idioms)]
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
+use mips_sim::*;
+
+// When compiling natively:
+#[cfg(not(target_arch = "wasm32"))]
+fn main() {
+    // Log to stdout (if you run with `RUST_LOG=debug`).
+    tracing_subscriber::fmt::init();
+
+    let native_options = eframe::NativeOptions::default();
+    eframe::run_native(
+        "eframe template",
+        native_options,
+        Box::new(|cc| Box::new(MipsApp::new(cc))),
+    );
 }
