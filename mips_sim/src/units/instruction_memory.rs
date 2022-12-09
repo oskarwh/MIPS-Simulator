@@ -1,4 +1,5 @@
 use bitvec::prelude::*;
+#[path = "units/unit.rs"]mod unit;
 
 mod instruction_memory {
 

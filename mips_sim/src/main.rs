@@ -5,7 +5,15 @@ use std::{thread::{self, sleep}, sync::{Arc, Mutex}};
 
 #[path = "units/unit.rs"]mod unit;
 #[path = "units/program_counter.rs"]mod program_counter;
+#[path = "units/add_unit.rs"]mod add_unit;
+#[path = "units/alu.rs"]mod alu;
+#[path = "units/concater.rs"]mod concater;
+#[path = "units/data_memory.rs"]mod data_memory;
 #[path = "units/instruction_memory.rs"]mod instruction_memory;
+#[path = "units/mux.rs"]mod mux;
+#[path = "units/registers.rs"]mod registers;
+#[path = "units/sign_extend.rs"]mod sign_extend;
+
 
 // When compiling natively:
 #[cfg(not(target_arch = "wasm32"))]
@@ -27,19 +35,11 @@ fn main() {
 
 
     // Add components to connect with program counter
-    pc.set_add(empty_unit{});
-    pc.set_concater(empty_unit{});
-    pc.set_mux_branch(empty_unit{});
     pc.set_instr_memory(&instr_mem);
 
     // Add components to connect with instruction memory
     instr_mem.set_pc(&pc);
-    instr_mem.set_control(empty_unit{});
-    instr_mem.set_add(empty_unit{});
-    instr_mem.set_reg(empty_unit{});
-    instr_mem.set_signextend(empty_unit{});
-    instr_mem.set_aluctrl(empty_unit{});
-    instr_mem.set_concater(empty_unit{});
+
 
 
     let pc = Arc::new(Mutex::new(pc));
