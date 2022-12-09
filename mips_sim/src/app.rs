@@ -44,9 +44,6 @@ fn configure_text_styles(ctx: &egui::Context) {
 pub struct MipsApp {
     // Example stuff:
     selected: DataFormat,
-    label: String,
-    // this how you opt-out of serialization of a member
-    value: f32,
 }
 
 impl Default for MipsApp {
@@ -54,8 +51,6 @@ impl Default for MipsApp {
         Self {
             // Example stuff:
             selected: DataFormat::Hex,
-            label: "Hello World!".to_owned(),
-            value: 2.7,
         }
     }
 }
@@ -217,11 +212,7 @@ impl MipsApp {
 impl eframe::App for MipsApp {
     /// Called each time the UI needs repainting, which may be many times per second.
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        let Self {
-            selected,
-            label,
-            value,
-        } = self;
+        let Self { selected } = self;
 
         // Examples of how to create different panels and windows.
         // Pick whichever suits you.

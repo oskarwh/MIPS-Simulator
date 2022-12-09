@@ -1,5 +1,3 @@
-extern crate regex;
-
 use regex::Captures;
 use regex::Regex;
 use std::collections::hash_map;
@@ -55,20 +53,20 @@ struct UndefinedLabel {
     relative_jump: bool,
 }
 
-fn main() {
-    let args: Vec<String> = env::args().collect();
-
-    //Check that the program has the right amount of arguments
-    if args.len() < 2 || args.len() > 2 {
-        panic!("Usage: ./assembler filename\n");
-    }
-    let file_path = &args[1];
-
+pub fn assemble_file(
+    file_path: String,
+) -> (
+    Vec<u32>,
+    Vec<(String, bool)>,
+    hash_map::HashMap<String, u32>,
+    hash_map::HashMap<&'static str, u32>,
+) {
+    let mut registers = hash_map::HashMap::new();
+    let mut instructions = hash_map::HashMap::new();
+    setup_registers_table(&mut registers);
+    setup_instruction_table(&mut instructions);
     //Parse the file and generate machine code
-    let (machine_code, assembler_code, labels) = parse_file(file_path);
-
-    //Make output files
-    write_files(machine_code, assembler_code, labels);
+    (parse_file(file_path), registers)
 }
 
 /// Parses the input file and returns a tuple containing information for
@@ -85,15 +83,13 @@ fn main() {
 ///
 fn parse_file(
     file_path: &str,
+    registers: &mut hash_map::HashMap<&'static str, u32>,
+    instructions: &mut hash_map::HashMap<&'static str, u32>,
 ) -> (
     Vec<u32>,
     Vec<(String, bool)>,
     hash_map::HashMap<String, u32>,
 ) {
-    let mut registers = hash_map::HashMap::new();
-    let mut instructions = hash_map::HashMap::new();
-    setup_registers_table(&mut registers);
-    setup_instruction_table(&mut instructions);
     // Init table for labels, key to table is a label-string which leads to the address-index (the row) of that label
     let mut labels = hash_map::HashMap::new();
 
@@ -577,7 +573,7 @@ fn identify_type(text: &str) -> Option<(String, InstructionType)> {
         return Some((r"(add|sub|nor|or|and|slt)\s+\$([avtsk][0-9]|[0-9]+|zero|at|gp|sp|fp|ra),\s*\$([avtsk][0-9]|[0-9]+|zero|at|gp|sp|fp|ra),\s*\$([avtsk][0-9]|[0-9]+|zero|at|gp|sp|fp|ra)".to_string(), InstructionType::R));
     } else if i1_type.is_match(text) {
         return Some((r"(addi)\s+\$([avtsk][0-9]|[0-9]+|zero|at),\s*\$([avtsk][0-9]+|[0-9]|zero|at),\s*(-*[0-9]+)"
-                .to_string(), InstructionType::I1));
+                    .to_string(), InstructionType::I1));
     } else if i2_type.is_match(text) {
         return Some((
             r"(beq)\s+\$([avtsk][0-9]|[0-9]+|zero|at),\s*\$([avtsk][0-9]+|[0-9]|zero|at),\s*(\w+)"
@@ -733,54 +729,6 @@ fn fix_undef_labels(
         }
     }
     Ok(())
-}
-
-/// Creates and writes the output files asm_listing and asm_intr.
-///
-/// # Arguments
-///
-/// * `machine_code` -  Vector containing the converted machine code. .
-/// * `assembler_code` - Vector containing the lines from the input file.
-/// * `symbol_table` - Hashmap containing all the labels.
-///
-fn write_files(
-    machine_code: Vec<u32>,
-    assembler_code: Vec<(String, bool)>,
-    symbol_table: hash_map::HashMap<String, u32>,
-) {
-    let listing_file = File::create("asm_listing").unwrap();
-    let machine_file = File::create("asm_instr").unwrap();
-    let mut list_writer = BufWriter::new(&listing_file);
-    let mut machine_writer = BufWriter::new(&machine_file);
-    let mut i = 0;
-    for assembler_line in assembler_code.iter() {
-        // Check if line contains machine code
-        if assembler_line.1 {
-            // Write to listing file with
-            write!(
-                &mut list_writer,
-                "{:#010x}  {:#010x}  {}\n",
-                i * 4,
-                machine_code[i],
-                assembler_line.0
-            );
-            write!(&mut machine_writer, "{:#010x}\n", machine_code[i]);
-            i += 1;
-        } else {
-            write!(&mut list_writer, "{:24}{}\n", "", assembler_line.0);
-        }
-    }
-
-    write!(
-        &mut list_writer,
-        "\n  {:10}   {:10}\n",
-        "Label name", "Address"
-    );
-    write!(&mut list_writer, "┌-----------┬------------┐\n");
-    for (label, addr) in &symbol_table {
-        write!(&mut list_writer, "│{:10} │ {:#010x} │\n", label, addr);
-    }
-    write!(&mut list_writer, "└-----------┴------------┘\n");
 }
 
 /// Initilizes the register table which contains all allowed registers.
