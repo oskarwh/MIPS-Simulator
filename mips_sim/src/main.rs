@@ -1,4 +1,4 @@
-/*#![warn(clippy::all, rust_2018_idioms)]
+#![warn(clippy::all, rust_2018_idioms)]
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 use mips_sim::*;
 use std::{thread::{self, sleep}, sync::{Arc, Mutex}};
@@ -58,7 +58,7 @@ fn main() {
         pc_ref.execute();
     });
 }
-*/
+/* 
 #![warn(clippy::all, rust_2018_idioms)]
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 use mips_sim::*;
@@ -76,3 +76,4 @@ fn main() {
         Box::new(|cc| Box::new(MipsApp::new(cc))),
     );
 }
+*/
