@@ -1,13 +1,10 @@
-
-mod unit;
-mod mux;
-
-use crate::unit::*;
 use bitvec::prelude::*;
+use crate::units::unit::*;
+use crate::units::mux::*;
 
 
 
-struct Registers<'a> {
+pub struct Registers<'a> {
 
     registers: Vec<Word> ,
 
@@ -23,8 +20,8 @@ struct Registers<'a> {
 
 
     alu : &'a dyn Unit,
-    mux_alu_src : &'a dyn Unit,
-    data_memory : &'a dyn  Unit,
+    mux_alu_src : &'a dyn  Unit,
+    data_memory : &'a dyn Unit,
 
     reg_write_signal : bool,
 

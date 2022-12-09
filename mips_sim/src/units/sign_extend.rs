@@ -1,10 +1,6 @@
-use crate::unit::*;
 use bitvec::prelude::*;
-
-mod unit;
-mod mux;
-
-struct SignExtend<'a>  {
+use crate::units::unit::*;
+pub struct SignExtend<'a>  {
 
     data : Word,
     has_data: bool,

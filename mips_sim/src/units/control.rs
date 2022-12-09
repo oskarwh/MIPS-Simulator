@@ -5,13 +5,12 @@
 // in the datapath a specific instruction is. How is this done?
 
 // The booleans here can be removed but they are left if they maybe are need in the future
-mod mux;
-mod unit;
+use bitvec::prelude::*;
+use crate::units::unit::*;
+use crate::units::mux::*;
 
-use unit::Unit;
-use mux::Mux;
 
-struct control {
+pub struct Control<'a> {
     /* reg_dst: bool = false;
     reg_write: bool = false;
     
@@ -26,31 +25,32 @@ struct control {
     alu_op0: bool = false;
     alu_op1: bool = false;*/
 
-    mux_reg_dst: &impl Mux,
-    mux_jump: &impl Mux,
-    mux_branch: &impl Mux,
-    mux_alu_src: &impl Mux,
-    mux_mem_to_reg: &impl Mux,
-    alu_ctrl: &impl Unit,
-    reg_file: &impl Unit,
-    data_memory: &impl Unit
+    mux_reg_dst:  &'a dyn  Unit,
+    mux_jump:  &'a dyn  Unit,
+    mux_branch: &'a dyn  Unit,
+    mux_alu_src:  &'a dyn  Unit,
+    mux_mem_to_reg:  &'a dyn  Unit,
+    alu_ctrl: &'a dyn Unit,
+    reg_file: &'a dyn Unit,
+    data_memory: &'a dyn Unit
 }
 
 
-impl Unit for control {
+impl Control<'_> {
 
-    fn new(
-        mux_reg_dst: &impl Mux,
-        mux_jump: &impl Mux,
-        mux_branch: &impl Mux,
-        mux_alu_src: &impl Mux,
-        mux_mem: &impl Mux,
+    pub fn new<'a>(
+        mux_reg_dst: &'a dyn  Unit,
+        mux_jump: &'a dyn  Unit,
+        mux_branch: &'a dyn  Unit,
+        mux_alu_src:  &'a dyn  Unit,
+        mux_mem_to_reg: &'a dyn  Unit,
+        mux_mem:  &'a dyn  Unit,
 
-        alu_ctrl: &impl alu_control,
-        reg_file: &impl register_file,
-        data_memory: &impl Mux,
-    ) -> control{
-        control{
+        alu_ctrl: &impl Unit,
+        reg_file: &impl Unit,
+        data_memory:  &impl Unit,
+    ) -> Control<'a>{
+        Control{
             mux_reg_dst,
             mux_jump,
             mux_branch,
@@ -62,84 +62,40 @@ impl Unit for control {
         }
     }
 
-
-    fn receive (&self, input_id : u32, data : BitVec::<LocalBits, usize>) {
-        match data {
-
-            // R-format instructions 
-            bits![0,0,0,0,0,0] =>  
-                set_r_signals(),
-                
-                // Set reg_dst, reg_wrt, alu_op1
-                /* reg_dst = true;
-                reg_write = true;
-                alu_op1 = true,*/
-                
-            // LW instruction
-            bits![1,0,0,0,1,1] =>
-                set_lw_signals(),
-                // Set alu_src, memto_reg, reg_wrt, mem_read, 
-                /*alu_src = true;
-                memto_reg = true;
-                reg_write = true;
-                mem_read = true;*/
-
-            // SW instruction
-            bits![1,0,1,0,1,1] =>
-                set_sw_signals(),
-                // Set alu_src, mem_write
-                /*alu_src = true;
-                mem_write = true;*/
-
-            // Beq instruction
-            bits![0,0,0,1,0,0] =>
-                set_beq_signals(),
-                // Set branch, alu_op0
-                /*branch = true;
-                alu_op0 = true;*/
-
-            // Jump instruction
-            bits![0,0,0,0,1,0] =>
-                set_j_signals(),
-                // Set jump bool 
-                //jump = true;
-        }    
-    }
-
-    fn set_r_signals() {
-        mux_reg_dst.receive_signal(default_signal);
-        reg_file.receive_signal(default_signal);
+    pub fn set_r_signals(&self) {
+        self.mux_reg_dst.receive_signal(DEFAULT_SIGNAL);
+        self.reg_file.receive_signal(DEFAULT_SIGNAL);
         // Since alu ctrl has two signals we have to define which signal to assert.
-        alu_ctrl.receive_signal(alu_op1_signal);
+        self.alu_ctrl.receive_signal(ALU_OP1_SIGNAL);
     }
 
-    fn set_lw_signals() {
-        mux_alu_src.receive_signal(default_signal);
-        mux_mem_to_reg.receive_signal(default_signal);
-        reg_file.receive_signal(default_signal);
+    pub fn set_lw_signals(&self) {
+        self.mux_alu_src.receive_signal(DEFAULT_SIGNAL);
+        self.mux_mem_to_reg.receive_signal(DEFAULT_SIGNAL);
+        self.reg_file.receive_signal(DEFAULT_SIGNAL);
         // Since data mem has two signals we to define which signal to assert,
         // in this case it is the read signal
-        data_memory.receive_signal(mem_read_signal);
+        self.data_memory.receive_signal(MEM_READ_SIGNAL);
     }
 
-    fn set_sw_signals() {
-        mux_alu_src.receive_signal(default_signal);
+    pub fn set_sw_signals(&self) {
+        self.mux_alu_src.receive_signal(DEFAULT_SIGNAL);
         // Since data mem has two signals we to define which signal to assert,
         // in this case it is the write signal
-        data_memory.receive_signal(mem_write_signal)
+        self.data_memory.receive_signal(MEM_WRITE_SIGNAL)
     }
 
-    fn set_beq_signals() {
-        mux_alu_src.receive_signal(default_signal);
+    pub fn set_beq_signals(&self) {
+        self. mux_alu_src.receive_signal(DEFAULT_SIGNAL);
         // Since data mem has two signals we to define which signal to assert,
         // in this case it is the write signal
-        data_memory.receive_signal(mem_write_signal);
+        self.data_memory.receive_signal(MEM_WRITE_SIGNAL);
         // Since alu ctrl has two signals we have to define which signal to assert.
-        alu_ctrl.receive_signal(alu_op0_signal);
+        self.alu_ctrl.receive_signal(ALU_OP0_SIGNAL);
     }
 
-    fn set_j_signals() {
-        mux_jump.receive_signal(default_signal);
+    pub fn set_j_signals(&self) {
+        self.mux_jump.receive_signal(DEFAULT_SIGNAL);
     }
 
    /* // Reset all outoing signals
@@ -154,4 +110,67 @@ impl Unit for control {
         alu_op0: bool = false;
         alu_op1: bool = false;
     }*/
+}
+
+impl Unit for Control<'_>{
+
+    fn receive (&self, input_id : u32, data : Word) {
+        // Bit vector for R format instruction
+        let r_bitvec = bitvec![0,0,0,0,0,0];
+        // Bit vector for load-woard instruction
+        let lw_bitvec = bitvec![1,0,0,0,1,1];
+        // Bit vector for store-word instruction
+        let sw_bitvec = bitvec![1,0,1,0,1,1];
+        // Bit vector for branch on equal instruction
+        let beq_bitvec = bitvec![0,0,0,1,0,0];
+        // Bit vector for jump instruction
+        let j_bitvec = bitvec![0,0,0,0,1,0];
+
+
+        match data {
+
+            // R-format instructions 
+            r_bitvec =>  
+                self.set_r_signals(),
+                
+                // Set reg_dst, reg_wrt, alu_op1
+                /* reg_dst = true;
+                reg_write = true;
+                alu_op1 = true,*/
+ 
+            // LW instruction
+            lw_bitvec =>
+                self.set_lw_signals(),
+                // Set alu_src, memto_reg, reg_wrt, mem_read, 
+                /*alu_src = true;
+                memto_reg = true;
+                reg_write = true;
+                mem_read = true;*/
+
+            // SW instruction
+            sw_bitvec =>
+                self.set_sw_signals(),
+                // Set alu_src, mem_write
+                /*alu_src = true;
+                mem_write = true;*/
+
+            // Beq instruction
+            beq_bitvec =>
+                self.set_beq_signals(),
+                // Set branch, alu_op0
+                /*branch = true;
+                alu_op0 = true;*/
+
+            // Jump instruction
+            j_bitvec =>
+                self.set_j_signals(),
+                // Set jump bool 
+                //jump = true;
+        }    
+    }
+
+    fn receive_signal(&self ,signal_id:u32) {
+        todo!()
+    }
+
 }

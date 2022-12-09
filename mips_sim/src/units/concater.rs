@@ -1,9 +1,8 @@
 
-use unit::*;
 use bitvec::prelude::*;
+use crate::units::unit::*;
+use crate::units::mux::*;
 
-mod unit;
-mod mux;
 
 
 

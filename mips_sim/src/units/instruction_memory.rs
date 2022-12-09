@@ -1,10 +1,9 @@
-mod unit;
-
-use crate::unit::*;
 use bitvec::prelude::*;
+use crate::units::unit::*;
 
 
-struct InstructionMemory<'a> {
+
+pub struct InstructionMemory<'a> {
 
     instructions : Vec<Word>,
     current_instruction : Word,
@@ -12,7 +11,6 @@ struct InstructionMemory<'a> {
     has_address: bool,
 
     reg : &'a dyn Unit,
-    pc : &'a dyn Unit,
     sign_extend : &'a dyn Unit,
     alu_ctrl : &'a dyn Unit,
     control : &'a dyn Unit,
@@ -23,7 +21,7 @@ struct InstructionMemory<'a> {
 
 impl InstructionMemory<'_>{
 
-    fn new(instr: Vec<Word>) -> InstructionMemory<'static>{
+    pub fn new(instr: Vec<Word>) -> InstructionMemory<'static>{
         InstructionMemory{
             instructions:instr,
             current_instruction: bitvec![u32, Lsb0; 0; 32],
@@ -31,7 +29,6 @@ impl InstructionMemory<'_>{
             has_address: false,
 
             reg: &EmptyUnit{},
-            pc: &EmptyUnit{},
             sign_extend: &EmptyUnit{},
             alu_ctrl: &EmptyUnit{},
             control: &EmptyUnit{},
@@ -42,7 +39,7 @@ impl InstructionMemory<'_>{
 
         
     ///Execute unit with thread
-    fn execute(&self){
+    pub fn execute(&self){
       
         if self.has_address {
             //Received address on read_address! Find corresponding instruction. Need to right shift 2 steps (divide by 4)
@@ -67,27 +64,24 @@ impl InstructionMemory<'_>{
     }
 
     /// Set Functions
-    fn set_pc(&self, pc: &impl Unit){
-        self.pc = pc;
-    }
 
-    fn set_control(&self, ctrl : &impl Unit){
+    pub fn set_control(&self, ctrl : &impl Unit){
         self.control = ctrl;
     }
 
-    fn set_reg(&self, reg : &impl Unit){
+    pub fn set_reg(&self, reg : &impl Unit){
         self.reg = reg;
             }
 
-    fn set_signextend(&self, sign_extend: &impl Unit){
+    pub fn set_signextend(&self, sign_extend: &impl Unit){
         self.sign_extend = sign_extend;
         } 
 
-    fn set_aluctrl(&self, alu_ctrl: &impl Unit){
+    pub fn set_aluctrl(&self, alu_ctrl: &impl Unit){
         self.alu_ctrl = alu_ctrl;
     }
 
-    fn set_concater(&self, concater: &impl Unit){
+    pub fn set_concater(&self, concater: &impl Unit){
         self.concater = concater;
     }
 

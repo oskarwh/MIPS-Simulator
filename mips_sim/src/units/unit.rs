@@ -14,7 +14,7 @@ pub struct EmptyUnit{
 
 impl Unit for EmptyUnit{
     fn receive(&self, input_id : u32, data :Word){
-        println!("Empty Unit recived data: data = {}", data);
+        println!("Empty Unit received data: data = {}", data);
     }
 
     fn receive_signal(&self ,signal_id:u32) {

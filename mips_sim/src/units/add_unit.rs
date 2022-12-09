@@ -1,15 +1,11 @@
-mod unit;
-mod mux;
 
 use bitvec::prelude::*;
-use unit::Word;
-use unit::Unit;
-use unit::EmptyUnit;
+use crate::units::unit::*;
 
 
 // Liftime paramters
 
-struct AddUnit<'a> {
+pub struct AddUnit<'a> {
 
     addr : Word,
     sign_ext_instr: Word,
@@ -39,7 +35,7 @@ impl AddUnit<'_>{
 
         if self.has_addr && self.has_instr{
             let res = Self::add(self.addr, self.sign_ext_instr);
-            self.mux_branch.receive(unit::MUX_IN_1_ID, res);
+            self.mux_branch.receive(MUX_IN_1_ID, res);
         }
     }
 
@@ -63,10 +59,10 @@ impl AddUnit<'_>{
 
 impl Unit for AddUnit<'_>  {
     fn receive(&self, input_id: u32, data : Word){
-        if input_id == unit::ADD_IN_1_ID{
+        if input_id == ADD_IN_1_ID{
             self.addr = data;
             self.has_addr = true;
-        }else if input_id == unit::ADD_IN_2_ID{
+        }else if input_id == ADD_IN_2_ID{
             self.sign_ext_instr = data;
             self.has_instr = true;
         }

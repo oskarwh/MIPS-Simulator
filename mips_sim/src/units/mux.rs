@@ -1,5 +1,5 @@
 
-use crate::unit::*;
+use crate::units::unit::*;
 use bitvec::prelude::*;
 
 pub struct Mux<'a> {

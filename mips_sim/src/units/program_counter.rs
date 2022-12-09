@@ -1,10 +1,8 @@
-mod unit;
-mod mux;
-
-use crate::unit::*;
+use crate::units::unit::*;
 use bitvec::prelude::*;
+use crate::units::mux::*;
 
-struct ProgramCounter<'a> {
+pub struct ProgramCounter<'a> {
     has_address: bool,
     current_address : Word,
     instruction_memory : &'a dyn Unit,
@@ -16,7 +14,7 @@ struct ProgramCounter<'a> {
 
 impl  ProgramCounter<'_>{
     
-    fn new() -> ProgramCounter<'static>{
+    pub fn new() -> ProgramCounter<'static>{
 
         ProgramCounter{
             current_address : bitvec![u32, Lsb0; 0; 32],
@@ -29,7 +27,7 @@ impl  ProgramCounter<'_>{
         }
     }
 
-    fn execute(&self){
+    pub fn execute(&self){
         if self.has_address {
             //Send address to instruction memory
             self.instruction_memory.receive(IM_READ_ADDRESS_ID, self.current_address.to_bitvec());
@@ -62,19 +60,19 @@ impl  ProgramCounter<'_>{
 
     
 
-    fn set_instr_memory(&self, instr_mem: &impl Unit) {
+    pub fn set_instr_memory(&self, instr_mem: &impl Unit) {
         self.instruction_memory = instr_mem;
     }
 
-    fn set_concater(&self, concater: &impl Unit) {
+    pub fn set_concater(&self, concater: &impl Unit) {
         self.concater = concater;
     }
 
-    fn set_add(&self, add: &impl Unit) {
+    pub fn set_add(&self, add: &impl Unit) {
         self.add_unit = add;
     }
 
-    fn set_mux_branch(&self, mux: &impl (Unit)) {
+    pub fn set_mux_branch(&self, mux: &impl (Unit)) {
         self.mux_branch = mux;
     }
 }
