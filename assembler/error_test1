@@ -12,7 +12,7 @@ label1:
     beq $t4, $zero, loop
     add $t3, $t2, $t1
 	addi $t8, $s4, 12
-	or  $t4, $p9, $t1 #Contains undefined register
+	or  $t4, $k9, $t1 #Contains undefined register
 	slt $t5, $t1, $t2
 
 # This is an ugly little loop

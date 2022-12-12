@@ -60,6 +60,18 @@ struct UndefinedLabel {
     relative_jump: bool,
 }
 
+struct RegexCom {
+    r_type: Regex,
+    i1_type: Regex,
+    i2_type: Regex,
+    i3_type: Regex,
+    j1_type: Regex,
+    j2_type: Regex,
+    nop_type: Regex,
+    com_type: Regex,
+    label_type: Regex,
+}
+
 fn main() {
     let args: Vec<String> = env::args().collect();
 
@@ -98,15 +110,27 @@ fn parse_file(
     Vec<(String, bool)>,
     hash_map::HashMap<String, u32>,
 ) {
+    let mut now = Instant::now();
+    // Set up all Regexes 
+    let regex_coms = RegexCom {
+        r_type: Regex::new(r"^\s(add|sub|nor|or|and|slt)\s+\$(\S+),\s*\$(\S+),\s*\$(\S+)").unwrap(),
+        i1_type: Regex::new(r"^\s(addi)\s+\$(\S+),\s*\$(\S+),\s*(\S+)").unwrap(),
+        i2_type: Regex::new(r"^\s(beq)\s+\$(\S+),\s*\$(\S+),\s*(\w+)" ).unwrap(),
+        i3_type: Regex::new(r"^\s(lw|sw)\s+\$(\S+),\s*(\S*)\(\$(\S+)\)").unwrap(),
+        j1_type: Regex::new(r"^\s(j)\s+(\w+)").unwrap(),
+        j2_type: Regex::new(r"^\s(jr)\s+\$(\S+)").unwrap(),
+        nop_type: Regex::new(r"^\s(nop)").unwrap(),
+        com_type: Regex::new("#").unwrap(),
+        label_type: Regex::new("([a-z]|[A-z]|[0-9])+[:]").unwrap(),
+    };
+
     let mut registers = hash_map::HashMap::new();
     let mut instructions = hash_map::HashMap::new();
-    let mut capture_command_time :Duration= Duration::new(0, 0);;
-    let mut identify_time :Duration= Duration::new(0, 0);;
-    let mut comment_time :Duration= Duration::new(0, 0);;
-    let mut read_file_time :Duration= Duration::new(0, 0);;
-    let mut parse_time :Duration= Duration::new(0, 0);;
-    let mut fix_label_time :Duration= Duration::new(0, 0);;
-    let mut now = Instant::now();
+    let mut identify_time :Duration= Duration::new(0, 0);
+    let mut comment_time :Duration= Duration::new(0, 0);
+    let mut parse_time :Duration= Duration::new(0, 0);
+    let mut fix_label_time :Duration= Duration::new(0, 0);
+
 
 
     setup_registers_table(&mut registers);
@@ -142,7 +166,7 @@ fn parse_file(
                 if line.len() > 0 {
                     now = Instant::now();
                     //Check for comments
-                    let comment_index = if let Some(index) = locate_comment(&line) {
+                    let comment_index = if let Some(index) = locate_comment(&line, &regex_coms) {
                         //Comment found, set comment index to where comment was found
                         index
                     } else {
@@ -152,10 +176,10 @@ fn parse_file(
                     };
 
                     // Locate label on line if it exists.
-                    let (label_index, label_found) = if let Some((label, index)) = locate_labels(&line)
+                    let (label_index, label_found) = if let Some((label, index)) = locate_labels(&line, &regex_coms)
                     {   
                         //Label found, insert current address-index into label-table
-                        labels.insert(label, addr_index*4);
+                        labels.insert(label, addr_index);
                         //set label index to where comment was found
                         (index, true)
                     } else {
@@ -170,14 +194,12 @@ fn parse_file(
 
                     now = Instant::now();
                     // If the line contains an identifyable command, assemble the line to machine code and push it to vector
-                    if let Some((regex, inst_type)) = identify_type(line_slice) {
+
+                    if let Some((cap, inst_type)) = identify_type(line_slice, &regex_coms) {
                         identify_time = identify_time + now.elapsed();
-                        now = Instant::now();
-                        let cap = capture_command(line_slice, &regex);
-                        capture_command_time = capture_command_time + now.elapsed();
+    
                         if cap.is_some() {
                             let cap = cap.unwrap();
-
                             now = Instant::now();
                             //Assemble the line and collect the code in a Result<>
                             let line_code = assemble_line(inst_type, file_row, addr_index, cap, &labels, 
@@ -214,17 +236,19 @@ fn parse_file(
     }
     now = Instant::now();
     //update commands that referred to previously undefined labels that are now defined
-    if let Err(error_row) = fix_undef_labels(undefined_labels, &mut machine_code, &labels) {
-        //Something wrong with the called labels!
-        let (line, bool) = &mut assembler_code[error_row as usize];
-        line.push_str("     <-- Error: Label undefined!");
-        assembler_code[error_row as usize] = (line.to_string(), true);
+    for undef_label in undefined_labels {
+        if let Err(error_row) = fix_undef_label(undef_label, &mut machine_code, &labels) {
+            //Something wrong with the called labels!
+            let (line, _) = &mut assembler_code[error_row as usize];
+            line.push_str("     <-- Error: Label undefined!");
+            assembler_code[error_row as usize] = (line.to_string(), true);
+            
+        }
     }
     fix_label_time = fix_label_time + now.elapsed();  
 
     println!("Comment time: {:.2?}", comment_time);
     println!("Identify type time: {:.2?}", identify_time);
-    println!("Capture time: {:.2?}", capture_command_time);
     println!("Parse time: {:.2?}", parse_time);
     println!("Fix labels time: {:.2?}", fix_label_time);
 
@@ -468,7 +492,7 @@ fn assemble_i3_type(
 
     let offset_val = if offset.is_err() {
         // Error
-        Err("offset is not a number")
+        Err("offset is to big or not a number")
     } else {
         let offset_unwrap = offset.unwrap();
         if offset_unwrap > MAX_IMME_SIZE {
@@ -605,62 +629,32 @@ fn parse_register(
 ///
 /// *  Option<(String, InstructionType) - Where the String is the regex string and the InstructionType is the type.
 ///
-fn identify_type(text: &str) -> Option<(String, InstructionType)> {
-    let r_type = Regex::new(r"(add |sub |nor |or |and |slt )").unwrap();
-    let i1_type = Regex::new(r"(addi )").unwrap();
-    let i2_type = Regex::new(r"(beq )").unwrap();
-    let i3_type = Regex::new(r"(lw |sw )").unwrap();
-    let j1_type = Regex::new(r"(j )").unwrap();
-    let j2_type = Regex::new(r"(jr )").unwrap();
-    let nop_type = Regex::new(r"(nop)").unwrap();
+fn identify_type<'a>(text: &'a str, regex: &RegexCom) -> Option<(Option<Captures<'a>>, InstructionType)> {
 
-    if r_type.is_match(text) {
-        return Some((r"(add|sub|nor|or|and|slt)\s+\$([avtsk][0-9]|[0-9]+|zero|at|gp|sp|fp|ra),\s*\$([avtsk][0-9]|[0-9]+|zero|at|gp|sp|fp|ra),\s*\$([avtsk][0-9]|[0-9]+|zero|at|gp|sp|fp|ra)".to_string(), InstructionType::R));
-    } else if i1_type.is_match(text) {
-        return Some((r"(addi)\s+\$([avtsk][0-9]|[0-9]+|zero|at),\s*\$([avtsk][0-9]+|[0-9]|zero|at),\s*(-*[0-9]+)"
-                .to_string(), InstructionType::I1));
-    } else if i2_type.is_match(text) {
-        return Some((
-            r"(beq)\s+\$([avtsk][0-9]|[0-9]+|zero|at),\s*\$([avtsk][0-9]+|[0-9]|zero|at),\s*(\w+)"
-                .to_string(),
-            InstructionType::I2,
-        ));
-    } else if i3_type.is_match(text) {
-        return Some((
-            r"(lw|sw)\s+\$([avtsk][0-9]|[0-9]+|zero|at),\s*([0-9]*)\(\$([avtsk][0-9])\)"
-                .to_string(),
-            InstructionType::I3,
-        ));
-    } else if j1_type.is_match(text) {
-        return Some((r"(j)\s+(\w+)".to_string(), InstructionType::J1));
-    } else if j2_type.is_match(text) {
-        return Some((
-            r"(jr)\s+\$([avtsk][0-9]|[0-9]+|zero|at|gp|sp|fp|ra)".to_string(),
-            InstructionType::J2,
-        ));
-    } else if nop_type.is_match(text) {
-        return Some((r"(nop)".to_string(), InstructionType::N));
+    if regex.r_type.is_match(text) {
+        let cap = regex.r_type.captures(text);
+        return Some((cap, InstructionType::R));
+    } else if regex.i1_type.is_match(text) {
+        let cap = regex.i1_type.captures(text);
+        return Some((cap, InstructionType::I1));
+    } else if regex.i2_type.is_match(text) {
+        let cap = regex.i2_type.captures(text);
+        return Some((cap, InstructionType::I2));
+    } else if regex.i3_type.is_match(text) {
+        let cap = regex.i3_type.captures(text);
+        return Some((cap,InstructionType::I3 ));
+    } else if regex.j1_type.is_match(text) {
+        let cap = regex.j1_type.captures(text);
+        return Some((cap, InstructionType::J1));
+    } else if regex.j2_type.is_match(text) {
+        let cap = regex.j2_type.captures(text);
+        return Some((cap, InstructionType::J2));
+    } else if regex.nop_type.is_match(text) {
+         let cap = regex.nop_type.captures(text);
+        return Some((cap, InstructionType::N));
     } else {
         return None;
     }
-}
-
-/// Captures a command from text.
-///
-/// # Arguments
-///
-/// * `text` - String containing command.
-/// * `regex` - Regex string.
-///
-/// # Returns
-///
-/// *  Option<regex::Captures<'a>> - The capture groups from the regex.
-///
-fn capture_command<'a>(text: &'a str, regex: &'a str) -> Option<regex::Captures<'a>> {
-    let re = Regex::new(regex).unwrap();
-    let captures = re.captures(text);
-
-    captures
 }
 
 /// Returns an Iterator to the Reader of the lines of the file.
@@ -693,10 +687,13 @@ where
 ///
 /// *  Option<usize> - where usize is the offset.
 ///
-fn locate_comment(line: &str) -> Option<usize> {
+fn locate_comment(line: &str, regex: &RegexCom) -> Option<usize> {
     // Will itterate over "line" string and search for "#"
     // Will return first "#" found, if no "#" is found will return empty error.
-    for cap in Regex::new("#").unwrap().find_iter(line) {
+    if !line.contains("#") {
+        return None;
+    }
+    for cap in regex.com_type.find_iter(line) {
         return Some(cap.start());
     }
     return None;
@@ -714,10 +711,8 @@ fn locate_comment(line: &str) -> Option<usize> {
 /// *  Option<(String,usize)> - where usize is the end-index for the label and String is the label found.
 /// 
 ///
-fn locate_labels(line: &str) -> Option<(String, usize)> {
-    for cap in Regex::new("([a-z]|[A-z]|[0-9])+[:]")
-        .unwrap()
-        .find_iter(line)
+fn locate_labels(line: &str, regex: &RegexCom) -> Option<(String, usize)> {
+    for cap in regex.label_type.find_iter(line)
     {
         if cap.start() == 0 {
             return Some((line[0..cap.end() - 1].to_string(), cap.end()));
@@ -738,40 +733,40 @@ fn locate_labels(line: &str) -> Option<(String, usize)> {
 ///
 /// *  Result<(),u32>
 ///
-fn fix_undef_labels(
-    undefined_labels: Vec<UndefinedLabel>,
+fn fix_undef_label(
+    undefined_label: UndefinedLabel,
     machine_code: &mut Vec<u32>,
     labels: &hash_map::HashMap<String, u32>,
 ) -> Result<(), u32> {
-    for undef_label in undefined_labels {
-        //Destruct fields in undef_label
-        let UndefinedLabel {
-            file_row: file_row,
-            addr_index: addr_index,
-            label_string: label,
-            relative_jump: rel_jump,
-        } = undef_label;
-        let row_index = addr_index as usize;
-        if !labels.contains_key(&label) {
-            //Label is still undefined! indicate error
+    //Destruct fields in undef_label
+    let UndefinedLabel {
+        file_row,
+        addr_index,
+        label_string: label,
+        relative_jump: rel_jump,
+    } = undefined_label;
+    let row_index = addr_index as usize;
+
+    if !labels.contains_key(&label) {
+        //Label is still undefined! indicate error
+        return Err(file_row);
+    } else if !rel_jump {
+        //Command indicates absolute jump, insert jump into machine-code
+        machine_code[row_index] = machine_code[row_index] | labels.get(&label).unwrap();
+    } else {
+        //Command indicates relative jump
+        let label_addr = labels.get(&label).unwrap();
+
+        // Calculate the relative jump
+        let offset = label_addr - addr_index - 1;// Minus one as the pc counter will jump one before excecuting instruction
+
+        // Check if relative jump is to far away
+        if offset > MAX_BEQ_OFFSET {
             return Err(file_row);
-        } else if !rel_jump {
-            //Command indicates absolute jump, insert jump into machine-code
-            machine_code[row_index] = machine_code[row_index] | labels.get(&label).unwrap();
-        } else {
-            //Command indicates relative jump
-            let label_addr = labels.get(&label).unwrap();
-
-            // Calculate the relative jump
-            let mut offset = label_addr - addr_index - 1;// Minus one as the pc counter will jump one before excecuting instruction
-
-            // Check if relative jump is to far away
-            if offset > MAX_BEQ_OFFSET {
-                return Err(file_row);
-            }
-            // insert jump into machine-code
-            machine_code[row_index] = machine_code[row_index] | offset;
         }
+        // insert jump into machine-code
+        machine_code[row_index] = machine_code[row_index] | offset;
+        
     }
     Ok(())
 }
@@ -819,7 +814,10 @@ fn write_files(
     );
     write!(&mut list_writer, "┌-----------┬------------┐\n");
     for (label, addr) in &symbol_table {
-        write!(&mut list_writer, "│{:10} │ {:#010x} │\n", label, addr);
+        // Multiply with 4 because each line increases the memeory pointer with 4 bytes
+        // as each line holds word of 4 bytes.
+        let label_addr = addr*4;
+        write!(&mut list_writer, "│{:10} │ {:#010x} │\n", label, label_addr);
     }
     write!(&mut list_writer, "└-----------┴------------┘\n");
 }
