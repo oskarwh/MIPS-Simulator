@@ -15,6 +15,7 @@ label1:
 	or  $t4, $t5, $t1
 	slt $t5, $t1, $t2
 
+
 # This is an ugly little loop
 loop:
     beq $t1, $zero, exit

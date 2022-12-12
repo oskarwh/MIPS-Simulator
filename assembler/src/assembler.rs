@@ -8,6 +8,9 @@ use std::fs::File;
 use std::io::{self, BufRead, BufWriter, Write};
 use std::path::Path;
 
+use std::time::Instant;
+use std::time::Duration;
+
 /// An assembler for converting instructions written in the assembly programming language into machine code instructions.
 /// The assembler produces a file containing machinecode instructions and a listing file containing additional 
 /// information about the placement of instructions in memory.
@@ -70,7 +73,10 @@ fn main() {
     let (machine_code, assembler_code, labels) = parse_file(file_path);
 
     //Make output files
+    let now = Instant::now();
     write_files(machine_code, assembler_code, labels);
+    let elapsed = now.elapsed();
+    println!("Write-files time: {:.2?}", elapsed);
 }
 
 /// Parses the input file and returns a tuple containing information for
@@ -94,6 +100,15 @@ fn parse_file(
 ) {
     let mut registers = hash_map::HashMap::new();
     let mut instructions = hash_map::HashMap::new();
+    let mut capture_command_time :Duration= Duration::new(0, 0);;
+    let mut identify_time :Duration= Duration::new(0, 0);;
+    let mut comment_time :Duration= Duration::new(0, 0);;
+    let mut read_file_time :Duration= Duration::new(0, 0);;
+    let mut parse_time :Duration= Duration::new(0, 0);;
+    let mut fix_label_time :Duration= Duration::new(0, 0);;
+    let mut now = Instant::now();
+
+
     setup_registers_table(&mut registers);
     setup_instruction_table(&mut instructions);
     // Init table for labels, key to table is a label-string which leads to the address-index (the row) of that label
@@ -111,14 +126,21 @@ fn parse_file(
     // Index of line in file
     let mut file_row: u32 = 0;
 
+    let mut elapsed = now.elapsed();
+    println!("Setup variables and hashtables: {:.2?}", elapsed);
+
+    now = Instant::now();
     // File must exist in current path
     if let Ok(lines) = read_lines(file_path) {
+        elapsed = now.elapsed();
+        println!("Read file time: {:.2?}", elapsed);
         // Consumes the iterator, returns an (Optional) String
         for line in lines {
             if let Ok(mut line) = line {
                 // Bool to check if line contains valid code
                 let mut contain_code = false;
                 if line.len() > 0 {
+                    now = Instant::now();
                     //Check for comments
                     let comment_index = if let Some(index) = locate_comment(&line) {
                         //Comment found, set comment index to where comment was found
@@ -133,7 +155,7 @@ fn parse_file(
                     let (label_index, label_found) = if let Some((label, index)) = locate_labels(&line)
                     {   
                         //Label found, insert current address-index into label-table
-                        labels.insert(label, addr_index);
+                        labels.insert(label, addr_index*4);
                         //set label index to where comment was found
                         (index, true)
                     } else {
@@ -144,16 +166,23 @@ fn parse_file(
                     //Take a slice of the line from end of found label to where a comment was found
                     let line_slice = &line[label_index..comment_index];
 
+                    comment_time = comment_time + now.elapsed();
+
+                    now = Instant::now();
                     // If the line contains an identifyable command, assemble the line to machine code and push it to vector
                     if let Some((regex, inst_type)) = identify_type(line_slice) {
+                        identify_time = identify_time + now.elapsed();
+                        now = Instant::now();
                         let cap = capture_command(line_slice, &regex);
+                        capture_command_time = capture_command_time + now.elapsed();
                         if cap.is_some() {
                             let cap = cap.unwrap();
 
+                            now = Instant::now();
                             //Assemble the line and collect the code in a Result<>
                             let line_code = assemble_line(inst_type, file_row, addr_index, cap, &labels, 
                                     &mut undefined_labels, &registers, &instructions);
-                                
+                            parse_time = parse_time + now.elapsed();    
                             if let Err(error) = line_code {
                                 //ERROR: Something went wrong trying to assemble the line
                                 line.push_str("     <-- Error: ");
@@ -183,7 +212,7 @@ fn parse_file(
     } else {
         panic!("Cannot open file");
     }
-
+    now = Instant::now();
     //update commands that referred to previously undefined labels that are now defined
     if let Err(error_row) = fix_undef_labels(undefined_labels, &mut machine_code, &labels) {
         //Something wrong with the called labels!
@@ -191,6 +220,13 @@ fn parse_file(
         line.push_str("     <-- Error: Label undefined!");
         assembler_code[error_row as usize] = (line.to_string(), true);
     }
+    fix_label_time = fix_label_time + now.elapsed();  
+
+    println!("Comment time: {:.2?}", comment_time);
+    println!("Identify type time: {:.2?}", identify_time);
+    println!("Capture time: {:.2?}", capture_command_time);
+    println!("Parse time: {:.2?}", parse_time);
+    println!("Fix labels time: {:.2?}", fix_label_time);
 
     (machine_code, assembler_code, labels)
 }
@@ -376,7 +412,7 @@ fn assemble_i2_type(
     instr = instr | (parse_register(rt, registers)?) << RT_POS;
 
     if let Some(dest) = labels.get(label) {
-        label_addr = (*dest);
+        label_addr = *dest;
     } else {
         let temp = UndefinedLabel {
             file_row: file_row,
