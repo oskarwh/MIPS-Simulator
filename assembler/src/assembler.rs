@@ -108,13 +108,13 @@ fn parse_file(
 ) {
     // Set up all Regexes 
     let regex_coms = RegexCom {
-        r_type: Regex::new(r"^\s(add|sub|nor|or|and|slt)\s+\$(\S+),\s*\$(\S+),\s*\$(\S+)").unwrap(),
-        i1_type: Regex::new(r"^\s(addi)\s+\$(\S+),\s*\$(\S+),\s*(\S+)").unwrap(),
-        i2_type: Regex::new(r"^\s(beq)\s+\$(\S+),\s*\$(\S+),\s*(\w+)" ).unwrap(),
-        i3_type: Regex::new(r"^\s(lw|sw)\s+\$(\S+),\s*(\S*)\(\$(\S+)\)").unwrap(),
-        j1_type: Regex::new(r"^\s(j)\s+(\w+)").unwrap(),
-        j2_type: Regex::new(r"^\s(jr)\s+\$(\S+)").unwrap(),
-        nop_type: Regex::new(r"^\s(nop)").unwrap(),
+        r_type: Regex::new(r"^\s(add|sub|nor|or|and|slt)\s+\$(\S+),\s*\$(\S+),\s*\$(\S+)\s*$").unwrap(),
+        i1_type: Regex::new(r"^\s(addi)\s+\$(\S+),\s*\$(\S+),\s*(\S+)\s*$").unwrap(),
+        i2_type: Regex::new(r"^\s(beq)\s+\$(\S+),\s*\$(\S+),\s*(\w+)\s*$" ).unwrap(),
+        i3_type: Regex::new(r"^\s(lw|sw)\s+\$(\S+),\s*(\S*)\(\$(\S+)\)\s*$").unwrap(),
+        j1_type: Regex::new(r"^\s(j)\s+(\w+)\s*$").unwrap(),
+        j2_type: Regex::new(r"^\s(jr)\s+\$(\S+)\s*$").unwrap(),
+        nop_type: Regex::new(r"^\s(nop)\s*$").unwrap(),
         com_type: Regex::new("#").unwrap(),
         label_type: Regex::new("([a-z]|[A-z]|[0-9])+[:]").unwrap(),
     };
@@ -195,14 +195,14 @@ fn parse_file(
                             }
                         } else {
                             //ERROR: No instruction could be captured on the line
-                            line.push_str("     <-- Error: wrong format on instruction");
+                            //Should not be able to get here
                         }
 
                         addr_index += 1;
                     } else if !label_found && line_slice.len() > 1 {
                         //No label was found and the line is longer than 1 + no instruction was recognized
                         // => Error
-                        line.push_str("     <-- Error: instruction not recognized");
+                        line.push_str("     <-- Error: instruction not recognized or wrong format on instruction");
                     }
 
                     
@@ -511,6 +511,11 @@ fn assemble_j1_type(
     let cmnd = &cap[1];
     let label = &cap[2];
     let mut label_addr: u32 = 0;
+
+    // Check if label is none
+    if label == "" {
+        return Err("Add label to jump instruction");
+    }
 
     let instr = instructions.get(&cmnd).unwrap();
 
