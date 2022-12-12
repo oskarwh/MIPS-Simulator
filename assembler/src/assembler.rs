@@ -8,8 +8,6 @@ use std::fs::File;
 use std::io::{self, BufRead, BufWriter, Write};
 use std::path::Path;
 
-use std::time::Instant;
-use std::time::Duration;
 
 /// An assembler for converting instructions written in the assembly programming language into machine code instructions.
 /// The assembler produces a file containing machinecode instructions and a listing file containing additional 
@@ -85,10 +83,8 @@ fn main() {
     let (machine_code, assembler_code, labels) = parse_file(file_path);
 
     //Make output files
-    let now = Instant::now();
+
     write_files(machine_code, assembler_code, labels);
-    let elapsed = now.elapsed();
-    println!("Write-files time: {:.2?}", elapsed);
 }
 
 /// Parses the input file and returns a tuple containing information for
@@ -110,7 +106,6 @@ fn parse_file(
     Vec<(String, bool)>,
     hash_map::HashMap<String, u32>,
 ) {
-    let mut now = Instant::now();
     // Set up all Regexes 
     let regex_coms = RegexCom {
         r_type: Regex::new(r"^\s(add|sub|nor|or|and|slt)\s+\$(\S+),\s*\$(\S+),\s*\$(\S+)").unwrap(),
@@ -126,12 +121,6 @@ fn parse_file(
 
     let mut registers = hash_map::HashMap::new();
     let mut instructions = hash_map::HashMap::new();
-    let mut identify_time :Duration= Duration::new(0, 0);
-    let mut comment_time :Duration= Duration::new(0, 0);
-    let mut parse_time :Duration= Duration::new(0, 0);
-    let mut fix_label_time :Duration= Duration::new(0, 0);
-
-
 
     setup_registers_table(&mut registers);
     setup_instruction_table(&mut instructions);
@@ -150,21 +139,16 @@ fn parse_file(
     // Index of line in file
     let mut file_row: u32 = 0;
 
-    let mut elapsed = now.elapsed();
-    println!("Setup variables and hashtables: {:.2?}", elapsed);
-
-    now = Instant::now();
     // File must exist in current path
     if let Ok(lines) = read_lines(file_path) {
-        elapsed = now.elapsed();
-        println!("Read file time: {:.2?}", elapsed);
+
         // Consumes the iterator, returns an (Optional) String
         for line in lines {
             if let Ok(mut line) = line {
                 // Bool to check if line contains valid code
                 let mut contain_code = false;
                 if line.len() > 0 {
-                    now = Instant::now();
+  
                     //Check for comments
                     let comment_index = if let Some(index) = locate_comment(&line, &regex_coms) {
                         //Comment found, set comment index to where comment was found
@@ -190,21 +174,17 @@ fn parse_file(
                     //Take a slice of the line from end of found label to where a comment was found
                     let line_slice = &line[label_index..comment_index];
 
-                    comment_time = comment_time + now.elapsed();
-
-                    now = Instant::now();
                     // If the line contains an identifyable command, assemble the line to machine code and push it to vector
 
                     if let Some((cap, inst_type)) = identify_type(line_slice, &regex_coms) {
-                        identify_time = identify_time + now.elapsed();
-    
+  
                         if cap.is_some() {
                             let cap = cap.unwrap();
-                            now = Instant::now();
+
                             //Assemble the line and collect the code in a Result<>
                             let line_code = assemble_line(inst_type, file_row, addr_index, cap, &labels, 
                                     &mut undefined_labels, &registers, &instructions);
-                            parse_time = parse_time + now.elapsed();    
+    
                             if let Err(error) = line_code {
                                 //ERROR: Something went wrong trying to assemble the line
                                 line.push_str("     <-- Error: ");
@@ -234,7 +214,7 @@ fn parse_file(
     } else {
         panic!("Cannot open file");
     }
-    now = Instant::now();
+
     //update commands that referred to previously undefined labels that are now defined
     for undef_label in undefined_labels {
         if let Err(error_row) = fix_undef_label(undef_label, &mut machine_code, &labels) {
@@ -245,12 +225,6 @@ fn parse_file(
             
         }
     }
-    fix_label_time = fix_label_time + now.elapsed();  
-
-    println!("Comment time: {:.2?}", comment_time);
-    println!("Identify type time: {:.2?}", identify_time);
-    println!("Parse time: {:.2?}", parse_time);
-    println!("Fix labels time: {:.2?}", fix_label_time);
 
     (machine_code, assembler_code, labels)
 }
@@ -428,7 +402,7 @@ fn assemble_i2_type(
     let rs = &cap[2];
     let label = &cap[4];
     let mask = 0x0000FFFF;
-    let mut label_addr: u32 = 0;
+    let label_addr: u32;
 
     let mut instr = *instructions.get(&cmnd).unwrap();
 
@@ -576,7 +550,7 @@ fn assemble_j2_type(
 
     let mut instr = *instructions.get(&cmnd).unwrap();
 
-    instr = instr | (parse_register(dest, registers)?);
+    instr = instr | (parse_register(dest, registers)?) << RS_POS;
     Ok(instr)
 }
 
@@ -793,33 +767,56 @@ fn write_files(
         // Check if line contains machine code
         if assembler_line.1 {
             // Write to listing file with
-            write!(
+            if let Err(_) = write!(
                 &mut list_writer,
                 "{:#010x}  {:#010x}  {}\n",
                 i * 4,
                 machine_code[i],
                 assembler_line.0
-            );
-            write!(&mut machine_writer, "{:#010x}\n", machine_code[i]);
+            ) {
+                //ERROR: Something went wrong when writing
+            } 
+            
+            if let Err(_) =  write!(&mut machine_writer, "{:#010x}\n", machine_code[i]) {
+                //ERROR: Something went wrong when writing
+                panic!("Failed to write to file.");
+            } 
             i += 1;
         } else {
-            write!(&mut list_writer, "{:24}{}\n", "", assembler_line.0);
+            if let Err(_) = write!(&mut list_writer, "{:24}{}\n", "", assembler_line.0) {
+                //ERROR: Something went wrong when writing
+                panic!("Failed to write to file.");
+            } 
         }
     }
 
-    write!(
+    if let Err(_) = write!(
         &mut list_writer,
         "\n  {:10}   {:10}\n",
         "Label name", "Address"
-    );
-    write!(&mut list_writer, "┌-----------┬------------┐\n");
+    ) {
+        //ERROR: Something went wrong when writing
+    } 
+    if let Err(_) = write!(&mut list_writer, "┌-----------┬------------┐\n") {
+        //ERROR: Something went wrong when writing
+        panic!("Failed to write to file.");
+    } 
     for (label, addr) in &symbol_table {
         // Multiply with 4 because each line increases the memeory pointer with 4 bytes
         // as each line holds word of 4 bytes.
         let label_addr = addr*4;
-        write!(&mut list_writer, "│{:10} │ {:#010x} │\n", label, label_addr);
+        
+        if let Err(_) = write!(&mut list_writer, "│{:10} │ {:#010x} │\n", label, label_addr) {
+            //ERROR: Something went wrong when writing
+            panic!("Failed to write to file.");
+        } 
+
     }
-    write!(&mut list_writer, "└-----------┴------------┘\n");
+ 
+    if let Err(_) = write!(&mut list_writer, "└-----------┴------------┘\n") {
+        //ERROR: Something went wrong when writing
+        panic!("Failed to write to file.");
+    } 
 }
 
 /// Initilizes the register table which contains all allowed registers.

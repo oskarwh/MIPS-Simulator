@@ -1,0 +1,42 @@
+# Test program 5, tests all instructions except j and beq
+ nor $t1, $zero, $zero
+ sub $t1, $zero, $t1
+ add $t2, $t1, $t1
+ add $t3, $t2, $t1
+ and $t4, $t2, $t3
+ or $t4, $t5, $t1
+ addi $t0, $zero, 64
+ addi   $t1, $zero, 20
+ or      $s0, $t0, $t1
+ jr      $t1
+ jr      $k0
+ nop
+ nop
+ nop
+ nop
+ add $t1, $s0, $s7
+ add $t3, $t5, $t3
+ addi $t8, $s4, 12 
+ nor $t4, $t5, $t4
+ slt $17, $19, $23
+ addi $t0, $t0, 1
+ addi $10, $zero, 2
+ addi $a0, $t3, 3
+ addi $v0, $t3, 3
+ addi $v1, $gp, 45
+ addi $a0, $k1, 4
+ addi $v0, $gp, 97
+ addi $v0, $gp, 123
+ addi $v0, $gp, 43
+ addi $v0, $gp, 44
+ sll $t0,$t1,5
+ slt $t0,$t1,$ra
+ sll $t0,$t1,5
+ slt $t2,$t1,$s7
+ sll $t0,$t1,5
+ slt $7,$14,$16
+ sw  $2, 4($t5)
+ lw  $4, 4($t5)
+ sw  $t2, 10($t5)
+ lw  $t4, 40($t5)
+
