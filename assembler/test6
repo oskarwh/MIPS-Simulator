@@ -26,7 +26,7 @@
  addi $v1, $gp, 45
  addi $a0, $k1, 4
  addi $v0, $gp, 97
- addi $v0, $sp, 123
+ addi $v0, $gp, 123
  addi $v0, $gp, 43
  addi $v0, $gp, 44
  sll $t0,$t1,5

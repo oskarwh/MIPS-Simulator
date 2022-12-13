@@ -11,7 +11,3 @@ jump_here:
  nop
  add     $s2, $t0, $s0
  j       jump_here
- add     $s2, $t0, $s0
- add     $s2, $t0, $s0
- jr      $t1
- jr      $k2

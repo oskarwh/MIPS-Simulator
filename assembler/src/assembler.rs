@@ -466,7 +466,7 @@ fn assemble_i3_type(
 
     let offset_val = if offset.is_err() {
         // Error
-        Err("offset is too big or not a number")
+        Err("offset is to big or not a number")
     } else {
         let offset_unwrap = offset.unwrap();
         if offset_unwrap > MAX_IMME_SIZE {
