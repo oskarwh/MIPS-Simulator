@@ -11,23 +11,59 @@ pub struct ProgramCounter<'a> {
     mux_branch: &'a dyn  Unit,
 }
 
+pub struct ProgramCounterBuilder<'a>{
+    instruction_memory : Option<&'a dyn Unit>,
+    concater : Option<&'a dyn Unit>,
+    add_unit : Option<&'a dyn  Unit>,
+    mux_branch: Option<&'a dyn  Unit>,
+}
 
-impl  ProgramCounter<'_>{
-    
-    pub fn new() -> ProgramCounter<'static>{
+impl ProgramCounterBuilder<'_>{
+    //Consumes itself and builds a ProgramCounter
+    pub fn new()->ProgramCounterBuilder<'static>{
+        ProgramCounterBuilder {
+             instruction_memory: None, 
+             concater: None, 
+             add_unit: None,
+              mux_branch: None,
+        }
+    }
 
+    pub fn set_instr_memory(&mut self, instr_mem: &impl Unit) {
+        self.instruction_memory = Some(instr_mem);
+    }
+
+    pub fn set_concater(&mut self, concater: &impl Unit) {
+        self.concater = Some(concater);
+    }
+
+    pub fn set_add(&mut self, add: &impl Unit) {
+        self.add_unit = Some(add);
+    }
+
+    pub fn set_mux_branch(&mut self, mux: &impl (Unit)) {
+        self.mux_branch = Some(mux);
+    }
+
+    pub fn build(self)->ProgramCounter<'static>{
         ProgramCounter{
             current_address : bitvec![u32, Lsb0; 0; 32],
             has_address : true,
 
-            instruction_memory: &EmptyUnit{},
-            concater: &EmptyUnit{},
-            add_unit: &EmptyUnit{},
-            mux_branch: &EmptyUnit{},
+            instruction_memory: self.instruction_memory.expect(""),
+            concater: self.concater.expect(""), 
+            add_unit: self.add_unit.expect(""),
+            mux_branch: self.mux_branch.expect(""),
         }
-    }
+    }   
 
-    pub fn execute(&self){
+}
+
+
+impl  ProgramCounter<'_>{
+    
+
+    pub fn execute(&mut self){
         if self.has_address {
             //Send address to instruction memory
             self.instruction_memory.receive(IM_READ_ADDRESS_ID, self.current_address.to_bitvec());
@@ -58,27 +94,11 @@ impl  ProgramCounter<'_>{
     }
 
 
-    
 
-    pub fn set_instr_memory(&self, instr_mem: &impl Unit) {
-        self.instruction_memory = instr_mem;
-    }
-
-    pub fn set_concater(&self, concater: &impl Unit) {
-        self.concater = concater;
-    }
-
-    pub fn set_add(&self, add: &impl Unit) {
-        self.add_unit = add;
-    }
-
-    pub fn set_mux_branch(&self, mux: &impl (Unit)) {
-        self.mux_branch = mux;
-    }
 }
 
 impl Unit for ProgramCounter<'_>{
-    fn receive(&self, input_id: u32, address : Word){
+    fn receive(&mut self, input_id: u32, address : Word){
         if input_id == PC_IN_ID{
             self.current_address = address;
             self.has_address = true;
@@ -88,7 +108,7 @@ impl Unit for ProgramCounter<'_>{
         
     }
 
-    fn receive_signal(&self ,signal_id:u32) {
+    fn receive_signal(&mut self,signal_id:u32) {
         todo!()
     }
 

@@ -40,6 +40,7 @@ fn main() {
     pc.set_mux_branch(empty_unit{});
     pc.set_instr_memory(&instr_mem);
 
+    
     // Add components to connect with instruction memory
     instr_mem.set_pc(&pc);
     instr_mem.set_control(empty_unit{});
