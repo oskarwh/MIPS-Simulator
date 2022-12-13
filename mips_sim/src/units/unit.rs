@@ -4,8 +4,8 @@ pub type Word = BitVec<u32, Lsb0>;
 pub trait Unit{
     
 
-    fn receive(&mut self, input_id : u32, data :Word);
-    fn receive_signal(&mut self,signal_id:u32);
+    fn receive(&self, input_id : u32, data :Word);
+    fn receive_signal(&self ,signal_id:u32);
 }
 
 pub struct EmptyUnit{
@@ -13,11 +13,11 @@ pub struct EmptyUnit{
 }
 
 impl Unit for EmptyUnit{
-    fn receive(&mut self, input_id : u32, data :Word){
+    fn receive(&self, input_id : u32, data :Word){
         println!("Empty Unit received data: data = {}", data);
     }
 
-    fn receive_signal(&mut self ,signal_id:u32) {
+    fn receive_signal(&self ,signal_id:u32) {
         todo!()
     }
 

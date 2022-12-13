@@ -12,28 +12,13 @@ pub struct AddUnit<'a> {
     has_instr: bool,
     has_addr : bool,
 
-    mux_branch :&'a mut dyn Unit,
+    mux_branch :&'a dyn Unit,
 }
 
-pub struct AddUnitBuilder<'a> {
 
-    mux_branch :Option<&'a mut dyn Unit>,
-}
-
-impl AddUnitBuilder<'_>{
-    pub fn new()->AddUnitBuilder<'static>{
-        AddUnitBuilder{
-            mux_branch: None,
-        }
-    }
-
-    /// Set Functions
-    pub fn set_mux_branch<'a>(&mut self, mux: &'a mut dyn Unit){
-        self.mux_branch = Some(mux);
-    }
-    
-    //Consumes itself and creates an AddUnit
-    fn build(self)->AddUnit<'static>{
+impl AddUnit<'_>{
+    //Define MUX id's
+    pub fn new() -> AddUnit<'static>{
         AddUnit{
             has_instr:false,
             has_addr:false,
@@ -41,22 +26,22 @@ impl AddUnitBuilder<'_>{
             addr:bitvec![u32, Lsb0; 0; 32],
             sign_ext_instr: bitvec![u32, Lsb0; 0; 32],
 
-            mux_branch: self.mux_branch.expect("Need to set mux_branch in AddUnit builder before it can be built"),
+            mux_branch: &EmptyUnit{},
         }
     }
 
-}
-
-impl AddUnit<'_>{
-
-
     //Execute unit with thread
-    pub fn execute(&mut self){
+    pub fn execute(&self){
 
         if self.has_addr && self.has_instr{
-            let res = Self::add(self.addr.to_bitvec(), self.sign_ext_instr.to_bitvec());
+            let res = Self::add(self.addr, self.sign_ext_instr);
             self.mux_branch.receive(MUX_IN_1_ID, res);
         }
+    }
+
+    /// Set Functions
+    pub fn set_mux_branch(&self, mux: &impl Unit){
+        self.mux_branch = mux;
     }
 
 
@@ -73,7 +58,7 @@ impl AddUnit<'_>{
 }
 
 impl Unit for AddUnit<'_>  {
-    fn receive(&mut self, input_id: u32, data : Word){
+    fn receive(&self, input_id: u32, data : Word){
         if input_id == ADD_IN_1_ID{
             self.addr = data;
             self.has_addr = true;
@@ -83,7 +68,7 @@ impl Unit for AddUnit<'_>  {
         }
     }
 
-    fn receive_signal(&mut self,signal_id:u32) {
+    fn receive_signal(&self ,signal_id:u32) {
         // DO NOTHING
     }
 }

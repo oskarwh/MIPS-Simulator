@@ -39,7 +39,7 @@ impl InstructionMemory<'_>{
 
         
     ///Execute unit with thread
-    pub fn execute(&mut self){
+    pub fn execute(&self){
       
         if self.has_address {
             //Received address on read_address! Find corresponding instruction. Need to right shift 2 steps (divide by 4)
@@ -65,23 +65,23 @@ impl InstructionMemory<'_>{
 
     /// Set Functions
 
-    pub fn set_control(&mut self, ctrl : &impl Unit){
+    pub fn set_control(&self, ctrl : &impl Unit){
         self.control = ctrl;
     }
 
-    pub fn set_reg(&mut self, reg : &impl Unit){
+    pub fn set_reg(&self, reg : &impl Unit){
         self.reg = reg;
             }
 
-    pub fn set_signextend(&mut self, sign_extend: &impl Unit){
+    pub fn set_signextend(&self, sign_extend: &impl Unit){
         self.sign_extend = sign_extend;
         } 
 
-    pub fn set_aluctrl(&mut self, alu_ctrl: &impl Unit){
+    pub fn set_aluctrl(&self, alu_ctrl: &impl Unit){
         self.alu_ctrl = alu_ctrl;
     }
 
-    pub fn set_concater(&mut self, concater: &impl Unit){
+    pub fn set_concater(&self, concater: &impl Unit){
         self.concater = concater;
     }
 
@@ -90,7 +90,7 @@ impl InstructionMemory<'_>{
 
 impl Unit for InstructionMemory<'_>{
 
-    fn receive(&mut self, input_id: u32, address : Word){
+    fn receive(&self, input_id: u32, address : Word){
         if input_id ==  IM_READ_ADDRESS_ID{
             self.current_address = address;
             self.has_address = true;
@@ -100,7 +100,7 @@ impl Unit for InstructionMemory<'_>{
         
     }
 
-    fn receive_signal(&mut self ,signal_id:u32) {
+    fn receive_signal(&self ,signal_id:u32) {
         // DO NOTHING
     }
     

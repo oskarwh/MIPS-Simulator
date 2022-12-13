@@ -5,43 +5,24 @@ pub struct SignExtend<'a>  {
     data : Word,
     has_data: bool,
 
-    add_unit : &'a mut dyn Unit,
+    add_unit : &'a dyn Unit,
 
 }
 
-pub struct SignExtendBuilder<'a>  {
-    add_unit : Option<&'a mut dyn Unit>,
-}
-
-
-impl SignExtendBuilder<'_>{
-    pub fn new()->SignExtendBuilder<'static>{
-        SignExtendBuilder{
-            add_unit: None,
-        }
-    }
-
-    /// Set Functions
-    pub fn set_add(&self, add: &mut dyn Unit,){
-        self.add_unit = Some(add);
-    }
-
-    //Consumes itself and creates an AddUnit
-    fn build(self)->SignExtend<'static>{
-        SignExtend{
-            has_data:false,
-            data: bitvec![u32, Lsb0; 0; 32],
-            add_unit: self.add_unit.expect(""),
-        }
-    }
-
-}
 
 impl SignExtend<'_>{
 
+    pub fn new() -> SignExtend<'static>{
+        SignExtend{
+            has_data:false,
+            data: bitvec![u32, Lsb0; 0; 32],
+            add_unit: &EmptyUnit{},
+        }
+    }
+
 
     ///Execute unit with thread
-    pub fn execute(&mut self){
+    pub fn execute(&self){
 
         if self.has_data{
             //Sign extend the data
@@ -58,7 +39,10 @@ impl SignExtend<'_>{
         }
     }
 
-
+    /// Set Functions
+    pub fn set_add(&self, add: &impl Unit){
+        self.add_unit = add;
+    }
 
 
 
@@ -66,7 +50,7 @@ impl SignExtend<'_>{
 
 impl Unit for SignExtend<'_>{
 
-    fn receive(&mut self, input_id: u32, data : Word){
+    fn receive(&self, input_id: u32, data : Word){
         if input_id == SE_IN_ID{
             self.data = data;
             self.has_data = true;
@@ -75,7 +59,7 @@ impl Unit for SignExtend<'_>{
         }
     }
 
-    fn receive_signal(&mut self,signal_id:u32) {
+    fn receive_signal(&self ,signal_id:u32) {
         todo!()
     }
 

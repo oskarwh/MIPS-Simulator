@@ -6,7 +6,7 @@ use crate::units::mux::*;
 
 
 
-pub struct Concater<'a> {
+struct Concater<'a> {
 
     addr : Word,
     instr : Word,
@@ -32,7 +32,7 @@ impl Concater<'_>{
 
 
     ///Execute unit with thread
-    pub fn execute(&mut self){
+    pub fn execute(&self){
 
         if self.has_addr && self.has_instr{
             //Append bits from instruction memory with address from PC+4
@@ -42,7 +42,7 @@ impl Concater<'_>{
     }
 
     /// Set Functions
-    pub fn set_mux_jump(&mut self, mux: &impl Unit){
+    pub fn set_mux_jump(&self, mux: &impl Unit){
         self.mux_jump = mux;
     }
 
@@ -51,7 +51,7 @@ impl Concater<'_>{
 
 impl Unit for Concater<'_>{
 
-    fn receive(&mut self, input_id: u32, data : Word){
+    fn receive(&self, input_id: u32, data : Word){
         if input_id == CONC_IN_1_ID{
             self.instr = data;
             self.has_instr = true;
@@ -61,7 +61,7 @@ impl Unit for Concater<'_>{
         }
     }
 
-    fn receive_signal(&mut self ,signal_id:u32) {
+    fn receive_signal(&self ,signal_id:u32) {
         // DO NOTHING
     }
     
