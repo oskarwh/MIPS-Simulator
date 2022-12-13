@@ -13,7 +13,7 @@ struct Concater<'a> {
     has_instr: bool,
     has_addr : bool,
 
-    mux_jump : &'a dyn Unit,
+    mux_jump : Option<&'a dyn Unit>,
 
 }
 
@@ -26,24 +26,24 @@ impl Concater<'_>{
             has_instr:false,
             addr: bitvec![u32, Lsb0; 0; 32],
             instr: bitvec![u32, Lsb0; 0; 32],
-            mux_jump: &EmptyUnit{},
+            mux_jump: None,
         }
     }
 
 
     ///Execute unit with thread
-    pub fn execute(&self){
+    pub fn execute(&mut self){
 
         if self.has_addr && self.has_instr{
             //Append bits from instruction memory with address from PC+4
             self.addr.append(&mut self.instr);
-            self.mux_jump.receive(MUX_IN_1_ID, self.addr.to_bitvec());
+            self.mux_jump.unwrap().receive(MUX_IN_1_ID, self.addr.to_bitvec());
         }
     }
 
     /// Set Functions
-    pub fn set_mux_jump(&self, mux: &impl Unit){
-        self.mux_jump = mux;
+    pub fn set_mux_jump(&mut self, mux: &impl Unit){
+        self.mux_jump = Some(mux);
     }
 
 
@@ -51,7 +51,7 @@ impl Concater<'_>{
 
 impl Unit for Concater<'_>{
 
-    fn receive(&self, input_id: u32, data : Word){
+    fn receive(&mut self, input_id: u32, data : Word){
         if input_id == CONC_IN_1_ID{
             self.instr = data;
             self.has_instr = true;
@@ -61,7 +61,7 @@ impl Unit for Concater<'_>{
         }
     }
 
-    fn receive_signal(&self ,signal_id:u32) {
+    fn receive_signal(&mut self ,signal_id:u32) {
         // DO NOTHING
     }
     

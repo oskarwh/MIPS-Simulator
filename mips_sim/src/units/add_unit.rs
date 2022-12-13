@@ -12,7 +12,7 @@ pub struct AddUnit<'a> {
     has_instr: bool,
     has_addr : bool,
 
-    mux_branch :&'a dyn Unit,
+    mux_branch :Option<&'a mut dyn Unit>,
 }
 
 
@@ -26,22 +26,22 @@ impl AddUnit<'_>{
             addr:bitvec![u32, Lsb0; 0; 32],
             sign_ext_instr: bitvec![u32, Lsb0; 0; 32],
 
-            mux_branch: &EmptyUnit{},
+            mux_branch: None,
         }
     }
 
     //Execute unit with thread
-    pub fn execute(&self){
+    pub fn execute(&mut self){
 
         if self.has_addr && self.has_instr{
-            let res = Self::add(self.addr, self.sign_ext_instr);
-            self.mux_branch.receive(MUX_IN_1_ID, res);
+            let res = Self::add(self.addr.to_bitvec(), self.sign_ext_instr.to_bitvec());
+            self.mux_branch.unwrap().receive(MUX_IN_1_ID, res);
         }
     }
 
     /// Set Functions
-    pub fn set_mux_branch(&self, mux: &impl Unit){
-        self.mux_branch = mux;
+    pub fn set_mux_branch<'a>(&mut self, mux: &'a mut dyn Unit){
+        self.mux_branch = Some(mux);
     }
 
 
@@ -58,7 +58,7 @@ impl AddUnit<'_>{
 }
 
 impl Unit for AddUnit<'_>  {
-    fn receive(&self, input_id: u32, data : Word){
+    fn receive(&mut self, input_id: u32, data : Word){
         if input_id == ADD_IN_1_ID{
             self.addr = data;
             self.has_addr = true;
@@ -68,7 +68,7 @@ impl Unit for AddUnit<'_>  {
         }
     }
 
-    fn receive_signal(&self ,signal_id:u32) {
+    fn receive_signal(&mut self ,signal_id:u32) {
         // DO NOTHING
     }
 }

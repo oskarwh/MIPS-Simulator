@@ -17,10 +17,10 @@ pub struct Mux<'a> {
 impl Mux<'_> {
 
 
-    fn new(out: &impl Unit, out_id : u32) -> Mux<'_>{
+    pub fn new(out: &impl Unit, out_id : u32) -> Mux<'_>{
         
         Mux{
-            output_unit: &EmptyUnit{},
+            output_unit: out,
             output_id: 0,
             signal : false,
             data0: bitvec![u32, Lsb0; 0; 32],
@@ -30,7 +30,7 @@ impl Mux<'_> {
         }
     }
 
-    fn execute(&self){
+    pub fn execute(&mut self){
         // Some type of loop so the signal doesnt go unnoticed
         if self.signal{
             self.output_unit.receive(self.output_id, self.data1);
@@ -38,10 +38,11 @@ impl Mux<'_> {
             self.output_unit.receive(self.output_id, self.data0);
         }
     }
+
 }
 
 impl Unit for Mux<'_>{
-    fn receive(&self, input_id: u32, data : BitVec::<u32, LocalBits> ){
+    fn receive(&mut self, input_id: u32, data : BitVec::<u32, LocalBits> ){
         if input_id == MUX_IN_0_ID{
             self.data0 == data;
         }else if input_id == MUX_IN_1_ID {
@@ -52,7 +53,7 @@ impl Unit for Mux<'_>{
     }
 
 
-    fn receive_signal(&self ,signal_id:u32){
+    fn receive_signal(&mut self ,signal_id:u32){
         self.signal = true;
     }
 }

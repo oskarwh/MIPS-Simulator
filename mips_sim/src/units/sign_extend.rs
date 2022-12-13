@@ -5,7 +5,7 @@ pub struct SignExtend<'a>  {
     data : Word,
     has_data: bool,
 
-    add_unit : &'a dyn Unit,
+    add_unit : Option<&'a dyn Unit>,
 
 }
 
@@ -16,13 +16,13 @@ impl SignExtend<'_>{
         SignExtend{
             has_data:false,
             data: bitvec![u32, Lsb0; 0; 32],
-            add_unit: &EmptyUnit{},
+            add_unit: None,
         }
     }
 
 
     ///Execute unit with thread
-    pub fn execute(&self){
+    pub fn execute(&mut self){
 
         if self.has_data{
             //Sign extend the data
@@ -34,14 +34,14 @@ impl SignExtend<'_>{
             //Shift the data left (shift_right because of the way BitVec is designed)
             self.data.shift_right(2);
 
-            self.add_unit.receive(ADD_IN_2_ID, self.data.to_bitvec());
+            self.add_unit.unwrap().receive(ADD_IN_2_ID, self.data.to_bitvec());
         
         }
     }
 
     /// Set Functions
-    pub fn set_add(&self, add: &impl Unit){
-        self.add_unit = add;
+    pub fn set_add(&mut self, add: &impl Unit){
+        self.add_unit = Some(add);
     }
 
 
@@ -50,7 +50,7 @@ impl SignExtend<'_>{
 
 impl Unit for SignExtend<'_>{
 
-    fn receive(&self, input_id: u32, data : Word){
+    fn receive(&mut self, input_id: u32, data : Word){
         if input_id == SE_IN_ID{
             self.data = data;
             self.has_data = true;
@@ -59,7 +59,7 @@ impl Unit for SignExtend<'_>{
         }
     }
 
-    fn receive_signal(&self ,signal_id:u32) {
+    fn receive_signal(&mut self ,signal_id:u32) {
         todo!()
     }
 

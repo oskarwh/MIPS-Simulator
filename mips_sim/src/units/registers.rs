@@ -19,9 +19,9 @@ pub struct Registers<'a> {
     has_write_data : bool,
 
 
-    alu : &'a dyn Unit,
-    mux_alu_src : &'a dyn  Unit,
-    data_memory : &'a dyn Unit,
+    alu : Option<&'a dyn Unit>,
+    mux_alu_src : Option<&'a dyn  Unit>,
+    data_memory : Option<&'a dyn Unit>,
 
     reg_write_signal : bool,
 
@@ -50,27 +50,27 @@ impl Registers<'_>{
             write_reg: bitvec![u32, Lsb0; 0; 32],
             write_data: bitvec![u32, Lsb0; 0; 32],
 
-            alu: &EmptyUnit{},
-            mux_alu_src: &EmptyUnit{},
-            data_memory: &EmptyUnit{},
+            alu: None,
+            mux_alu_src: None,
+            data_memory: None,
         }
     }
 
 
     ///Execute unit with thread
-    pub fn execute(&self){
+    pub fn execute(&mut self){
         if self.has_read1{
             //Received reg1! Find corresponding data and send to ALU
             let data = self.registers[self.read1_reg.into_vec()[0] as usize];
-            self.alu.receive(ALU_IN_1_ID, data.to_bitvec());
+            self.alu.unwrap().receive(ALU_IN_1_ID, data.to_bitvec());
             self.has_read1 = false;
         }
 
         if self.has_read2{
             //Received reg1! Find corresponding data and send to ALU-src mux and Data Memory
             let data = self.registers[self.read2_reg.into_vec()[0] as usize];
-            self.mux_alu_src.receive(MUX_IN_0_ID, data.to_bitvec());
-            self.data_memory.receive(DM_DATA_ID, data.to_bitvec());
+            self.mux_alu_src.unwrap().receive(MUX_IN_0_ID, data.to_bitvec());
+            self.data_memory.unwrap().receive(DM_DATA_ID, data.to_bitvec());
             self.has_read2 = false;
         }
 
@@ -83,16 +83,16 @@ impl Registers<'_>{
     }
 
     /// Set Functions
-    pub fn set_alu(&self, alu: &impl Unit){
-        self.alu = alu;
+    pub fn set_alu(&mut self, alu: &impl Unit){
+        self.alu = Some(alu);
     }
 
-    pub fn set_mux_alu_src(&self, mux: &impl Unit){
-        self.mux_alu_src = mux;
+    pub fn set_mux_alu_src(&mut self, mux: &impl Unit){
+        self.mux_alu_src = Some(mux);
     }
 
-    pub fn set_data_memory(&self, data_memory: &impl Unit){
-        self.data_memory = data_memory;
+    pub fn set_data_memory(&mut self, data_memory: &impl Unit){
+        self.data_memory = Some(data_memory);
     }
 
 
@@ -100,7 +100,7 @@ impl Registers<'_>{
 
 impl Unit for Registers<'_>{
 
-    fn receive(&self, input_id: u32, data : Word){
+    fn receive(&mut self, input_id: u32, data : Word){
         if input_id ==  REG_READ_1_ID{
             self.read1_reg = data;
             self.has_read1 = true;
@@ -119,7 +119,7 @@ impl Unit for Registers<'_>{
         
     }
 
-    fn receive_signal(&self ,signal_id:u32){
+    fn receive_signal(&mut self ,signal_id:u32){
         if signal_id == DEFAULT_SIGNAL{
             self.reg_write_signal = true;
         }

@@ -62,14 +62,14 @@ impl Control<'_> {
         }
     }
 
-    pub fn set_r_signals(&self) {
+    pub fn set_r_signals(&mut self) {
         self.mux_reg_dst.receive_signal(DEFAULT_SIGNAL);
         self.reg_file.receive_signal(DEFAULT_SIGNAL);
         // Since alu ctrl has two signals we have to define which signal to assert.
         self.alu_ctrl.receive_signal(ALU_OP1_SIGNAL);
     }
 
-    pub fn set_lw_signals(&self) {
+    pub fn set_lw_signals(&mut self) {
         self.mux_alu_src.receive_signal(DEFAULT_SIGNAL);
         self.mux_mem_to_reg.receive_signal(DEFAULT_SIGNAL);
         self.reg_file.receive_signal(DEFAULT_SIGNAL);
@@ -78,14 +78,14 @@ impl Control<'_> {
         self.data_memory.receive_signal(MEM_READ_SIGNAL);
     }
 
-    pub fn set_sw_signals(&self) {
+    pub fn set_sw_signals(&mut self) {
         self.mux_alu_src.receive_signal(DEFAULT_SIGNAL);
         // Since data mem has two signals we to define which signal to assert,
         // in this case it is the write signal
         self.data_memory.receive_signal(MEM_WRITE_SIGNAL)
     }
 
-    pub fn set_beq_signals(&self) {
+    pub fn set_beq_signals(&mut self) {
         self. mux_alu_src.receive_signal(DEFAULT_SIGNAL);
         // Since data mem has two signals we to define which signal to assert,
         // in this case it is the write signal
@@ -94,7 +94,7 @@ impl Control<'_> {
         self.alu_ctrl.receive_signal(ALU_OP0_SIGNAL);
     }
 
-    pub fn set_j_signals(&self) {
+    pub fn set_j_signals(&mut self) {
         self.mux_jump.receive_signal(DEFAULT_SIGNAL);
     }
 
@@ -114,7 +114,7 @@ impl Control<'_> {
 
 impl Unit for Control<'_>{
 
-    fn receive (&self, input_id : u32, data : Word) {
+    fn receive (&mut self, input_id : u32, data : Word) {
         // Bit vector for R format instruction
         let r_bitvec = bitvec![0,0,0,0,0,0];
         // Bit vector for load-woard instruction
@@ -169,7 +169,7 @@ impl Unit for Control<'_>{
         }    
     }
 
-    fn receive_signal(&self ,signal_id:u32) {
+    fn receive_signal(&mut self ,signal_id:u32) {
         todo!()
     }
 

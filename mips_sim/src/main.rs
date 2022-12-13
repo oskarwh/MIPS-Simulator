@@ -27,21 +27,33 @@ fn main() {
     );
 
     // Create all objects
-    let pc: ProgramCounter<'static>  = ProgramCounter::new();
+    let mut pc: ProgramCounter<'static>  = ProgramCounter::new();
+    let mut empty :EmptyUnit = EmptyUnit{};
 
     // Add file with instructions
-    let mut instructions: Vec<Word>;
+    let mut instructions: Vec<Word> = Vec::new();
     instructions.push(3u32.view_bits::<Lsb0>().to_bitvec());
-    let instr_mem: InstructionMemory<'static> = InstructionMemory::new(instructions);
+    let mut instr_mem: InstructionMemory<'static> = InstructionMemory::new(instructions);
 
     // Add components to connect with program counter
     pc.set_instr_memory(&instr_mem);
+    pc.set_concater(&empty);
+    pc.set_add(&empty);
+    pc.set_mux_branch(&empty);
 
     // Add components to connect with instruction memory
-    instr_mem.set_pc(&pc);
+    instr_mem.set_aluctrl(&empty);
+    instr_mem.set_concater(&empty);
+    instr_mem.set_control(&empty);
+    instr_mem.set_reg(&empty);
+    instr_mem.set_signextend(&empty);
 
-
-
+    loop{
+        pc.execute();
+        instr_mem.execute()
+    }
+    
+/* 
     let pc_arc = Arc::new(Mutex::new(pc));
     let pc_ref = Arc::clone(&pc_arc);
 
@@ -59,7 +71,7 @@ fn main() {
     // Thread for the instruction memory
     let instr_mem_thread = thread::spawn(move||{
         pc_ref.execute();
-    });
+    });*/
 }
 /* 
 #![warn(clippy::all, rust_2018_idioms)]
