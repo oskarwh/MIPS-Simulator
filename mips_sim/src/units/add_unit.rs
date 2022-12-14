@@ -35,12 +35,13 @@ impl AddUnit<'_>{
 
         if self.has_addr && self.has_instr{
             let res = Self::add(self.addr.to_bitvec(), self.sign_ext_instr.to_bitvec());
-            self.mux_branch.unwrap().receive(MUX_IN_1_ID, res);
+            
+            self.mux_branch.as_mut().unwrap().receive(MUX_IN_1_ID, res);
         }
     }
 
     /// Set Functions
-    pub fn set_mux_branch<'a>(&mut self, mux: &'a mut dyn Unit){
+    pub fn set_mux_branch<'a>(&'a mut self, mux: &'a mut dyn Unit){
         self.mux_branch = Some(mux);
     }
 

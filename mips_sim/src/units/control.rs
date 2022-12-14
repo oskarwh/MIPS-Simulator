@@ -25,30 +25,30 @@ pub struct Control<'a> {
     alu_op0: bool = false;
     alu_op1: bool = false;*/
 
-    mux_reg_dst:  &'a dyn  Unit,
-    mux_jump:  &'a dyn  Unit,
-    mux_branch: &'a dyn  Unit,
-    mux_alu_src:  &'a dyn  Unit,
-    mux_mem_to_reg:  &'a dyn  Unit,
-    alu_ctrl: &'a dyn Unit,
-    reg_file: &'a dyn Unit,
-    data_memory: &'a dyn Unit
+    mux_reg_dst:  &'a mut dyn  Unit,
+    mux_jump:  &'a mut dyn  Unit,
+    mux_branch: &'a mut dyn  Unit,
+    mux_alu_src:  &'a mut dyn  Unit,
+    mux_mem_to_reg:  &'a mut dyn  Unit,
+    alu_ctrl: &'a mut dyn  Unit,
+    reg_file: &'a mut dyn  Unit,
+    data_memory: &'a mut dyn  Unit
 }
 
 
 impl Control<'_> {
 
     pub fn new<'a>(
-        mux_reg_dst: &'a dyn  Unit,
-        mux_jump: &'a dyn  Unit,
-        mux_branch: &'a dyn  Unit,
-        mux_alu_src:  &'a dyn  Unit,
-        mux_mem_to_reg: &'a dyn  Unit,
-        mux_mem:  &'a dyn  Unit,
+        mux_reg_dst: &'a mut dyn  Unit,
+        mux_jump: &'a mut dyn  Unit,
+        mux_branch: &'a mut dyn  Unit,
+        mux_alu_src:  &'a mut dyn  Unit,
+        mux_mem_to_reg: &'a mut dyn  Unit,
+        mux_mem:  &'a mut dyn  Unit,
 
-        alu_ctrl: &impl Unit,
-        reg_file: &impl Unit,
-        data_memory:  &impl Unit,
+        alu_ctrl: &'a mut dyn  Unit,
+        reg_file: &'a mut dyn  Unit,
+        data_memory:  &'a mut dyn  Unit,
     ) -> Control<'a>{
         Control{
             mux_reg_dst,

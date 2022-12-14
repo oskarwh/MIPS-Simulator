@@ -5,7 +5,7 @@ pub struct AluControl<'a> {
     alu_op0: bool,
     alu_op1: bool,
 
-    alu_unit: Option<&'a dyn Unit>,
+    alu_unit: Option<&'a mut dyn Unit>,
 }
 
 impl AluControl<'_> {
@@ -24,13 +24,13 @@ impl AluControl<'_> {
 
     pub fn set_add_signals(&mut self) {
         // Send 0010 to ALU
-        self.alu_unit.unwrap().receive_signal(ALU_CTRL2_SIGNAL);
+        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL2_SIGNAL);
     }
 
     pub fn set_sub_signals(&mut self) {
         // Send 0110 to ALU
-        self.alu_unit.unwrap().receive_signal(ALU_CTRL1_SIGNAL);
-        self.alu_unit.unwrap().receive_signal(ALU_CTRL2_SIGNAL);
+        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL1_SIGNAL);
+        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL2_SIGNAL);
     }
 
     pub fn set_and_signals(&mut self) {
@@ -40,33 +40,33 @@ impl AluControl<'_> {
 
     pub fn set_or_signals(&mut self) {
         // Send 0001 to ALU
-        self.alu_unit.unwrap().receive_signal(ALU_CTRL3_SIGNAL);
+        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL3_SIGNAL);
     }
 
     pub fn set_slt_signals(&mut self) {
         // Send 0111 to ALU
-        self.alu_unit.unwrap().receive_signal(ALU_CTRL1_SIGNAL);
-        self.alu_unit.unwrap().receive_signal(ALU_CTRL2_SIGNAL);
-        self.alu_unit.unwrap().receive_signal(ALU_CTRL3_SIGNAL);
+        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL1_SIGNAL);
+        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL2_SIGNAL);
+        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL3_SIGNAL);
     }
 
     pub fn set_lw_signals(&mut self) {
         // Send 0010 to ALU
-        self.alu_unit.unwrap().receive_signal(ALU_CTRL2_SIGNAL);
+        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL2_SIGNAL);
     }
 
     pub fn set_sw_signals(&mut self) {
         // Send 0010 to ALU
-        self.alu_unit.unwrap().receive_signal(ALU_CTRL2_SIGNAL);
+        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL2_SIGNAL);
     }
 
     pub fn set_bra_signals(&mut self) {
         // Send 0110 to ALU
-        self.alu_unit.unwrap().receive_signal(ALU_CTRL1_SIGNAL);
-        self.alu_unit.unwrap().receive_signal(ALU_CTRL2_SIGNAL);
+        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL1_SIGNAL);
+        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL2_SIGNAL);
     }
 
-    pub fn set_alu(&mut self, alu: &impl Unit) {
+    pub fn set_alu(&mut self, alu: &mut dyn Unit) {
         self.alu_unit = Some(alu);
     }
 }

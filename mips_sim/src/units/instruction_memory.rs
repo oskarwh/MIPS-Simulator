@@ -10,11 +10,11 @@ pub struct InstructionMemory<'a> {
     current_address : Word,
     has_address: bool,
 
-    reg : Option<&'a dyn Unit>,
-    sign_extend : Option<&'a dyn Unit>,
-    alu_ctrl : Option<&'a dyn Unit>,
-    control : Option<&'a dyn Unit>,
-    concater: Option<&'a dyn Unit>,
+    reg : Option<&'a mut dyn Unit>,
+    sign_extend : Option<&'a mut dyn Unit>,
+    alu_ctrl : Option<&'a mut dyn Unit>,
+    control : Option<&'a mut dyn Unit>,
+    concater: Option<&'a mut dyn Unit>,
 
 }
 
@@ -43,20 +43,20 @@ impl InstructionMemory<'_>{
       
         if self.has_address {
             //Received address on read_address! Find corresponding instruction. Need to right shift 2 steps (divide by 4)
-            let borrow = self.current_address;
+            let borrow = &mut self.current_address;
             borrow.shift_right(2);
-            self.current_instruction = self.instructions[borrow.into_vec()[0] as usize];
+            self.current_instruction = self.instructions[borrow.to_bitvec().into_vec()[0] as usize].to_bitvec();
 
 
             //Send to concater, word will be shifted left (shift_right because of the way BitVec is designed)
             let borrow = &mut self.current_instruction[0..26];
             borrow.shift_right(2);
-            self.concater.unwrap().receive(CONC_IN_1_ID, borrow.to_bitvec() );
+            self.concater.as_mut().unwrap().receive(CONC_IN_1_ID, borrow.to_bitvec() );
 
             //Send instruction to other units
-            self.reg.unwrap().receive(REG_READ_1_ID, self.current_instruction[21..26].to_bitvec());
-            self.reg.unwrap().receive(REG_READ_2_ID, self.current_instruction[16..21].to_bitvec());
-            self.control.unwrap().receive(CTRL_IN_ID, self.current_instruction[26..32].to_bitvec());
+            self.reg.as_mut().unwrap().receive(REG_READ_1_ID, self.current_instruction[21..26].to_bitvec());
+            self.reg.as_mut().unwrap().receive(REG_READ_2_ID, self.current_instruction[16..21].to_bitvec());
+            self.control.as_mut().unwrap().receive(CTRL_IN_ID, self.current_instruction[26..32].to_bitvec());
             self.has_address = false;
         }
         
@@ -65,23 +65,23 @@ impl InstructionMemory<'_>{
 
     /// Set Functions
 
-    pub fn set_control(&mut self, ctrl : &impl Unit){
+    pub fn set_control(&mut self, ctrl : &mut dyn Unit){
         self.control = Some(ctrl);
     }
 
-    pub fn set_reg(&mut self, reg : &impl Unit){
+    pub fn set_reg(&mut self, reg : &mut dyn Unit){
         self.reg = Some(reg);
     }
 
-    pub fn set_signextend(&mut self, sign_extend: &impl Unit){
+    pub fn set_signextend(&mut self, sign_extend: &mut dyn Unit){
         self.sign_extend = Some(sign_extend);
     } 
 
-    pub fn set_aluctrl(&mut self, alu_ctrl: &impl Unit){
+    pub fn set_aluctrl(&mut self, alu_ctrl: &mut dyn Unit){
         self.alu_ctrl = Some(alu_ctrl);
     }
 
-    pub fn set_concater(&mut self, concater: &impl Unit){
+    pub fn set_concater(&mut self, concater: &mut dyn Unit){
         self.concater = Some(concater);
     }
 

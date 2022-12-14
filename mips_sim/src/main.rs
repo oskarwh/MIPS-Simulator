@@ -36,17 +36,17 @@ fn main() {
     let mut instr_mem: InstructionMemory<'static> = InstructionMemory::new(instructions);
 
     // Add components to connect with program counter
-    pc.set_instr_memory(&instr_mem);
-    pc.set_concater(&empty);
-    pc.set_add(&empty);
-    pc.set_mux_branch(&empty);
+    pc.set_instr_memory(&mut instr_mem);
+    pc.set_concater(&mut empty);
+    pc.set_add(&mut empty);
+    pc.set_mux_branch(&mut empty);
 
     // Add components to connect with instruction memory
-    instr_mem.set_aluctrl(&empty);
-    instr_mem.set_concater(&empty);
-    instr_mem.set_control(&empty);
-    instr_mem.set_reg(&empty);
-    instr_mem.set_signextend(&empty);
+    instr_mem.set_aluctrl(&mut empty);
+    instr_mem.set_concater(&mut empty);
+    instr_mem.set_control(&mut empty);
+    instr_mem.set_reg(&mut empty);
+    instr_mem.set_signextend(&mut empty);
 
     loop{
         pc.execute();

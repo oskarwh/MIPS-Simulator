@@ -13,7 +13,7 @@ struct Concater<'a> {
     has_instr: bool,
     has_addr : bool,
 
-    mux_jump : Option<&'a dyn Unit>,
+    mux_jump : Option<&'a mut dyn Unit>,
 
 }
 
@@ -37,12 +37,12 @@ impl Concater<'_>{
         if self.has_addr && self.has_instr{
             //Append bits from instruction memory with address from PC+4
             self.addr.append(&mut self.instr);
-            self.mux_jump.unwrap().receive(MUX_IN_1_ID, self.addr.to_bitvec());
+            self.mux_jump.as_mut().unwrap().receive(MUX_IN_1_ID, self.addr.to_bitvec());
         }
     }
 
     /// Set Functions
-    pub fn set_mux_jump(&mut self, mux: &impl Unit){
+    pub fn set_mux_jump(&mut self, mux: &mut dyn Unit){
         self.mux_jump = Some(mux);
     }
 

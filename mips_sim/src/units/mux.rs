@@ -7,7 +7,7 @@ pub struct Mux<'a> {
     data1 : Word,
 
     signal : bool,
-    output_unit : &'a dyn  Unit,
+    output_unit : &'a mut dyn  Unit,
     output_id : u32,
 
     has_val0 : bool,
@@ -17,11 +17,11 @@ pub struct Mux<'a> {
 impl Mux<'_> {
 
 
-    pub fn new(out: &impl Unit, out_id : u32) -> Mux<'_>{
+    pub fn new(out: &mut dyn  Unit, out_id : u32) -> Mux<'_>{
         
         Mux{
             output_unit: out,
-            output_id: 0,
+            output_id: out_id,
             signal : false,
             data0: bitvec![u32, Lsb0; 0; 32],
             data1: bitvec![u32, Lsb0; 0; 32],
@@ -33,9 +33,9 @@ impl Mux<'_> {
     pub fn execute(&mut self){
         // Some type of loop so the signal doesnt go unnoticed
         if self.signal{
-            self.output_unit.receive(self.output_id, self.data1);
+            self.output_unit.receive(self.output_id, self.data1.to_bitvec());
         }else{
-            self.output_unit.receive(self.output_id, self.data0);
+            self.output_unit.receive(self.output_id, self.data0.to_bitvec());
         }
     }
 
