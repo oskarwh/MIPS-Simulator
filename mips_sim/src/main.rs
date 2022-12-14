@@ -48,10 +48,10 @@ fn main() {
     instr_mem.set_reg(&mut empty);
     instr_mem.set_signextend(&mut empty);
 
-    loop{
+    
         pc.execute();
         instr_mem.execute()
-    }
+    
     
 /* 
     let pc_arc = Arc::new(Mutex::new(pc));

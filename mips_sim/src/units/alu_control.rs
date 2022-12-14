@@ -67,7 +67,7 @@ impl AluControl<'_> {
     }
 
     pub fn set_alu(&mut self, alu: &mut dyn Unit) {
-        self.alu_unit = Some(alu);
+        self.alu_unit = Some(unsafe { std::mem::transmute(alu) });
     }
 }
 

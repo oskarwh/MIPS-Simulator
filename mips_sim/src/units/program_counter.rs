@@ -5,7 +5,7 @@ use crate::units::mux::*;
 pub struct ProgramCounter<'a> {
     has_address: bool,
     current_address : Word,
-    instruction_memory : Option<&'a dyn Unit>,
+    instruction_memory : Option<&'a mut dyn Unit>,
     concater : Option<&'a mut dyn Unit>,
     add_unit : Option<&'a mut dyn  Unit>,
     mux_branch: Option<&'a mut dyn  Unit>,
@@ -33,7 +33,7 @@ impl  ProgramCounter<'_>{
             self.instruction_memory.as_mut().unwrap().receive(IM_READ_ADDRESS_ID, self.current_address.to_bitvec());
 
             //add 4 to address
-            let added_address = Self::add_4(self.current_address);
+            let added_address = Self::add_4(self.current_address.to_bitvec());
 
             //Send added address to concater
             self.concater.as_mut().unwrap().receive(CONC_IN_2_ID, added_address[28..32].to_bitvec());
@@ -61,19 +61,19 @@ impl  ProgramCounter<'_>{
     
 
     pub fn set_instr_memory(&mut self, instr_mem: &mut dyn  Unit) {
-        self.instruction_memory = Some(instr_mem);
+        self.instruction_memory = Some(unsafe { std::mem::transmute(instr_mem) });
     }
 
     pub fn set_concater(&mut self, concater: &mut dyn  Unit) {
-        self.concater = Some(concater);
+        self.concater = Some(unsafe { std::mem::transmute(concater) });
     }
 
     pub fn set_add(&mut self, add: &mut dyn  Unit) {
-        self.add_unit = Some(add);
+        self.add_unit = Some(unsafe { std::mem::transmute(add) });
     }
 
     pub fn set_mux_branch(&mut self, mux: &mut dyn  Unit) {
-        self.mux_branch = Some(mux);
+        self.mux_branch = Some(unsafe { std::mem::transmute(mux) });
     }
 }
 

@@ -43,7 +43,7 @@ impl Concater<'_>{
 
     /// Set Functions
     pub fn set_mux_jump(&mut self, mux: &mut dyn Unit){
-        self.mux_jump = Some(mux);
+        self.mux_jump = Some(unsafe { std::mem::transmute(mux) });
     }
 
 

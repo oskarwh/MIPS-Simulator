@@ -66,23 +66,23 @@ impl InstructionMemory<'_>{
     /// Set Functions
 
     pub fn set_control(&mut self, ctrl : &mut dyn Unit){
-        self.control = Some(ctrl);
+        self.control = Some(unsafe { std::mem::transmute(ctrl) });
     }
 
     pub fn set_reg(&mut self, reg : &mut dyn Unit){
-        self.reg = Some(reg);
+        self.reg = Some(unsafe { std::mem::transmute(reg) });
     }
 
     pub fn set_signextend(&mut self, sign_extend: &mut dyn Unit){
-        self.sign_extend = Some(sign_extend);
+        self.sign_extend = Some(unsafe { std::mem::transmute(sign_extend) });
     } 
 
     pub fn set_aluctrl(&mut self, alu_ctrl: &mut dyn Unit){
-        self.alu_ctrl = Some(alu_ctrl);
+        self.alu_ctrl = Some(unsafe { std::mem::transmute(alu_ctrl) });
     }
 
     pub fn set_concater(&mut self, concater: &mut dyn Unit){
-        self.concater = Some(concater);
+        self.concater = Some(unsafe { std::mem::transmute(concater) });
     }
 
 

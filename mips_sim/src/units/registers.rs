@@ -84,15 +84,15 @@ impl Registers<'_>{
 
     /// Set Functions
     pub fn set_alu(&mut self, alu: &mut dyn Unit){
-        self.alu = Some(alu);
+        self.alu = Some(unsafe { std::mem::transmute(alu) });
     }
 
     pub fn set_mux_alu_src(&mut self, mux: &mut dyn Unit){
-        self.mux_alu_src = Some(mux);
+        self.mux_alu_src = Some(unsafe { std::mem::transmute(mux) });
     }
 
     pub fn set_data_memory(&mut self, data_memory: &mut dyn Unit){
-        self.data_memory = Some(data_memory);
+        self.data_memory = Some(unsafe { std::mem::transmute(data_memory) });
     }
 
 

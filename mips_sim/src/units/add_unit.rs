@@ -40,9 +40,9 @@ impl AddUnit<'_>{
         }
     }
 
-    /// Set Functions
-    pub fn set_mux_branch<'a>(&'a mut self, mux: &'a mut dyn Unit){
-        self.mux_branch = Some(mux);
+        /// Set Functions
+    pub fn set_mux_branch(&mut self, mux: &mut dyn Unit){
+        self.mux_branch = Some(unsafe { std::mem::transmute(mux) });
     }
 
 
@@ -50,7 +50,7 @@ impl AddUnit<'_>{
         let num1 = word1.into_vec()[0];
         let num2 = word2.into_vec()[0];
 
-        let res = num1 + num1;
+        let res = num1 + num2;
 
         res.view_bits::<Lsb0>().to_bitvec()
     }
