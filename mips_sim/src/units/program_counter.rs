@@ -42,7 +42,7 @@ impl  ProgramCounter<'_>{
             self.add_unit.as_mut().unwrap().receive(ADD_IN_1_ID,added_address.to_bitvec());
 
             //Send added address to mux-branch
-            self.add_unit.as_mut().unwrap().receive(MUX_IN_0_ID, added_address.to_bitvec());
+            self.mux_branch.as_mut().unwrap().receive(MUX_IN_0_ID, added_address.to_bitvec());
 
             self.has_address = false;
         }

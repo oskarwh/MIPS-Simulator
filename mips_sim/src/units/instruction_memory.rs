@@ -7,7 +7,7 @@ pub struct InstructionMemory<'a> {
 
     instructions : Vec<Word>,
     current_instruction : Word,
-    current_address : Word,
+    current_address : u32,
     has_address: bool,
 
     reg : Option<&'a mut dyn Unit>,
@@ -25,7 +25,7 @@ impl InstructionMemory<'_>{
         InstructionMemory{
             instructions:instr,
             current_instruction: bitvec![u32, Lsb0; 0; 32],
-            current_address: bitvec![u32, Lsb0; 0; 32],
+            current_address: 0,
             has_address: false,
 
             reg: None,
@@ -43,13 +43,12 @@ impl InstructionMemory<'_>{
       
         if self.has_address {
             //Received address on read_address! Find corresponding instruction. Need to right shift 2 steps (divide by 4)
-            let borrow = &mut self.current_address;
-            borrow.shift_right(2);
-            self.current_instruction = self.instructions[borrow.to_bitvec().into_vec()[0] as usize].to_bitvec();
+            self.current_address = self.current_address/4;
+            self.current_instruction = self.instructions[self.current_address as usize].to_bitvec();
 
 
             //Send to concater, word will be shifted left (shift_right because of the way BitVec is designed)
-            let borrow = &mut self.current_instruction[0..26];
+            let mut borrow = self.current_instruction[0..26].to_bitvec();
             borrow.shift_right(2);
             self.concater.as_mut().unwrap().receive(CONC_IN_1_ID, borrow.to_bitvec() );
 
@@ -57,6 +56,8 @@ impl InstructionMemory<'_>{
             self.reg.as_mut().unwrap().receive(REG_READ_1_ID, self.current_instruction[21..26].to_bitvec());
             self.reg.as_mut().unwrap().receive(REG_READ_2_ID, self.current_instruction[16..21].to_bitvec());
             self.control.as_mut().unwrap().receive(CTRL_IN_ID, self.current_instruction[26..32].to_bitvec());
+            self.alu_ctrl.as_mut().unwrap().receive(ALU_CTRL_IN_ID, self.current_instruction[0..6].to_bitvec());
+            self.sign_extend.as_mut().unwrap().receive(ALU_CTRL_IN_ID, self.current_instruction[0..16].to_bitvec());
             self.has_address = false;
         }
         
@@ -92,7 +93,7 @@ impl Unit for InstructionMemory<'_>{
 
     fn receive(&mut self, input_id: u32, address : Word){
         if input_id ==  IM_READ_ADDRESS_ID{
-            self.current_address = address;
+            self.current_address = address.to_bitvec().into_vec()[0];
             self.has_address = true;
         }else{
             //Message came on undefined input

@@ -1,13 +1,13 @@
 use regex::Captures;
 use regex::Regex;
 use std::collections::hash_map;
-use std::env;
 use std::fs::File;
-use std::io::{self, BufRead, BufWriter, Write};
+use std::io::{self, BufRead};
 use std::path::Path;
 
+
 /// An assembler for converting instructions written in the assembly programming language into machine code instructions.
-/// The assembler produces a file containing machinecode instructions and a listing file containing additional
+/// The assembler produces a file containing machinecode instructions and a listing file containing additional 
 /// information about the placement of instructions in memory.
 ///
 /// Authors: Jakob Lindehag (c20jlg@cs.umu.se)
@@ -17,11 +17,13 @@ use std::path::Path;
 /// Version information:
 ///    v1.0 2022-11-25: First complete version.
 
+
+
 const RS_POS: u32 = 21;
 const RT_POS: u32 = 16;
 const RD_POS: u32 = 11;
-const MAX_IMME_SIZE: u32 = u16::MAX as u32; //Maximum value that are used in arithmetic immediate commands
-const MAX_BEQ_OFFSET: u32 = i16::MAX as u32; //Maximum value for branch-jumps
+const MAX_IMME_SIZE: u32 = u16::MAX as u32;//Maximum value that are used in arithmetic immediate commands
+const MAX_BEQ_OFFSET: u32 = i16::MAX as u32;//Maximum value for branch-jumps
 
 /// Enumerates the different types of instructions.
 enum InstructionType {
@@ -53,21 +55,18 @@ struct UndefinedLabel {
     relative_jump: bool,
 }
 
-pub fn assemble_file(
-    file_path: String,
-) -> (
-    Vec<u32>,
-    Vec<(String, bool)>,
-    hash_map::HashMap<String, u32>,
-    hash_map::HashMap<&'static str, u32>,
-) {
-    let mut registers = hash_map::HashMap::new();
-    let mut instructions = hash_map::HashMap::new();
-    setup_registers_table(&mut registers);
-    setup_instruction_table(&mut instructions);
-    //Parse the file and generate machine code
-    (parse_file(file_path), registers)
+struct RegexCom {
+    r_type: Regex,
+    i1_type: Regex,
+    i2_type: Regex,
+    i3_type: Regex,
+    j1_type: Regex,
+    j2_type: Regex,
+    nop_type: Regex,
+    com_type: Regex,
+    label_type: Regex,
 }
+
 
 /// Parses the input file and returns a tuple containing information for
 /// the listing file, machine code file and a hashmap containing all
@@ -81,15 +80,31 @@ pub fn assemble_file(
 ///
 /// *  (Vec<u32>, Vec<(String, bool)>, hash_map::HashMap<String, u32>)
 ///
-fn parse_file(
+pub fn parse_file(
     file_path: &str,
-    registers: &mut hash_map::HashMap<&'static str, u32>,
-    instructions: &mut hash_map::HashMap<&'static str, u32>,
 ) -> (
     Vec<u32>,
     Vec<(String, bool)>,
     hash_map::HashMap<String, u32>,
 ) {
+    // Set up all Regexes 
+    let regex_coms = RegexCom {
+        r_type: Regex::new(r"^\s(add|sub|nor|or|and|slt)\s+\$(\S+),\s*\$(\S+),\s*\$(\S+)\s*$").unwrap(),
+        i1_type: Regex::new(r"^\s(addi)\s+\$(\S+),\s*\$(\S+),\s*(\S+)\s*$").unwrap(),
+        i2_type: Regex::new(r"^\s(beq)\s+\$(\S+),\s*\$(\S+),\s*(\w+)\s*$" ).unwrap(),
+        i3_type: Regex::new(r"^\s(lw|sw)\s+\$(\S+),\s*(\S*)\(\$(\S+)\)\s*$").unwrap(),
+        j1_type: Regex::new(r"^\s(j)\s+(\w+)\s*$").unwrap(),
+        j2_type: Regex::new(r"^\s(jr)\s+\$(\S+)\s*$").unwrap(),
+        nop_type: Regex::new(r"^\s(nop)\s*$").unwrap(),
+        com_type: Regex::new("#").unwrap(),
+        label_type: Regex::new("([a-z]|[A-z]|[0-9])+[:]").unwrap(),
+    };
+
+    let mut registers = hash_map::HashMap::new();
+    let mut instructions = hash_map::HashMap::new();
+
+    setup_registers_table(&mut registers);
+    setup_instruction_table(&mut instructions);
     // Init table for labels, key to table is a label-string which leads to the address-index (the row) of that label
     let mut labels = hash_map::HashMap::new();
 
@@ -107,14 +122,16 @@ fn parse_file(
 
     // File must exist in current path
     if let Ok(lines) = read_lines(file_path) {
+
         // Consumes the iterator, returns an (Optional) String
         for line in lines {
             if let Ok(mut line) = line {
                 // Bool to check if line contains valid code
                 let mut contain_code = false;
                 if line.len() > 0 {
+  
                     //Check for comments
-                    let comment_index = if let Some(index) = locate_comment(&line) {
+                    let comment_index = if let Some(index) = locate_comment(&line, &regex_coms) {
                         //Comment found, set comment index to where comment was found
                         index
                     } else {
@@ -124,38 +141,31 @@ fn parse_file(
                     };
 
                     // Locate label on line if it exists.
-                    let (label_index, label_found) =
-                        if let Some((label, index)) = locate_labels(&line) {
-                            //Label found, insert current address-index into label-table
-                            labels.insert(label, addr_index);
-                            //set label index to where comment was found
-                            (index, true)
-                        } else {
-                            //No label found, set label index to beginning of line
-                            (0, false)
-                        };
+                    let (label_index, label_found) = if let Some((label, index)) = locate_labels(&line, &regex_coms)
+                    {   
+                        //Label found, insert current address-index into label-table
+                        labels.insert(label, addr_index);
+                        //set label index to where comment was found
+                        (index, true)
+                    } else {
+                        //No label found, set label index to beginning of line
+                        (0, false)
+                    };
 
                     //Take a slice of the line from end of found label to where a comment was found
                     let line_slice = &line[label_index..comment_index];
 
                     // If the line contains an identifyable command, assemble the line to machine code and push it to vector
-                    if let Some((regex, inst_type)) = identify_type(line_slice) {
-                        let cap = capture_command(line_slice, &regex);
+
+                    if let Some((cap, inst_type)) = identify_type(line_slice, &regex_coms) {
+  
                         if cap.is_some() {
                             let cap = cap.unwrap();
 
                             //Assemble the line and collect the code in a Result<>
-                            let line_code = assemble_line(
-                                inst_type,
-                                file_row,
-                                addr_index,
-                                cap,
-                                &labels,
-                                &mut undefined_labels,
-                                &registers,
-                                &instructions,
-                            );
-
+                            let line_code = assemble_line(inst_type, file_row, addr_index, cap, &labels, 
+                                    &mut undefined_labels, &registers, &instructions);
+    
                             if let Err(error) = line_code {
                                 //ERROR: Something went wrong trying to assemble the line
                                 line.push_str("     <-- Error: ");
@@ -166,15 +176,17 @@ fn parse_file(
                             }
                         } else {
                             //ERROR: No instruction could be captured on the line
-                            line.push_str("     <-- Error: wrong format on instruction");
+                            //Should not be able to get here
                         }
 
                         addr_index += 1;
                     } else if !label_found && line_slice.len() > 1 {
                         //No label was found and the line is longer than 1 + no instruction was recognized
                         // => Error
-                        line.push_str("     <-- Error: instruction not recognized");
+                        line.push_str("     <-- Error: instruction not recognized or wrong format on instruction");
                     }
+
+                    
                 }
                 file_row += 1;
                 assembler_code.push((line, contain_code));
@@ -185,15 +197,19 @@ fn parse_file(
     }
 
     //update commands that referred to previously undefined labels that are now defined
-    if let Err(error_row) = fix_undef_labels(undefined_labels, &mut machine_code, &labels) {
-        //Something wrong with the called labels!
-        let (line, bool) = &mut assembler_code[error_row as usize];
-        line.push_str("     <-- Error: Label undefined!");
-        assembler_code[error_row as usize] = (line.to_string(), true);
+    for undef_label in undefined_labels {
+        if let Err(error_row) = fix_undef_label(undef_label, &mut machine_code, &labels) {
+            //Something wrong with the called labels!
+            let (line, _) = &mut assembler_code[error_row as usize];
+            line.push_str("     <-- Error: Label undefined!");
+            assembler_code[error_row as usize] = (line.to_string(), true);
+            
+        }
     }
 
     (machine_code, assembler_code, labels)
 }
+
 
 /// Assembles a line using strings for each individual part of the command contained in a regex::Captures
 ///
@@ -221,10 +237,14 @@ fn assemble_line(
     undefined_labels: &mut Vec<UndefinedLabel>,
     registers: &hash_map::HashMap<&'static str, u32>,
     instructions: &hash_map::HashMap<&'static str, u32>,
-) -> Result<u32, &'static str> {
+)-> Result<u32, &'static str>{
     let line_code = match inst_type {
-        InstructionType::R => assemble_r_type(cap, &registers, &instructions),
-        InstructionType::I1 => assemble_i1_type(cap, &registers, &instructions),
+        InstructionType::R => {
+            assemble_r_type(cap, &registers, &instructions)
+        }
+        InstructionType::I1 => {
+            assemble_i1_type(cap, &registers, &instructions)
+        }
         InstructionType::I2 => assemble_i2_type(
             file_row,
             addr_index,
@@ -234,7 +254,9 @@ fn assemble_line(
             registers,
             instructions,
         ),
-        InstructionType::I3 => assemble_i3_type(cap, &registers, &instructions),
+        InstructionType::I3 => {
+            assemble_i3_type(cap, &registers, &instructions)
+        }
         InstructionType::J1 => assemble_j1_type(
             file_row,
             addr_index,
@@ -243,7 +265,9 @@ fn assemble_line(
             undefined_labels,
             instructions,
         ),
-        InstructionType::J2 => assemble_j2_type(cap, registers, instructions),
+        InstructionType::J2 => {
+            assemble_j2_type(cap, registers, instructions)
+        }
         InstructionType::N => Ok(0),
     };
 
@@ -359,7 +383,7 @@ fn assemble_i2_type(
     let rs = &cap[2];
     let label = &cap[4];
     let mask = 0x0000FFFF;
-    let mut label_addr: u32 = 0;
+    let label_addr: u32;
 
     let mut instr = *instructions.get(&cmnd).unwrap();
 
@@ -367,7 +391,7 @@ fn assemble_i2_type(
     instr = instr | (parse_register(rt, registers)?) << RT_POS;
 
     if let Some(dest) = labels.get(label) {
-        label_addr = (*dest);
+        label_addr = *dest;
     } else {
         let temp = UndefinedLabel {
             file_row: file_row,
@@ -423,7 +447,7 @@ fn assemble_i3_type(
 
     let offset_val = if offset.is_err() {
         // Error
-        Err("offset is not a number")
+        Err("offset is to big or not a number")
     } else {
         let offset_unwrap = offset.unwrap();
         if offset_unwrap > MAX_IMME_SIZE {
@@ -469,6 +493,11 @@ fn assemble_j1_type(
     let label = &cap[2];
     let mut label_addr: u32 = 0;
 
+    // Check if label is none
+    if label == "" {
+        return Err("Add label to jump instruction");
+    }
+
     let instr = instructions.get(&cmnd).unwrap();
 
     if let Some(&dest) = labels.get(label) {
@@ -507,7 +536,7 @@ fn assemble_j2_type(
 
     let mut instr = *instructions.get(&cmnd).unwrap();
 
-    instr = instr | (parse_register(dest, registers)?);
+    instr = instr | (parse_register(dest, registers)?) << RS_POS;
     Ok(instr)
 }
 
@@ -560,62 +589,32 @@ fn parse_register(
 ///
 /// *  Option<(String, InstructionType) - Where the String is the regex string and the InstructionType is the type.
 ///
-fn identify_type(text: &str) -> Option<(String, InstructionType)> {
-    let r_type = Regex::new(r"(add |sub |nor |or |and |slt )").unwrap();
-    let i1_type = Regex::new(r"(addi )").unwrap();
-    let i2_type = Regex::new(r"(beq )").unwrap();
-    let i3_type = Regex::new(r"(lw |sw )").unwrap();
-    let j1_type = Regex::new(r"(j )").unwrap();
-    let j2_type = Regex::new(r"(jr )").unwrap();
-    let nop_type = Regex::new(r"(nop)").unwrap();
+fn identify_type<'a>(text: &'a str, regex: &RegexCom) -> Option<(Option<Captures<'a>>, InstructionType)> {
 
-    if r_type.is_match(text) {
-        return Some((r"(add|sub|nor|or|and|slt)\s+\$([avtsk][0-9]|[0-9]+|zero|at|gp|sp|fp|ra),\s*\$([avtsk][0-9]|[0-9]+|zero|at|gp|sp|fp|ra),\s*\$([avtsk][0-9]|[0-9]+|zero|at|gp|sp|fp|ra)".to_string(), InstructionType::R));
-    } else if i1_type.is_match(text) {
-        return Some((r"(addi)\s+\$([avtsk][0-9]|[0-9]+|zero|at),\s*\$([avtsk][0-9]+|[0-9]|zero|at),\s*(-*[0-9]+)"
-                    .to_string(), InstructionType::I1));
-    } else if i2_type.is_match(text) {
-        return Some((
-            r"(beq)\s+\$([avtsk][0-9]|[0-9]+|zero|at),\s*\$([avtsk][0-9]+|[0-9]|zero|at),\s*(\w+)"
-                .to_string(),
-            InstructionType::I2,
-        ));
-    } else if i3_type.is_match(text) {
-        return Some((
-            r"(lw|sw)\s+\$([avtsk][0-9]|[0-9]+|zero|at),\s*([0-9]*)\(\$([avtsk][0-9])\)"
-                .to_string(),
-            InstructionType::I3,
-        ));
-    } else if j1_type.is_match(text) {
-        return Some((r"(j)\s+(\w+)".to_string(), InstructionType::J1));
-    } else if j2_type.is_match(text) {
-        return Some((
-            r"(jr)\s+\$([avtsk][0-9]|[0-9]+|zero|at|gp|sp|fp|ra)".to_string(),
-            InstructionType::J2,
-        ));
-    } else if nop_type.is_match(text) {
-        return Some((r"(nop)".to_string(), InstructionType::N));
+    if regex.r_type.is_match(text) {
+        let cap = regex.r_type.captures(text);
+        return Some((cap, InstructionType::R));
+    } else if regex.i1_type.is_match(text) {
+        let cap = regex.i1_type.captures(text);
+        return Some((cap, InstructionType::I1));
+    } else if regex.i2_type.is_match(text) {
+        let cap = regex.i2_type.captures(text);
+        return Some((cap, InstructionType::I2));
+    } else if regex.i3_type.is_match(text) {
+        let cap = regex.i3_type.captures(text);
+        return Some((cap,InstructionType::I3 ));
+    } else if regex.j1_type.is_match(text) {
+        let cap = regex.j1_type.captures(text);
+        return Some((cap, InstructionType::J1));
+    } else if regex.j2_type.is_match(text) {
+        let cap = regex.j2_type.captures(text);
+        return Some((cap, InstructionType::J2));
+    } else if regex.nop_type.is_match(text) {
+         let cap = regex.nop_type.captures(text);
+        return Some((cap, InstructionType::N));
     } else {
         return None;
     }
-}
-
-/// Captures a command from text.
-///
-/// # Arguments
-///
-/// * `text` - String containing command.
-/// * `regex` - Regex string.
-///
-/// # Returns
-///
-/// *  Option<regex::Captures<'a>> - The capture groups from the regex.
-///
-fn capture_command<'a>(text: &'a str, regex: &'a str) -> Option<regex::Captures<'a>> {
-    let re = Regex::new(regex).unwrap();
-    let captures = re.captures(text);
-
-    captures
 }
 
 /// Returns an Iterator to the Reader of the lines of the file.
@@ -648,10 +647,13 @@ where
 ///
 /// *  Option<usize> - where usize is the offset.
 ///
-fn locate_comment(line: &str) -> Option<usize> {
+fn locate_comment(line: &str, regex: &RegexCom) -> Option<usize> {
     // Will itterate over "line" string and search for "#"
     // Will return first "#" found, if no "#" is found will return empty error.
-    for cap in Regex::new("#").unwrap().find_iter(line) {
+    if !line.contains("#") {
+        return None;
+    }
+    for cap in regex.com_type.find_iter(line) {
         return Some(cap.start());
     }
     return None;
@@ -667,12 +669,10 @@ fn locate_comment(line: &str) -> Option<usize> {
 /// # Returns
 ///
 /// *  Option<(String,usize)> - where usize is the end-index for the label and String is the label found.
+/// 
 ///
-///
-fn locate_labels(line: &str) -> Option<(String, usize)> {
-    for cap in Regex::new("([a-z]|[A-z]|[0-9])+[:]")
-        .unwrap()
-        .find_iter(line)
+fn locate_labels(line: &str, regex: &RegexCom) -> Option<(String, usize)> {
+    for cap in regex.label_type.find_iter(line)
     {
         if cap.start() == 0 {
             return Some((line[0..cap.end() - 1].to_string(), cap.end()));
@@ -693,43 +693,44 @@ fn locate_labels(line: &str) -> Option<(String, usize)> {
 ///
 /// *  Result<(),u32>
 ///
-fn fix_undef_labels(
-    undefined_labels: Vec<UndefinedLabel>,
+fn fix_undef_label(
+    undefined_label: UndefinedLabel,
     machine_code: &mut Vec<u32>,
     labels: &hash_map::HashMap<String, u32>,
 ) -> Result<(), u32> {
-    for undef_label in undefined_labels {
-        //Destruct fields in undef_label
-        let UndefinedLabel {
-            file_row: file_row,
-            addr_index: addr_index,
-            label_string: label,
-            relative_jump: rel_jump,
-        } = undef_label;
-        let row_index = addr_index as usize;
-        if !labels.contains_key(&label) {
-            //Label is still undefined! indicate error
+    //Destruct fields in undef_label
+    let UndefinedLabel {
+        file_row,
+        addr_index,
+        label_string: label,
+        relative_jump: rel_jump,
+    } = undefined_label;
+    let row_index = addr_index as usize;
+
+    if !labels.contains_key(&label) {
+        //Label is still undefined! indicate error
+        return Err(file_row);
+    } else if !rel_jump {
+        //Command indicates absolute jump, insert jump into machine-code
+        machine_code[row_index] = machine_code[row_index] | labels.get(&label).unwrap();
+    } else {
+        //Command indicates relative jump
+        let label_addr = labels.get(&label).unwrap();
+
+        // Calculate the relative jump
+        let offset = label_addr - addr_index - 1;// Minus one as the pc counter will jump one before excecuting instruction
+
+        // Check if relative jump is to far away
+        if offset > MAX_BEQ_OFFSET {
             return Err(file_row);
-        } else if !rel_jump {
-            //Command indicates absolute jump, insert jump into machine-code
-            machine_code[row_index] = machine_code[row_index] | labels.get(&label).unwrap();
-        } else {
-            //Command indicates relative jump
-            let label_addr = labels.get(&label).unwrap();
-
-            // Calculate the relative jump
-            let mut offset = label_addr - addr_index - 1; // Minus one as the pc counter will jump one before excecuting instruction
-
-            // Check if relative jump is to far away
-            if offset > MAX_BEQ_OFFSET {
-                return Err(file_row);
-            }
-            // insert jump into machine-code
-            machine_code[row_index] = machine_code[row_index] | offset;
         }
+        // insert jump into machine-code
+        machine_code[row_index] = machine_code[row_index] | offset;
+        
     }
     Ok(())
 }
+
 
 /// Initilizes the register table which contains all allowed registers.
 ///

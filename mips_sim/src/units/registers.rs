@@ -1,6 +1,5 @@
 use bitvec::prelude::*;
 use crate::units::unit::*;
-use crate::units::mux::*;
 
 
 
@@ -8,9 +7,9 @@ pub struct Registers<'a> {
 
     registers: Vec<Word> ,
 
-    read1_reg : Word,
-    read2_reg : Word,
-    write_reg : Word,
+    read1_reg : u32,
+    read2_reg : u32,
+    write_reg : u32,
     write_data : Word,
 
     has_read1 : bool,
@@ -45,9 +44,9 @@ impl Registers<'_>{
             has_write_data:false,
             reg_write_signal:false,
 
-            read1_reg: bitvec![u32, Lsb0; 0; 32],
-            read2_reg: bitvec![u32, Lsb0; 0; 32],
-            write_reg: bitvec![u32, Lsb0; 0; 32],
+            read1_reg: 0,
+            read2_reg: 0,
+            write_reg: 0,
             write_data: bitvec![u32, Lsb0; 0; 32],
 
             alu: None,
@@ -61,14 +60,14 @@ impl Registers<'_>{
     pub fn execute(&mut self){
         if self.has_read1{
             //Received reg1! Find corresponding data and send to ALU
-            let data = self.registers[self.read1_reg.to_bitvec().into_vec()[0] as usize].to_bitvec();
+            let data = self.registers[self.read1_reg as usize].to_bitvec();
             self.alu.as_mut().unwrap().receive(ALU_IN_1_ID, data.to_bitvec());
             self.has_read1 = false;
         }
 
         if self.has_read2{
             //Received reg1! Find corresponding data and send to ALU-src mux and Data Memory
-            let data = self.registers[self.read2_reg.to_bitvec().into_vec()[0] as usize].to_bitvec();
+            let data = self.registers[self.read2_reg as usize].to_bitvec();
             self.mux_alu_src.as_mut().unwrap().receive(MUX_IN_0_ID, data.to_bitvec());
             self.data_memory.as_mut().unwrap().receive(DM_DATA_ID, data.to_bitvec());
             self.has_read2 = false;
@@ -76,7 +75,7 @@ impl Registers<'_>{
 
         if self.has_write_reg && self.has_write_data && self.reg_write_signal{
             //Got data to write and is signaled to write! Insert into registers on index write_reg
-            self.registers[self.write_reg.to_bitvec().into_vec()[0] as usize] = self.write_data.to_bitvec();
+            self.registers[self.write_reg as usize] = self.write_data.to_bitvec();
         }
         
     
@@ -102,13 +101,13 @@ impl Unit for Registers<'_>{
 
     fn receive(&mut self, input_id: u32, data : Word){
         if input_id ==  REG_READ_1_ID{
-            self.read1_reg = data;
+            self.read1_reg = data.to_bitvec().into_vec()[0];
             self.has_read1 = true;
         }else if input_id ==  REG_READ_2_ID{
-            self.read1_reg = data;
+            self.read1_reg = data.to_bitvec().into_vec()[0];
             self.has_read2 = true;
         }else if input_id ==  REG_WRITE_REG_ID{
-            self.write_reg = data;
+            self.write_reg = data.to_bitvec().into_vec()[0];
             self.has_write_reg = true;
         }else if input_id ==  REG_WRITE_DATA_ID{
             self.write_data = data;

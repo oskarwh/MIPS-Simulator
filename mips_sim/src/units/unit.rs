@@ -8,13 +8,21 @@ pub trait Unit{
     fn receive_signal(&mut self ,signal_id:u32);
 }
 
-pub struct EmptyUnit{
-
+pub struct EmptyUnit<'a>{
+    name:&'a str,
 }
 
-impl Unit for EmptyUnit{
+impl EmptyUnit<'_>{
+    pub fn new(name:&str)->EmptyUnit{
+        EmptyUnit{
+            name
+        }
+    }
+}
+
+impl Unit for EmptyUnit<'_>{
     fn receive(&mut self, input_id : u32, data :Word){
-        println!("Empty Unit received data: data = {}", data);
+        println!("Empty {} received at port {}: {}",self.name, input_id, data);
     }
 
     fn receive_signal(&mut self ,signal_id:u32) {

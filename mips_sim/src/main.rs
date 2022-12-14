@@ -4,11 +4,13 @@ use mips_sim::*;
 use std::{thread::{self, sleep}, sync::{Arc, Mutex}};
 
 mod units;
+mod assembler;
 
 use crate::units::program_counter::*;
 use crate::units::instruction_memory::*;
 use crate::units::unit::*;
 use bitvec::prelude::*;
+use assembler::parse_file;
 
 
 // When compiling natively:
@@ -17,40 +19,68 @@ fn main() {
     // Log to stdout (if you run with `RUST_LOG=debug`).
 
     use bitvec::view::BitView;
-    tracing_subscriber::fmt::init();
+
+    use crate::units::sign_extend::{self, SignExtend};
+    /*tracing_subscriber::fmt::init();
 
     let native_options = eframe::NativeOptions::default();
     eframe::run_native(
         "eframe template",
         native_options,
         Box::new(|cc| Box::new(MipsApp::new(cc))),
-    );
+    );*/
+
+    //Parse the file into machine code
+    let file_path = "test1";
+    let (machine_code, assembler_code, labels) = parse_file(file_path);
+
+
+    // Add vector with machine-code to a vector of Words
+    let mut instructions: Vec<Word> = Vec::new();
+    for instruction in machine_code{
+        instructions.push(instruction.view_bits::<Lsb0>().to_bitvec());
+    }
+    println!("Have at memory 0: {}",instructions[0]);
+
+    //Create empty objects for testing
+    let mut empty_control = EmptyUnit::new("control");
+    let mut empty_alu = EmptyUnit::new("alu");
+    let mut empty_add = EmptyUnit::new("add");
+    let mut empty_alu_ctrl = EmptyUnit::new("alu-control");
+    let mut empty_dm = EmptyUnit::new("data-memory");
+    let mut empty_im = EmptyUnit::new("instruction-memory");
+    let mut empty_mux = EmptyUnit::new("mux");
+    let mut empty_pc = EmptyUnit::new("pc");
+    let mut empty_reg = EmptyUnit::new("register-file");
+    let mut empty_se= EmptyUnit::new("sign-extender");
+    let mut empty_conc = EmptyUnit::new("concater");
 
     // Create all objects
     let mut pc: ProgramCounter<'static>  = ProgramCounter::new();
-    let mut empty :EmptyUnit = EmptyUnit{};
-
-    // Add file with instructions
-    let mut instructions: Vec<Word> = Vec::new();
-    instructions.push(3u32.view_bits::<Lsb0>().to_bitvec());
     let mut instr_mem: InstructionMemory<'static> = InstructionMemory::new(instructions);
-
+    let mut sign_extend: SignExtend<'static> = SignExtend::new();
+    
+ 
+    
     // Add components to connect with program counter
     pc.set_instr_memory(&mut instr_mem);
-    pc.set_concater(&mut empty);
-    pc.set_add(&mut empty);
-    pc.set_mux_branch(&mut empty);
+    pc.set_concater(&mut empty_conc);
+    pc.set_add(&mut empty_add);
+    pc.set_mux_branch(&mut empty_mux);
 
     // Add components to connect with instruction memory
-    instr_mem.set_aluctrl(&mut empty);
-    instr_mem.set_concater(&mut empty);
-    instr_mem.set_control(&mut empty);
-    instr_mem.set_reg(&mut empty);
-    instr_mem.set_signextend(&mut empty);
+    instr_mem.set_aluctrl(&mut empty_alu_ctrl);
+    instr_mem.set_concater(&mut empty_conc);
+    instr_mem.set_control(&mut empty_control);
+    instr_mem.set_reg(&mut empty_reg);
+    instr_mem.set_signextend(&mut sign_extend);
 
-    
-        pc.execute();
-        instr_mem.execute()
+    // Add components to connect with sign_extend
+    sign_extend.set_add(&mut empty_add);
+
+    pc.execute();
+    instr_mem.execute();
+    sign_extend.execute();
     
     
 /* 
