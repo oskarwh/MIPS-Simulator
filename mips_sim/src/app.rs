@@ -1,7 +1,7 @@
-use eframe::egui;
+use eframe::{egui, epaint::ahash::HashMap};
 use egui::{FontFamily, FontId, RichText, TextStyle};
 use egui_extras::{Size, StripBuilder, TableBuilder};
-use tracing_subscriber::{fmt::writer, registry::Data};
+use std::collections::hash_map;
 #[derive(Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 enum DataFormat {
@@ -44,6 +44,9 @@ fn configure_text_styles(ctx: &egui::Context) {
 pub struct MipsApp {
     // Example stuff:
     selected: DataFormat,
+    labels: &hash_map::HashMap<String, u32>,
+    registers: &hash_map::HashMap<&'static str, u32>,
+    instructions: &hash_map::HashMap<&'static str, u32>,
 }
 
 impl Default for MipsApp {
@@ -51,6 +54,7 @@ impl Default for MipsApp {
         Self {
             // Example stuff:
             selected: DataFormat::Hex,
+            labels: 
         }
     }
 }
@@ -127,13 +131,13 @@ impl MipsApp {
                     for row_index in 0..500 {
                         body.row(30.0, |mut row| {
                             row.col(|ui| {
-                                ui.heading(MipsApp::write_int(row_index * 4, data_format));
+                                ui.label(MipsApp::write_int(row_index * 4, data_format));
                             });
                             row.col(|ui| {
-                                ui.heading(MipsApp::write_int(row_index * 3, data_format));
+                                ui.label(MipsApp::write_int(row_index * 3, data_format));
                             });
                             row.col(|ui| {
-                                ui.heading(MipsApp::write_int(0, data_format));
+                                ui.label(MipsApp::write_int(0, data_format));
                             });
                         });
                     }
@@ -243,6 +247,7 @@ impl eframe::App for MipsApp {
         // Create right panel
         egui::SidePanel::right("right_side_panel")
             .resizable(false)
+            .min_width(450 as f32)
             .show(ctx, |ui| {
                 // The right panel holding information about registers.
                 ui.horizontal(|ui| {

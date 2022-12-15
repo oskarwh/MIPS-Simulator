@@ -1,3 +1,4 @@
+/* 
 #![warn(clippy::all, rust_2018_idioms)]
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 use mips_sim::*;
@@ -83,7 +84,7 @@ fn main() {
     sign_extend.execute();
     
     
-/* 
+
     let pc_arc = Arc::new(Mutex::new(pc));
     let pc_ref = Arc::clone(&pc_arc);
 
@@ -101,9 +102,9 @@ fn main() {
     // Thread for the instruction memory
     let instr_mem_thread = thread::spawn(move||{
         pc_ref.execute();
-    });*/
+    });
 }
-/* 
+*/
 #![warn(clippy::all, rust_2018_idioms)]
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 use egui::Vec2;
@@ -121,9 +122,9 @@ fn main() {
         drag_and_drop_support: true,
         icon_data: None,
         initial_window_pos: None,
-        initial_window_size: Option::from(Vec2::new(1000 as f32, 800 as f32)),
-        min_window_size: Option::from(Vec2::new(600 as f32, 400 as f32)),
-        max_window_size: Option::from(Vec2::new(1000 as f32, 800 as f32)),
+        initial_window_size: None,
+        min_window_size: Option::from(Vec2::new(1000 as f32, 400 as f32)),
+        max_window_size: None,
         resizable: true,
         transparent: true,
         vsync: true,
@@ -143,4 +144,3 @@ fn main() {
         Box::new(|cc| Box::new(MipsApp::new(cc))),
     );
 }
-*/
