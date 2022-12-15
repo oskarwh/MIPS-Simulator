@@ -1,4 +1,4 @@
-/* 
+use egui::{Color32, FontFamily, FontId, RichText, TextStyle};
 use egui_extras::{Size, StripBuilder, TableBuilder};
 use std::collections::hash_map;
 
@@ -364,7 +364,7 @@ impl eframe::App for MipsApp {
         egui::CentralPanel::default().show(ctx, |ui| {
             // The central panel the region left after adding TopPanel's and SidePanel's
             ui.horizontal(|ui| {
-                ui.heading("Intsruction memory");
+                ui.heading("Instruction memory");
                 // Add buttons for stepping through the program.
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     ui.visuals_mut().override_text_color = Some(Color32::WHITE);
@@ -407,19 +407,9 @@ impl eframe::App for MipsApp {
                     });
 
                     strip.cell(|ui| {
-                        MipsApp::symbol_table(&selected, ui, labels);
+                        //MipsApp::symbol_table(&selected, ui, labels);
                     });
                 });
-
-            ui.vertical(|ui| {
-                MipsApp::instruction_table(
-                    &selected,
-                    ui,
-                    instructions,
-                    mips_instructions,
-                    program_counter,
-                );
-            });
         });
 
         if false {
@@ -431,4 +421,4 @@ impl eframe::App for MipsApp {
             });
         }
     }
-}*/
+}
