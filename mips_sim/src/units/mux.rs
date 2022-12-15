@@ -53,8 +53,8 @@ impl Unit for Mux<'_>{
     }
 
 
-    fn receive_signal(&mut self ,signal_id:u32){
-        self.signal = true;
+    fn receive_signal(&mut self ,signal_id:u32, signal: bool){
+        self.signal = signal;
     }
 }
 

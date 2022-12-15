@@ -101,7 +101,7 @@ impl Unit for InstructionMemory<'_>{
         
     }
 
-    fn receive_signal(&mut self ,_signal_id:u32) {
+    fn receive_signal(&mut self ,_signal_id:u32, signal: bool) {
         // DO NOTHING
     }
     

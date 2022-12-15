@@ -59,7 +59,7 @@ impl Unit for SignExtend<'_>{
         }
     }
 
-    fn receive_signal(&mut self ,signal_id:u32) {
+    fn receive_signal(&mut self ,signal_id:u32, signal:bool) {
         todo!()
     }
 

@@ -12,7 +12,7 @@ pub struct ProgramCounter<'a> {
 }
 
 
-impl  ProgramCounter<'_>{
+impl<'a>  ProgramCounter<'_>{
     
     pub fn new() -> ProgramCounter<'static>{
 
@@ -85,7 +85,7 @@ impl Unit for ProgramCounter<'_>{
         
     }
 
-    fn receive_signal(&mut self ,signal_id:u32) {
+    fn receive_signal(&mut self ,signal_id:u32, signal: bool) {
         todo!()
     }
 

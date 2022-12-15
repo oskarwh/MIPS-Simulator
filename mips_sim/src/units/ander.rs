@@ -32,7 +32,9 @@ impl Ander<'_>{
 
         if self.zero_signal && self.branch_signal{
             //Append bits from instruction memory with address from PC+4
-            self.mux_branch.as_mut().unwrap().receive_signal(DEFAULT_SIGNAL);
+            self.mux_branch.as_mut().unwrap().receive_signal(DEFAULT_SIGNAL,true);
+        }else{
+            self.mux_branch.as_mut().unwrap().receive_signal(DEFAULT_SIGNAL,false);
         }
     }
 
@@ -50,11 +52,11 @@ impl Unit for Ander<'_>{
         //EMpty
     }
 
-    fn receive_signal(&mut self ,signal_id:u32) {
+    fn receive_signal(&mut self ,signal_id:u32, signal: bool) {
         if signal_id == ZERO_SIGNAL{
-            self.zero_signal = true;
+            self.zero_signal = signal;
         }else if signal_id == BRANCH_SIGNAL{
-            self.branch_signal ==true;
+            self.branch_signal ==signal;
         }
     }
     

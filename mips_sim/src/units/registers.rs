@@ -5,7 +5,7 @@ use crate::units::unit::*;
 
 pub struct Registers<'a> {
 
-    registers: Vec<Word> ,
+    registers: Vec<Word>,
 
     read1_reg : u32,
     read2_reg : u32,
@@ -27,12 +27,12 @@ pub struct Registers<'a> {
 }
 
 
-impl Registers<'_>{
+impl<'a> Registers<'_>{
 
     pub fn new() -> Registers<'static>{
         //Make registers and insert 0 into all of them
         const N_REGS:usize = 32;
-        let mut registers: Vec<Word> = vec![BitVec::new(); N_REGS];
+        let mut registers: Vec<Word> = vec![bitvec![u32, Lsb0; 0; 32]; N_REGS];
 
         //Create registers object
         Registers{
@@ -82,7 +82,7 @@ impl Registers<'_>{
     }
 
     /// Set Functions
-    pub fn set_alu(&mut self, alu: &mut dyn Unit){
+    pub fn set_alu(&'a mut self, alu: &mut dyn Unit){
         self.alu = Some(unsafe { std::mem::transmute(alu) });
     }
 
@@ -118,7 +118,7 @@ impl Unit for Registers<'_>{
         
     }
 
-    fn receive_signal(&mut self ,signal_id:u32){
+    fn receive_signal(&mut self ,signal_id:u32, signal: bool){
         if signal_id == DEFAULT_SIGNAL{
             self.reg_write_signal = true;
         }

@@ -1,94 +1,226 @@
 use bitvec::prelude::*;
 use crate::units::unit::*;
 
-pub struct AluControl<'a> {
+
+
+
+pub struct AluControl<'a>{
     alu_op0: bool,
     alu_op1: bool,
+    alu_op2: bool,
+    funct: BitVec::<u32, LocalBits>,
 
     alu_unit: Option<&'a mut dyn Unit>,
+
+    has_op0: bool,
+    has_op1: bool,
+    has_op2: bool,
+    has_funct: bool,
+    
+    // Bit vector for add instruction
+    add_bitvec: BitVec<u32>,
+    // Bit vector for sub instruction
+    sub_bitvec: BitVec<u32>,
+    // Bit vector for and instruction
+     and_bitvec: BitVec<u32>,
+    // Bit vector for or instruction
+    or_bitvec: BitVec<u32>,
+    // Bit vector for slt instruction
+    slt_bitvec: BitVec<u32>,
+    // Bit vector for jr instruction
+    jr_bitvec: BitVec<u32>,
+    // Bit vector for nor instruction
+    nor_bitvec: BitVec<u32>,
+    // Bit vector for srl instruction
+    srl_bitvec: BitVec<u32>,
+    // Bit vector for sra instruction
+    sra_bitvec: BitVec<u32>,
+
 }
 
-impl AluControl<'_> {
-    pub fn new () -> AluControl<'static>{
+
+impl<'a> AluControl<'_> {
+    pub fn new () -> AluControl<'a>{
         AluControl { 
             alu_op0: false,
             alu_op1: false,
+            alu_op2: false,
+            funct: bitvec![u32, Lsb0; 0; 6],
             alu_unit: None, 
+            has_op0: false,
+            has_op1: false,
+            has_op2: false,
+            has_funct: false,
+
+            add_bitvec: bitvec![u32, Lsb0; 1,0,0,0,0,0],
+            sub_bitvec: bitvec![u32, Lsb0; 1,0,0,0,1,0],
+            and_bitvec: bitvec![u32, Lsb0; 1,0,0,1,0,0],
+            or_bitvec: bitvec![u32, Lsb0; 1,0,0,1,0,1],
+            slt_bitvec: bitvec![u32, Lsb0; 1,0,1,0,1,0],
+            jr_bitvec: bitvec![u32, Lsb0; 0,0,1,0,0,0],
+            nor_bitvec: bitvec![u32, Lsb0; 1,0,0,1,1,1],
+            srl_bitvec: bitvec![u32, Lsb0; 0,0,0,0,1,0],
+            sra_bitvec: bitvec![u32, Lsb0; 0,0,0,0,1,1],
         }
     }
 
-    pub fn execute() {
-        
-    }
+    pub fn execute(&mut self) {
+        if self.has_op0 && self.has_op1 && self.has_op2 && self.has_funct{
+            // Check if instuction is r type
+           if !self.has_op2 && self.alu_op1 && !self.alu_op0 {
 
+                // Check which r type alu should do
+                match self.funct.to_bitvec() {
+                    // Add instruction
+                    add_bitvec =>
+                        self.set_add_signals(),
+                    
+                    // Sub instruction
+                    sub_bitvec =>
+                        self.set_sub_signals(),
+
+                    // And instruction
+                    and_bitvec =>
+                        self.set_and_signals(),
+
+                    // Or instruction
+                    or_bitvec =>
+                        self.set_or_signals(),
+                    
+                    // Set On Less Than instruction
+                    slt_bitvec =>
+                        self.set_slt_signals(),
+
+                    // Jr instruction
+                    jr_bitvec =>
+                        todo!(),
+                        // What should i send to the alu?
+                        // I do not need to du anything in the alu here i think?
+                    
+                    // Nor instruction
+                    nor_bitvec =>
+                        self.set_nor_signals(),
+
+                    // Srl instruction
+                    srl_bitvec =>
+                        self.set_srl_signals(),
+                    
+                    // Sra instruction
+                    sra_bitvec =>
+                        self.set_sra_signals(),
+                }
+            // Check for ori
+            } else if self.has_op2 && !self.alu_op1 && !self.alu_op0 {
+                self.set_or_signals();
+
+            // Check for addi
+            } else if !self.has_op2 && !self.alu_op1 && !self.alu_op0 {
+                 self.set_add_signals();
+        
+            // Check for branch
+            }else if !self.has_op2 && !self.alu_op1 && self.alu_op0 {
+                self.set_sub_signals();
+            }
+
+        }
+        // Make object ready to recieve new data
+        self.reset_bools();
+    }
 
     pub fn set_add_signals(&mut self) {
         // Send 0010 to ALU
-        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL2_SIGNAL);
+        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL0_SIGNAL, false);
+        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL1_SIGNAL, true);
+        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL2_SIGNAL, false);
+        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL3_SIGNAL, false);
     }
 
     pub fn set_sub_signals(&mut self) {
         // Send 0110 to ALU
-        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL1_SIGNAL);
-        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL2_SIGNAL);
+        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL0_SIGNAL, false);
+        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL1_SIGNAL, true);
+        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL2_SIGNAL, true);
+        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL3_SIGNAL, false);
     }
 
     pub fn set_and_signals(&mut self) {
         // Send 0000 to ALU
-        // We set no signals
+        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL0_SIGNAL, false);
+        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL1_SIGNAL, false);
+        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL2_SIGNAL, false);
+        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL3_SIGNAL, false);
     }
 
     pub fn set_or_signals(&mut self) {
         // Send 0001 to ALU
-        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL3_SIGNAL);
+        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL0_SIGNAL, true);
+        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL1_SIGNAL, false);
+        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL2_SIGNAL, false);
+        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL3_SIGNAL, false);
     }
 
     pub fn set_slt_signals(&mut self) {
         // Send 0111 to ALU
-        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL1_SIGNAL);
-        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL2_SIGNAL);
-        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL3_SIGNAL);
+        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL0_SIGNAL, true);
+        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL1_SIGNAL, true);
+        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL2_SIGNAL, true);
+        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL3_SIGNAL, false);
     }
 
-    pub fn set_lw_signals(&mut self) {
-        // Send 0010 to ALU
-        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL2_SIGNAL);
+    pub fn set_nor_signals(&mut self) {
+        // Send 1100 to ALU
+        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL0_SIGNAL, false);
+        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL1_SIGNAL, false);
+        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL2_SIGNAL, true);
+        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL3_SIGNAL, true);
     }
 
-    pub fn set_sw_signals(&mut self) {
-        // Send 0010 to ALU
-        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL2_SIGNAL);
+    pub fn set_srl_signals(&mut self) {
+        // Send 1101 to ALU
+        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL0_SIGNAL, true);
+        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL1_SIGNAL, false);
+        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL2_SIGNAL, true);
+        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL3_SIGNAL, true);
     }
 
-    pub fn set_bra_signals(&mut self) {
-        // Send 0110 to ALU
-        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL1_SIGNAL);
-        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL2_SIGNAL);
+    pub fn set_sra_signals(&mut self) {
+        // Send 1011 to ALU
+        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL0_SIGNAL, true);
+        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL1_SIGNAL, true);
+        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL2_SIGNAL, false);
+        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL3_SIGNAL, true);
     }
 
     pub fn set_alu(&mut self, alu: &mut dyn Unit) {
         self.alu_unit = Some(unsafe { std::mem::transmute(alu) });
     }
+
+    fn reset_bools(&mut self) {
+        self.has_funct = false;
+        self.has_op0 = false;
+        self.has_op1 = false;
+        self.has_op2 = false;
+    }
 }
 
 impl Unit for AluControl<'_>{
-    fn receive_signal(&mut self ,signal_id:u32) {
-        if(signal_id == ALU_OP0_SIGNAL) {
-            self.alu_op0 = true;
-        }else if(signal_id == ALU_OP1_SIGNAL){
-            self.alu_op1 = true;
+    fn receive_signal(&mut self ,signal_id:u32, signal: bool) {
+        if signal_id == ALU_OP0_SIGNAL {
+            self.alu_op0 = signal;
+            self.has_op0 = true;
+        }else if signal_id == ALU_OP1_SIGNAL {
+            self.alu_op1 = signal;
+            self.has_op1 = true;
+        }else if signal_id == ALU_OP2_SIGNAL {
+            self.alu_op2 = signal;
+            self.has_op2 = true;
         }
     }
     
     fn receive (&mut self, input_id : u32, data :BitVec::<u32, LocalBits>) {
-        if(input_id == ALU_CTRL_IN_ID) {
-            // Bit vector for a add instruction comming to the alu
-            let add_bitvec =  bitvec![1,0,0,0,0,0];
-            match data {
-                add_bitvec => 
-                    // Add command
-                    self.set_add_signals(),
-            }
+        if input_id == ALU_CTRL_IN_ID {
+            self.funct = data;
+            self.has_funct = true;
         }else {
             // Wrong ID
         }

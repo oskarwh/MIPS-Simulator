@@ -1,4 +1,4 @@
-/* 
+
 #![warn(clippy::all, rust_2018_idioms)]
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 use mips_sim::*;
@@ -55,9 +55,10 @@ fn main() {
     let mut empty_reg = EmptyUnit::new("register-file");
     let mut empty_se= EmptyUnit::new("sign-extender");
     let mut empty_conc = EmptyUnit::new("concater");
+    let mut empty_ander = EmptyUnit::new("ander");
 
     // Create all objects
-    let mut pc: ProgramCounter<'static>  = ProgramCounter::new();
+    let mut pc: ProgramCounter = ProgramCounter::new();
     let mut instr_mem: InstructionMemory<'static> = InstructionMemory::new(instructions);
     let mut sign_extend: SignExtend<'static> = SignExtend::new();
     
@@ -79,9 +80,9 @@ fn main() {
     // Add components to connect with sign_extend
     sign_extend.set_add(&mut empty_add);
 
-    pc.execute();
+   /* pc.execute();
     instr_mem.execute();
-    sign_extend.execute();
+    sign_extend.execute();*/
     
     
 
@@ -92,19 +93,28 @@ fn main() {
     let im_ref = Arc::clone(&im_arc);
 
     // Thread for the program counter
-    let pc_thread = thread::spawn(move||{
-        im_ref.execute();
+    let regfile_thread = thread::spawn(move||{
+        let mut reg_file = im_ref.lock().unwrap();
+        loop {
+            reg_file.execute();
+        }
+        
     });
 
-    let instr_mem = Arc::new(Mutex::new(instr_mem));
-    let instr_mem_ref = Arc::clone(&instr_mem);
+   
 
     // Thread for the instruction memory
-    let instr_mem_thread = thread::spawn(move||{
-        pc_ref.execute();
-    });
+    let pc_thread = thread::spawn(move||{
+        let mut prog_c = pc_ref.lock().unwrap();
+        
+            prog_c.execute();
+        
+    }); 
+    
+   // let instr_mem = Arc::new(Mutex::new(instr_mem));
+   // let instr_mem_ref = Arc::clone(&instr_mem);
 }
-*/
+/* 
 #![warn(clippy::all, rust_2018_idioms)]
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 use egui::Vec2;
@@ -143,4 +153,4 @@ fn main() {
         native_options,
         Box::new(|cc| Box::new(MipsApp::new(cc))),
     );
-}
+}*/

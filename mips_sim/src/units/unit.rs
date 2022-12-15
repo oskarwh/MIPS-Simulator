@@ -1,7 +1,7 @@
 use bitvec::prelude::*;
 
 pub type Word = BitVec<u32, Lsb0>;
-pub trait Unit{
+pub trait Unit: Send + Sync{
     
 
     fn receive(&mut self, input_id : u32, data :Word);
@@ -13,7 +13,7 @@ pub struct EmptyUnit<'a>{
 }
 
 impl EmptyUnit<'_>{
-    pub fn new(name:&str)->EmptyUnit{
+    pub fn new(name:&str)->EmptyUnit<'_>{
         EmptyUnit{
             name
         }
@@ -25,7 +25,7 @@ impl Unit for EmptyUnit<'_>{
         println!("Empty {} received at port {}: {}",self.name, input_id, data);
     }
 
-    fn receive_signal(&mut self ,signal_id:u32) {
+    fn receive_signal(&mut self ,signal_id:u32, signal: bool) {
         todo!()
     }
 
@@ -34,6 +34,9 @@ impl Unit for EmptyUnit<'_>{
     
 
 pub const PC_IN_ID :u32 = 0;
+
+pub const OP_CONTROL: u32 = 0;
+pub const FUNCT_CONTROL: u32 = 0;
 
 pub const IM_READ_ADDRESS_ID:u32  = 0;
 
@@ -74,6 +77,7 @@ pub const MEM_READ_SIGNAL:u32  = 1;
 // Define control signals for alu control op code, also tow signals
 pub const ALU_OP0_SIGNAL:u32 = 0;
 pub const ALU_OP1_SIGNAL:u32  = 1;
+pub const ALU_OP2_SIGNAL:u32  = 2;
 // Define default signal const for all components with just one signal.
 pub const DEFAULT_SIGNAL: u32  = 0;     
 
@@ -82,5 +86,9 @@ pub const ALU_CTRL0_SIGNAL:u32  = 0;
 pub const ALU_CTRL1_SIGNAL:u32  = 1;
 pub const ALU_CTRL2_SIGNAL:u32  = 2;
 pub const ALU_CTRL3_SIGNAL:u32  = 3;
+
+
+
+
 
 

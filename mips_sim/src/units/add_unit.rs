@@ -69,7 +69,7 @@ impl Unit for AddUnit<'_>  {
         }
     }
 
-    fn receive_signal(&mut self ,signal_id:u32) {
+    fn receive_signal(&mut self ,signal_id:u32, signal: bool) {
         // DO NOTHING
     }
 }
