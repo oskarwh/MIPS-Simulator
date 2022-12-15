@@ -27,7 +27,7 @@ pub struct Control<'a> {
 
     mux_reg_dst:  &'a mut dyn  Unit,
     mux_jump:  &'a mut dyn  Unit,
-    mux_branch: &'a mut dyn  Unit,
+    ander_branch: &'a mut dyn  Unit,
     mux_alu_src:  &'a mut dyn  Unit,
     mux_mem_to_reg:  &'a mut dyn  Unit,
     alu_ctrl: &'a mut dyn  Unit,
@@ -41,7 +41,7 @@ impl Control<'_> {
     pub fn new<'a>(
         mux_reg_dst: &'a mut dyn  Unit,
         mux_jump: &'a mut dyn  Unit,
-        mux_branch: &'a mut dyn  Unit,
+        ander_branch: &'a mut dyn  Unit,
         mux_alu_src:  &'a mut dyn  Unit,
         mux_mem_to_reg: &'a mut dyn  Unit,
         mux_mem:  &'a mut dyn  Unit,
@@ -53,7 +53,7 @@ impl Control<'_> {
         Control{
             mux_reg_dst,
             mux_jump,
-            mux_branch,
+            ander_branch,
             mux_alu_src,
             mux_mem_to_reg,
             alu_ctrl,
@@ -63,10 +63,22 @@ impl Control<'_> {
     }
 
     pub fn set_r_signals(&mut self) {
-        self.mux_reg_dst.receive_signal(DEFAULT_SIGNAL);
-        self.reg_file.receive_signal(DEFAULT_SIGNAL);
+        // Signals that will be high
+        self.mux_reg_dst.receive_signal(DEFAULT_SIGNAL, true);
+        self.reg_file.receive_signal(DEFAULT_SIGNAL, true);
+
         // Since alu ctrl has two signals we have to define which signal to assert.
-        self.alu_ctrl.receive_signal(ALU_OP1_SIGNAL);
+        self.alu_ctrl.receive_signal(ALU_OP1_SIGNAL, true);
+
+        //Signals to be low
+        self.mux_alu_src.receive_signal(DEFAULT_SIGNAL, false);
+        self.mux_memto_reg.receive_signal(DEFAULT_SIGNAL, false);
+        self.mux_mem.receive_signal(MEM_READ_SIGNAL, false);
+        self.mux_mem.receive_signal(MEM_WRITE_SIGNAL, false);
+        todo fix this
+        self.ander_branch.receive_signal();
+        self.alu_ctrl.receive_signal(ALU_OP0_SIGNAL, false);
+        
     }
 
     pub fn set_lw_signals(&mut self) {

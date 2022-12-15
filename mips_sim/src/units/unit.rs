@@ -5,7 +5,7 @@ pub trait Unit{
     
 
     fn receive(&mut self, input_id : u32, data :Word);
-    fn receive_signal(&mut self ,signal_id:u32);
+    fn receive_signal(&mut self ,signal_id:u32, signal: bool);
 }
 
 pub struct EmptyUnit<'a>{
@@ -70,10 +70,10 @@ pub const ADD_IN_2_ID:u32  = 1;
 pub const MEM_WRITE_SIGNAL:u32  = 0;
 pub const MEM_READ_SIGNAL:u32  = 1;
 // Define control signals for alu control op code, also tow signals
-pub const ALU_OP0_SIGNAL :u32 = 0;
+pub const ALU_OP0_SIGNAL:u32 = 0;
 pub const ALU_OP1_SIGNAL:u32  = 1;
 // Define default signal const for all components with just one signal.
-pub const DEFAULT_SIGNAL:u32  = 0;    
+pub const DEFAULT_SIGNAL: u32  = 0;     
 
 // Define ALU control signals
 pub const ALU_CTRL0_SIGNAL:u32  = 0;
