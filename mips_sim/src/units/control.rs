@@ -261,7 +261,7 @@ impl Unit for Control<'_>{
         // If a new op_code check what type of instruction
         if input_id == OP_CONTROL {
             
-            match data {
+            match data{
                 // R-format instructions 
                 r_bitvec =>
                     self.set_r_signals(),

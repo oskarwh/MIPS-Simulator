@@ -1,7 +1,7 @@
-/*use eframe::{egui, epaint::ahash::HashMap};
-use egui::{FontFamily, FontId, RichText, TextStyle};
+/* 
 use egui_extras::{Size, StripBuilder, TableBuilder};
 use std::collections::hash_map;
+
 #[derive(Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 enum DataFormat {
@@ -27,12 +27,12 @@ fn configure_text_styles(ctx: &egui::Context) {
 
     let mut style = (*ctx.style()).clone();
     style.text_styles = [
-        (Heading, FontId::new(30.0, Proportional)),
+        (Heading, FontId::new(35.0, Proportional)),
         (heading2(), FontId::new(25.0, Proportional)),
         (heading3(), FontId::new(23.0, Proportional)),
         (Body, FontId::new(18.0, Proportional)),
-        (Monospace, FontId::new(14.0, Proportional)),
-        (Button, FontId::new(24.0, Proportional)),
+        (Monospace, FontId::new(18.0, Proportional)),
+        (Button, FontId::new(16.0, Proportional)),
         (Small, FontId::new(10.0, Proportional)),
     ]
     .into();
@@ -44,42 +44,51 @@ fn configure_text_styles(ctx: &egui::Context) {
 pub struct MipsApp {
     // Example stuff:
     selected: DataFormat,
-    labels: &hash_map::HashMap<String, u32>,
-    registers: &hash_map::HashMap<&'static str, u32>,
-    instructions: &hash_map::HashMap<&'static str, u32>,
-}
-
-impl Default for MipsApp {
-    fn default() -> Self {
-        Self {
-            // Example stuff:
-            selected: DataFormat::Hex,
-            labels: 
-        }
-    }
+    labels: hash_map::HashMap<String, u32>,
+    registers: hash_map::HashMap<&'static str, u32>,
+    instructions: Vec<u32>,
+    mips_instructions: Vec<(String, bool)>,
+    program_counter: u32,
 }
 
 impl MipsApp {
     /// Called once before the first frame.
-    pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
+    pub fn new(
+        cc: &eframe::CreationContext<'_>,
+        label_table: hash_map::HashMap<String, u32>,
+        register_table: hash_map::HashMap<&'static str, u32>,
+        instructions: Vec<u32>,
+        mips_instructions: Vec<(String, bool)>,
+    ) -> MipsApp {
         configure_text_styles(&cc.egui_ctx);
-        Default::default()
+        let open_file: String;
+
+        MipsApp {
+            selected: DataFormat::Hex,
+            labels: label_table,
+            registers: register_table,
+            instructions: instructions,
+            mips_instructions: mips_instructions,
+            program_counter: 0,
+        }
     }
 
     fn write_int(number: u32, dformat: &DataFormat) -> String {
         match dformat {
             DataFormat::Dec => String::from(format!("{}", number)),
             DataFormat::Hex => String::from(format!("{:#010x}", number)),
-            DataFormat::Bin => String::from(format!("{:#010b}", number)),
+            DataFormat::Bin => String::from(format!("{:#032b}", number)),
         }
     }
 
     fn memory_table(data_format: &DataFormat, ui: &mut egui::Ui) {
+        // Setup table
         ui.push_id(1, |ui| {
             TableBuilder::new(ui)
                 .striped(true)
-                .column(Size::remainder().at_least(200.0))
-                .column(Size::remainder().at_least(200.0))
+                .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
+                .column(Size::remainder().at_least(150.0))
+                .column(Size::remainder().at_least(150.0))
                 .resizable(true)
                 .header(30.0, |mut header| {
                     header.col(|ui| {
@@ -90,12 +99,15 @@ impl MipsApp {
                     });
                 })
                 .body(|mut body| {
-                    for row_index in 0..30 {
+                    // Iterate data memory
+                    for row_index in 0..999 {
                         body.row(30.0, |mut row| {
                             row.col(|ui| {
+                                ui.visuals_mut().override_text_color = Some(Color32::WHITE);
                                 ui.label(MipsApp::write_int(row_index * 4, data_format));
                             });
                             row.col(|ui| {
+                                ui.visuals_mut().override_text_color = Some(Color32::WHITE);
                                 ui.label(MipsApp::write_int(0, data_format));
                             });
                         });
@@ -104,15 +116,26 @@ impl MipsApp {
         });
     }
 
-    fn instruction_table(data_format: &DataFormat, ui: &mut egui::Ui) {
+    fn instruction_table(
+        data_format: &DataFormat,
+        ui: &mut egui::Ui,
+        instructions: &Vec<u32>,
+        mips_instructions: &Vec<(String, bool)>,
+        program_counter: &u32,
+    ) {
         ui.push_id(2, |ui| {
             TableBuilder::new(ui)
+                .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
                 .striped(true)
+                .column(Size::exact(25 as f32))
                 .column(Size::remainder().at_least(100.0))
                 .column(Size::remainder().at_least(100.0))
-                .column(Size::remainder().at_least(100.0))
-                .resizable(true)
+                .column(Size::remainder().at_least(200.0))
+                .resizable(false)
                 .header(30.0, |mut header| {
+                    header.col(|ui| {
+                        ui.label(RichText::new("").text_style(heading2()).strong());
+                    });
                     header.col(|ui| {
                         ui.label(RichText::new("Address").text_style(heading2()).strong());
                     });
@@ -128,31 +151,56 @@ impl MipsApp {
                     });
                 })
                 .body(|mut body| {
-                    for row_index in 0..500 {
-                        body.row(30.0, |mut row| {
-                            row.col(|ui| {
-                                ui.label(MipsApp::write_int(row_index * 4, data_format));
+                    let mut i = 0;
+                    // Iterate over listing file, only add rows containing machine code
+                    for mips_instruction in mips_instructions.iter() {
+                        if mips_instruction.1 {
+                            body.row(30.0, |mut row| {
+                                row.col(|ui| {
+                                    // Print arrow for keeping track of where in the code the user is.
+                                    if i == *program_counter {
+                                        ui.visuals_mut().override_text_color = Some(Color32::WHITE);
+                                        ui.label(
+                                            RichText::new("➡").text_style(heading2()).strong(),
+                                        );
+                                    }
+                                });
+                                row.col(|ui| {
+                                    ui.visuals_mut().override_text_color = Some(Color32::WHITE);
+                                    ui.label(MipsApp::write_int(i * 4, data_format));
+                                });
+                                row.col(|ui| {
+                                    ui.visuals_mut().override_text_color = Some(Color32::WHITE);
+                                    ui.label(MipsApp::write_int(
+                                        (*instructions)[i as usize],
+                                        data_format,
+                                    ));
+                                });
+                                row.col(|ui| {
+                                    ui.visuals_mut().override_text_color = Some(Color32::WHITE);
+                                    ui.label(mips_instruction.0.clone());
+                                });
                             });
-                            row.col(|ui| {
-                                ui.label(MipsApp::write_int(row_index * 3, data_format));
-                            });
-                            row.col(|ui| {
-                                ui.label(MipsApp::write_int(0, data_format));
-                            });
-                        });
+                            i += 1;
+                        }
                     }
                 });
         });
     }
 
-    fn register_table(data_format: &DataFormat, ui: &mut egui::Ui) {
+    fn register_table(
+        data_format: &DataFormat,
+        ui: &mut egui::Ui,
+        registers: &hash_map::HashMap<&'static str, u32>,
+    ) {
         ui.push_id(3, |ui| {
             TableBuilder::new(ui)
                 .striped(true)
+                .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
+                .column(Size::remainder().at_least(75.0))
+                .column(Size::remainder().at_most(75.0))
                 .column(Size::remainder().at_least(100.0))
-                .column(Size::remainder().at_least(100.0))
-                .column(Size::remainder().at_least(100.0))
-                .resizable(true)
+                .resizable(false)
                 .header(30.0, |mut header| {
                     header.col(|ui| {
                         ui.label(RichText::new("Register").text_style(heading2()).strong());
@@ -165,15 +213,22 @@ impl MipsApp {
                     });
                 })
                 .body(|mut body| {
-                    for row_index in 0..500 {
+                    // Transform hashmap into vector so it can be sorted.
+                    let mut sorted_reg: Vec<_> = registers.iter().collect();
+                    sorted_reg.sort_by(|a, b| a.1.cmp(&b.1));
+
+                    for (name, num) in sorted_reg {
                         body.row(30.0, |mut row| {
                             row.col(|ui| {
-                                ui.label(MipsApp::write_int(row_index * 4, data_format));
+                                ui.visuals_mut().override_text_color = Some(Color32::WHITE);
+                                ui.label(num.to_string());
                             });
                             row.col(|ui| {
-                                ui.label("$temp");
+                                ui.visuals_mut().override_text_color = Some(Color32::WHITE);
+                                ui.label(*name);
                             });
                             row.col(|ui| {
+                                ui.visuals_mut().override_text_color = Some(Color32::WHITE);
                                 ui.label(MipsApp::write_int(0, data_format));
                             });
                         });
@@ -182,41 +237,57 @@ impl MipsApp {
         });
     }
 
-    fn symbol_table(data_format: &DataFormat, ui: &mut egui::Ui) {
+    fn symbol_table(
+        data_format: &DataFormat,
+        ui: &mut egui::Ui,
+        labels: &hash_map::HashMap<String, u32>,
+    ) {
+        // Build symbol table
         ui.push_id(4, |ui| {
             TableBuilder::new(ui)
                 .striped(true)
-                .column(Size::remainder().at_least(200.0))
-                .column(Size::remainder().at_least(200.0))
-                .resizable(true)
+                .column(Size::remainder().at_least(100.0))
+                .column(Size::remainder().at_least(100.0))
+                .resizable(false)
                 .header(30.0, |mut header| {
+                    header.col(|ui| {
+                        ui.label(RichText::new("Name").text_style(heading2()).strong());
+                    });
                     header.col(|ui| {
                         ui.label(RichText::new("Address").text_style(heading2()).strong());
                     });
-                    header.col(|ui| {
-                        ui.label(RichText::new("Data").text_style(heading2()).strong());
-                    });
                 })
                 .body(|mut body| {
-                    for row_index in 0..30 {
+                    for (name, addr) in labels {
                         body.row(30.0, |mut row| {
                             row.col(|ui| {
-                                ui.label(MipsApp::write_int(row_index * 4, data_format));
+                                ui.visuals_mut().override_text_color = Some(Color32::WHITE);
+                                ui.label(name.clone());
                             });
                             row.col(|ui| {
-                                ui.label(MipsApp::write_int(0, data_format));
+                                ui.visuals_mut().override_text_color = Some(Color32::WHITE);
+                                ui.label(MipsApp::write_int(*addr * 4, data_format));
                             });
                         });
                     }
                 });
         });
     }
+
+    fn mips_code(ui: &mut egui::Ui, mips_instructions: &Vec<(String, bool)>) {}
 }
 
 impl eframe::App for MipsApp {
     /// Called each time the UI needs repainting, which may be many times per second.
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        let Self { selected } = self;
+        let Self {
+            selected,
+            labels,
+            registers,
+            instructions,
+            mips_instructions,
+            program_counter,
+        } = self;
 
         // Examples of how to create different panels and windows.
         // Pick whichever suits you.
@@ -228,15 +299,23 @@ impl eframe::App for MipsApp {
             // The top panel is often a good place for a menu bar:
             egui::menu::bar(ui, |ui| {
                 ui.menu_button("File", |ui| {
+                    // Option for opening file
+                    if ui.button("Open File").clicked() {
+                        let open_file: String;
+                        match tinyfiledialogs::open_file_dialog("Open", "", None) {
+                            Some(file) => open_file = file,
+                            None => open_file = "null".to_string(),
+                        }
+                    }
                     if ui.button("Quit").clicked() {
                         _frame.close();
                     }
                 });
             });
         });
-
+        // Create left side panel containing data memory
         egui::SidePanel::left("left_side_panel")
-            .resizable(false)
+            .resizable(true)
             .show(ctx, |ui| {
                 ui.heading("Data memory panel");
                 ui.vertical(|ui| {
@@ -246,8 +325,8 @@ impl eframe::App for MipsApp {
 
         // Create right panel
         egui::SidePanel::right("right_side_panel")
-            .resizable(false)
-            .min_width(450 as f32)
+            .resizable(true)
+            .min_width(400 as f32)
             .show(ctx, |ui| {
                 // The right panel holding information about registers.
                 ui.horizontal(|ui| {
@@ -269,7 +348,7 @@ impl eframe::App for MipsApp {
                     .vertical(|mut strip| {
                         // Add the top 'cell'
                         strip.cell(|ui| {
-                            MipsApp::register_table(&selected, ui);
+                            MipsApp::register_table(&selected, ui, registers);
                         });
                         // Add cell for label table
                         strip.cell(|ui| {
@@ -277,7 +356,7 @@ impl eframe::App for MipsApp {
                         });
                         // We add a nested strip in the bottom cell:
                         strip.cell(|ui| {
-                            MipsApp::symbol_table(&selected, ui);
+                            MipsApp::symbol_table(&selected, ui, labels);
                         });
                     });
             });
@@ -288,34 +367,59 @@ impl eframe::App for MipsApp {
                 ui.heading("Intsruction memory");
                 // Add buttons for stepping through the program.
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    ui.heading("PC: 0");
-                    if ui.add(egui::Button::new("Step")).clicked() {
-                        // Reset memory
+                    ui.visuals_mut().override_text_color = Some(Color32::WHITE);
+                    ui.heading(format!("PC: {}", *program_counter));
+                    if ui.add(egui::Button::new("Reset")).clicked() {
+                        // Reset memory temp
+                        *program_counter = 0;
                     }
                     // Add Run button
                     if ui.add(egui::Button::new("Run")).clicked() {
                         // Run program
                     }
                     // Add step
-                    if ui.add(egui::Button::new("Reset")).clicked() {
+                    if ui.add(egui::Button::new("Step")).clicked() {
                         // Step forward in program
+                        if *program_counter as usize != instructions.len() - 1 {
+                            *program_counter += 1;
+                        }
                     }
                 });
             });
-            ui.vertical(|ui| {
-                MipsApp::instruction_table(&selected, ui);
-            });
-            /*
             StripBuilder::new(ui)
-                .size(Size::remainder().at_least(400.0)) // top cell
-                .size(Size::exact(50.0)) // bottom cell
+                .size(Size::relative(0.6)) // top cell
+                .size(Size::remainder().at_most(30.))
+                .size(Size::relative(1.0)) // bottom cell
                 .vertical(|mut strip| {
                     // Add the top 'cell'
                     strip.cell(|ui| {
+                        MipsApp::instruction_table(
+                            &selected,
+                            ui,
+                            instructions,
+                            mips_instructions,
+                            program_counter,
+                        );
+                    });
+                    // Add cell for label table
+                    strip.cell(|ui| {
+                        ui.heading("Input File");
+                    });
 
+                    strip.cell(|ui| {
+                        MipsApp::symbol_table(&selected, ui, labels);
                     });
                 });
-                */
+
+            ui.vertical(|ui| {
+                MipsApp::instruction_table(
+                    &selected,
+                    ui,
+                    instructions,
+                    mips_instructions,
+                    program_counter,
+                );
+            });
         });
 
         if false {
