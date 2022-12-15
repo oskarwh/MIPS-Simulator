@@ -57,9 +57,6 @@ impl  ProgramCounter<'_>{
         res.view_bits::<Lsb0>().to_bitvec()
     }
 
-
-    
-
     pub fn set_instr_memory(&mut self, instr_mem: &mut dyn  Unit) {
         self.instruction_memory = Some(unsafe { std::mem::transmute(instr_mem) });
     }

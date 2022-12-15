@@ -65,7 +65,9 @@ pub const CONC_IN_2_ID:u32  = 1;
 pub const ADD_IN_1_ID :u32 = 0;
 pub const ADD_IN_2_ID:u32  = 1;
 
-
+//Signals for branching
+pub const ZERO_SIGNAL:u32 = 0;
+pub const BRANCH_SIGNAL:u32 = 1;
 // Define control signals for data memory, since it has two signals
 pub const MEM_WRITE_SIGNAL:u32  = 0;
 pub const MEM_READ_SIGNAL:u32  = 1;
@@ -80,3 +82,5 @@ pub const ALU_CTRL0_SIGNAL:u32  = 0;
 pub const ALU_CTRL1_SIGNAL:u32  = 1;
 pub const ALU_CTRL2_SIGNAL:u32  = 2;
 pub const ALU_CTRL3_SIGNAL:u32  = 3;
+
+

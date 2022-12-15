@@ -10,4 +10,5 @@ pub mod program_counter;
 pub mod registers;
 pub mod sign_extend;
 pub mod unit;
+pub mod ander;
 

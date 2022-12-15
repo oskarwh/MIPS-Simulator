@@ -31,8 +31,8 @@ impl Registers<'_>{
 
     pub fn new() -> Registers<'static>{
         //Make registers and insert 0 into all of them
-        const n_regs:usize = 32;
-        let mut registers: Vec<Word> = vec![BitVec::new(); n_regs];
+        const N_REGS:usize = 32;
+        let mut registers: Vec<Word> = vec![BitVec::new(); N_REGS];
 
         //Create registers object
         Registers{
