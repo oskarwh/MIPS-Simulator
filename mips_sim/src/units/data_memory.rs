@@ -1,4 +1,5 @@
 use std::collections::hash_map;
+use std::sync::Mutex;
 
 use bitvec::prelude::*;
 use crate::units::unit::*;
@@ -15,7 +16,7 @@ pub struct DataMemory<'a> {
     has_address : bool,
     has_write_data : bool,
 
-    mux_mem_to_reg : Option<&'a mut dyn  Unit>,
+    mux_mem_to_reg : Option<&'a Mutex<&'a mut dyn Unit>>,
 
     mem_write_signal : bool,
     mem_read_signal : bool,
@@ -55,13 +56,13 @@ impl DataMemory<'_>{
             self.has_write_data = false;
         }else if self.has_address  && self.mem_read_signal{
             let data = self.data[self.address as usize].to_bitvec();
-            self.mux_mem_to_reg.as_mut().unwrap().receive(MUX_IN_1_ID, data);
+            self.mux_mem_to_reg.as_mut().unwrap().lock().unwrap().receive(MUX_IN_1_ID, data);
         }
     }
 
     /// Set Functions
 
-    pub fn set_mux_mem_to_reg(&mut self, mux: &mut dyn Unit){
+    pub fn set_mux_mem_to_reg<'a>(&mut self, mux: &'a Mutex<&'a dyn Unit>){
         self.mux_mem_to_reg = Some(unsafe { std::mem::transmute(mux) });
     }
 

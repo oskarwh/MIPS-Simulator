@@ -1,6 +1,7 @@
 use bitvec::prelude::*;
 use crate::units::unit::*;
-
+use std::sync::Mutex;
+use std::boxed::Box;
 
 
 pub struct InstructionMemory<'a> {
@@ -10,16 +11,15 @@ pub struct InstructionMemory<'a> {
     current_address : u32,
     has_address: bool,
 
-    reg : Option<&'a mut dyn Unit>,
-    sign_extend : Option<&'a mut dyn Unit>,
-    alu_ctrl : Option<&'a mut dyn Unit>,
-    control : Option<&'a mut dyn Unit>,
-    concater: Option<&'a mut dyn Unit>,
-
+    reg : Option<Box<&'a Mutex<&'a mut dyn Unit>>>,
+    sign_extend : Option<Box<&'a Mutex<&'a mut dyn Unit>>>,
+    alu_ctrl : Option<Box<&'a Mutex<&'a mut dyn Unit>>>,
+    control : Option<Box<&'a Mutex<&'a mut dyn Unit>>>,
+    concater: Option<Box<&'a Mutex<&'a mut dyn Unit>>>,
 }
 
 
-impl InstructionMemory<'_>{
+impl<'a> InstructionMemory<'a>{
 
     pub fn new(instr: Vec<Word>) -> InstructionMemory<'static>{
         InstructionMemory{
@@ -50,38 +50,40 @@ impl InstructionMemory<'_>{
             //Send to concater, word will be shifted left (shift_right because of the way BitVec is designed)
             let mut borrow = self.current_instruction[0..26].to_bitvec();
             borrow.shift_right(2);
-            self.concater.as_mut().unwrap().receive(CONC_IN_1_ID, borrow.to_bitvec() );
+            self.concater.as_mut().unwrap().lock().unwrap().receive(CONC_IN_1_ID, borrow.to_bitvec() );
 
             //Send instruction to other units
-            self.reg.as_mut().unwrap().receive(REG_READ_1_ID, self.current_instruction[21..26].to_bitvec());
-            self.reg.as_mut().unwrap().receive(REG_READ_2_ID, self.current_instruction[16..21].to_bitvec());
-            self.control.as_mut().unwrap().receive(CTRL_IN_ID, self.current_instruction[26..32].to_bitvec());
-            self.alu_ctrl.as_mut().unwrap().receive(ALU_CTRL_IN_ID, self.current_instruction[0..6].to_bitvec());
-            self.sign_extend.as_mut().unwrap().receive(ALU_CTRL_IN_ID, self.current_instruction[0..16].to_bitvec());
+            self.reg.as_mut().unwrap().lock().unwrap().receive(REG_READ_1_ID, self.current_instruction[21..26].to_bitvec());
+            self.reg.as_mut().unwrap().lock().unwrap().receive(REG_READ_2_ID, self.current_instruction[16..21].to_bitvec());
+            self.control.as_mut().unwrap().lock().unwrap().receive(CTRL_IN_ID, self.current_instruction[26..32].to_bitvec());
+            self.alu_ctrl.as_mut().unwrap().lock().unwrap().receive(ALU_CTRL_IN_ID, self.current_instruction[0..6].to_bitvec());
+            self.sign_extend.as_mut().unwrap().lock().unwrap().receive(ALU_CTRL_IN_ID, self.current_instruction[0..16].to_bitvec());
             self.has_address = false;
         }
+        
+        
     }
 
     /// Set Functions
 
-    pub fn set_control(&mut self, ctrl : &mut dyn Unit){
-        self.control = Some(unsafe { std::mem::transmute(ctrl) });
+    pub fn set_control(&'a mut self, ctrl : Box<&'a Mutex<&'a mut dyn Unit>>){
+        self.control = Some(ctrl);
     }
 
-    pub fn set_reg(&mut self, reg : &mut dyn Unit){
-        self.reg = Some(unsafe { std::mem::transmute(reg) });
+    pub fn set_reg(&'a mut self, reg : Box<&'a Mutex<&'a mut dyn Unit>>){
+        self.reg = Some(reg);
     }
 
-    pub fn set_signextend(&mut self, sign_extend: &mut dyn Unit){
-        self.sign_extend = Some(unsafe { std::mem::transmute(sign_extend) });
+    pub fn set_signextend(&'a mut self, sign_extend: Box<&'a Mutex<&'a mut dyn Unit>>){
+        self.sign_extend = Some(sign_extend);
     } 
 
-    pub fn set_aluctrl(&mut self, alu_ctrl: &mut dyn Unit){
-        self.alu_ctrl = Some(unsafe { std::mem::transmute(alu_ctrl) });
+    pub fn set_aluctrl(&'a mut self, alu_ctrl: Box<&'a Mutex<&'a mut dyn Unit>>){
+        self.alu_ctrl = Some(alu_ctrl);
     }
 
-    pub fn set_concater(&mut self, concater: &mut dyn Unit){
-        self.concater = Some(unsafe { std::mem::transmute(concater) });
+    pub fn set_concater(&'a mut self, concater: Box<&'a Mutex<&'a mut dyn Unit>>){
+        self.concater = Some(concater);
     }
 
 
@@ -89,26 +91,14 @@ impl InstructionMemory<'_>{
 
 impl Unit for InstructionMemory<'_>{
 
-    fn receive(&mut self, input_id: u32, data : Word){
+    fn receive(&mut self, input_id: u32, address : Word){
         if input_id ==  IM_READ_ADDRESS_ID{
-            self.current_address = data.to_bitvec().into_vec()[0];
+            self.current_address = address.to_bitvec().into_vec()[0];
             self.has_address = true;
         }else{
             //Message came on undefined input
         }
-    }
-
-    fn get_data(&self, input_id : u32)-> Word {
-        match input_id{
-            CONC_IN_1_ID=>
-                return self.to_instruction_mem.to_bitvec(),
-            REG_READ_1_ID=>
-                return self.to_concater.to_bitvec(),
-            ADD_IN_1_ID=>
-                return self.to_add.to_bitvec(),
-            MUX_IN_0_ID=>
-                return self.to_mux_branch.to_bitvec(),
-        }
+        
     }
 
     fn receive_signal(&mut self ,_signal_id:u32, signal: bool) {
@@ -116,6 +106,10 @@ impl Unit for InstructionMemory<'_>{
     }
     
 }
+
+
+
+
 
 
 

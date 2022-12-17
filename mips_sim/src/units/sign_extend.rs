@@ -1,16 +1,17 @@
 use bitvec::prelude::*;
 use crate::units::unit::*;
+use std::sync::Mutex;
 pub struct SignExtend<'a>  {
 
     data : Word,
     has_data: bool,
 
-    add_unit : Option<&'a mut dyn Unit>,
+    add_unit : Option<&'a Mutex<&'a mut dyn Unit>>,
 
 }
 
 
-impl SignExtend<'_>{
+impl<'a> SignExtend<'a>{
 
     pub fn new() -> SignExtend<'static>{
         SignExtend{
@@ -34,14 +35,14 @@ impl SignExtend<'_>{
             //Shift the data left (shift_right because of the way BitVec is designed)
             self.data.shift_right(2);
 
-            self.add_unit.as_mut().unwrap().receive(ADD_IN_2_ID, self.data.to_bitvec());
+            self.add_unit.as_mut().unwrap().lock().unwrap().receive(ADD_IN_2_ID, self.data.to_bitvec());
         
         }
     }
 
     /// Set Functions
-    pub fn set_add(&mut self, add: &mut dyn Unit){
-        self.add_unit = Some(unsafe { std::mem::transmute(add) });
+    pub fn set_add(&'a mut self, add: &'a Mutex<&'a mut dyn Unit>){
+        self.add_unit = Some(add);
     }
 
 

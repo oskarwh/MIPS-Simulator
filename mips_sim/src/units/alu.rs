@@ -1,5 +1,6 @@
 
 use std::ops::BitAnd;
+use std::sync::Mutex;
 
 use bitvec::prelude::*;
 use std::ops::BitOr;
@@ -22,9 +23,9 @@ pub struct ALU<'a> {
     has_data1: bool,
     has_data2: bool,
 
-    mux_mem_to_reg :Option<&'a mut dyn Unit>,
-    data_memory :Option<&'a mut dyn Unit>,
-    ander :Option<&'a mut dyn Unit>,
+    mux_mem_to_reg :Option<&'a Mutex<&'a mut dyn Unit>>,
+    data_memory :Option<&'a Mutex<&'a mut dyn Unit>>,
+    ander :Option<&'a Mutex<&'a mut dyn Unit>>,
 
     alu_signal0: bool,
     alu_signal1:bool,
@@ -35,7 +36,7 @@ pub struct ALU<'a> {
 }
 
 
-impl ALU<'_>{
+impl<'a> ALU<'a>{
     //Define MUX id's
     pub fn new() -> ALU<'static>{
         ALU { 
@@ -97,9 +98,9 @@ impl ALU<'_>{
         let (res,overflow,zero) = Self::process_data(operation, self.data1.to_bitvec(), self.data2.to_bitvec());
 
         //Send processed data to next units
-        self.mux_mem_to_reg.as_mut().unwrap().receive(MUX_IN_0_ID, res.to_bitvec());
-        self.data_memory.as_mut().unwrap().receive(DM_ADDR_ID, res.to_bitvec());
-        self.ander.as_mut().unwrap().receive_signal(ZERO_SIGNAL, zero);
+        self.mux_mem_to_reg.as_mut().unwrap().lock().unwrap().receive(MUX_IN_0_ID, res.to_bitvec());
+        self.data_memory.as_mut().unwrap().lock().unwrap().receive(DM_ADDR_ID, res.to_bitvec());
+        self.ander.as_mut().unwrap().lock().unwrap().receive_signal(ZERO_SIGNAL, zero);
     }
 
    
@@ -162,16 +163,16 @@ impl ALU<'_>{
     }  
 
         /// Set Functions
-    pub fn set_mux_mem_to_reg(&mut self, mux: &mut dyn Unit){
-        self.mux_mem_to_reg = Some(unsafe { std::mem::transmute(mux) });
+    pub fn set_mux_mem_to_reg(&'a mut self, mux: &'a Mutex<&'a mut dyn Unit>){
+        self.mux_mem_to_reg = Some(unsafe { std::mem::transmute(mux)});
     }
 
-    pub fn set_data_mem_to_reg(&mut self, dm: &mut dyn Unit){
-        self.data_memory = Some(unsafe { std::mem::transmute(dm) });
+    pub fn set_data_mem_to_reg(&'a mut self, dm: &'a Mutex<&'a mut dyn Unit>){
+        self.data_memory = Some(unsafe { std::mem::transmute(dm)});
     }
 
-    pub fn set_ander(&mut self, ander: &mut dyn Unit){
-        self.ander = Some(unsafe { std::mem::transmute(ander) });
+    pub fn set_ander(&'a mut self, ander: &'a Mutex<&'a mut dyn Unit>){
+        self.ander = Some(unsafe { std::mem::transmute(ander)});
     }
 
 

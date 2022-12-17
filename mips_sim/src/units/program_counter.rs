@@ -1,29 +1,20 @@
 use crate::units::unit::*;
 use bitvec::prelude::*;
 use crate::units::mux::*;
+use std::sync::Mutex;
 
 pub struct ProgramCounter<'a> {
     has_address: bool,
-
     current_address : Word,
-
-    to_instruction_mem:Word,
-    to_concater:Word,
-    to_add:Word,
-    to_mux_branch:Word,
-
-
-    instruction_memory : Option<&'a mut dyn Unit>,
-    concater : Option<&'a mut dyn Unit>,
-    add_unit : Option<&'a mut dyn  Unit>,
-    mux_branch: Option<&'a mut dyn  Unit>,
+    instruction_memory : Option<&'a Mutex<&'a mut Box<dyn  Unit>>>,
+    concater : Option<&'a Mutex<&'a mut Box<dyn  Unit>>>,
+    add_unit : Option<&'a Mutex<&'a mut Box<dyn  Unit>>>,
+    mux_branch: Option<&'a Mutex<&'a mut Box<dyn  Unit>>>,
 }
 
 
-impl<'a>  ProgramCounter<'_>{
-    
+impl<'a>  ProgramCounter<'a>{
     pub fn new() -> ProgramCounter<'static>{
-
         ProgramCounter{
             current_address : bitvec![u32, Lsb0; 0; 32],
             has_address : true,
@@ -32,37 +23,29 @@ impl<'a>  ProgramCounter<'_>{
             concater: None,
             add_unit: None,
             mux_branch: None,
-
-            to_instruction_mem: bitvec![u32, Lsb0; 0; 32],
-            to_concater: bitvec![u32, Lsb0; 0; 32],
-            to_add: bitvec![u32, Lsb0; 0; 32],
-            to_mux_branch: bitvec![u32, Lsb0; 0; 32],
         }
     }
 
     pub fn execute(&mut self){
         if self.has_address {
             //Send address to instruction memory
-            self.to_mux_branch = self.current_address;
-            self.instruction_memory.as_mut().unwrap().ping(IM_READ_ADDRESS_ID, self);
+            self.instruction_memory.as_mut().unwrap().lock().unwrap().receive(IM_READ_ADDRESS_ID, self.current_address.to_bitvec());
 
             //add 4 to address
             let added_address = Self::add_4(self.current_address.to_bitvec());
-            
+
             //Send added address to concater
-            self.to_concater = added_address[28..32].to_bitvec();
-            self.concater.as_mut().unwrap().ping(CONC_IN_2_ID, self);
+            self.concater.as_mut().unwrap().lock().unwrap().receive(CONC_IN_2_ID, added_address[28..32].to_bitvec());
 
             //Send added address to add-unit
-            self.to_add = added_address;
-            self.add_unit.as_mut().unwrap().ping(ADD_IN_1_ID, self);
+            self.add_unit.as_mut().unwrap().lock().unwrap().receive(ADD_IN_1_ID,added_address.to_bitvec());
 
             //Send added address to mux-branch
-            self.to_mux_branch = added_address;
-            self.mux_branch.as_mut().unwrap().ping(MUX_IN_0_ID, self);
+            self.mux_branch.as_mut().unwrap().lock().unwrap().receive(MUX_IN_0_ID, added_address.to_bitvec());
 
             self.has_address = false;
         }
+
     }
 
 
@@ -73,50 +56,37 @@ impl<'a>  ProgramCounter<'_>{
         res.view_bits::<Lsb0>().to_bitvec()
     }
 
-    pub fn set_instr_memory(&mut self, instr_mem: &mut dyn  Unit) {
-        self.instruction_memory = Some(unsafe { std::mem::transmute(instr_mem) });
+    pub fn set_instr_memory(&'a mut self, instr_mem: &'a Mutex<&'a mut Box<dyn  Unit>>) {
+        self.instruction_memory = Some(instr_mem);
     }
 
-    pub fn set_concater(&mut self, concater: &mut dyn  Unit) {
-        self.concater = Some(unsafe { std::mem::transmute(concater) });
+    pub fn set_concater(&'a mut self, concater: &'a Mutex<&'a mut Box<dyn  Unit>>) {
+        self.concater = Some(concater);
     }
 
-    pub fn set_add(&mut self, add: &mut dyn  Unit) {
-        self.add_unit = Some(unsafe { std::mem::transmute(add) });
+    pub fn set_add(&'a mut self, add: &'a Mutex<&'a mut Box<dyn  Unit>>) {
+        self.add_unit = Some(add);
+        todo!("Check if lifetime can be fixed?");
     }
 
-    pub fn set_mux_branch(&mut self, mux: &mut dyn  Unit) {
-        self.mux_branch = Some(unsafe { std::mem::transmute(mux) });
+    pub fn set_mux_branch(&'a mut self, mux: &'a Mutex<&'a mut Box<dyn  Unit>>) {
+        self.mux_branch = Some(mux);
     }
 }
 
 impl Unit for ProgramCounter<'_>{
-
-    fn receive_signal(&mut self ,signal_id:u32, signal: bool) {
-        todo!()
-    }
-
-    fn ping(&self, input_id : u32, source:&dyn Unit) {
+    fn receive(&mut self, input_id: u32, address : Word){
         if input_id == PC_IN_ID{
-            self.current_address = source.get_data(input_id);
+            self.current_address = address;
             self.has_address = true;
         }else{
             //Message came on undefined input
         }
+        
     }
 
-    fn get_data(&self, input_id : u32)-> Word {
-        match input_id{
-            IM_READ_ADDRESS_ID=>
-                return self.to_instruction_mem.to_bitvec(),
-            CONC_IN_2_ID=>
-                return self.to_concater.to_bitvec(),
-            ADD_IN_1_ID=>
-                return self.to_add.to_bitvec(),
-            MUX_IN_0_ID=>
-                return self.to_mux_branch.to_bitvec(),
-        }
+    fn receive_signal(&mut self ,signal_id:u32, signal: bool) {
+        todo!()
     }
-
-
 }
+

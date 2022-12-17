@@ -1,5 +1,5 @@
-
 use bitvec::prelude::*;
+use std::sync::Mutex;
 use crate::units::unit::*;
 
 
@@ -9,15 +9,14 @@ pub struct AddUnit<'a> {
 
     addr : Word,
     sign_ext_instr: Word,
-    result:Word,
     has_instr: bool,
     has_addr : bool,
 
-    mux_branch :Option<&'a mut dyn Unit>,
+    mux_branch :Option<&'a Mutex<&'a mut dyn Unit>>,
 }
 
 
-impl AddUnit<'_>{
+impl<'a> AddUnit<'a>{
     //Define MUX id's
     pub fn new() -> AddUnit<'static>{
         AddUnit{
@@ -26,29 +25,23 @@ impl AddUnit<'_>{
 
             addr:bitvec![u32, Lsb0; 0; 32],
             sign_ext_instr: bitvec![u32, Lsb0; 0; 32],
-            result: bitvec![u32, Lsb0; 0; 32],
 
             mux_branch: None,
-            
         }
     }
 
     //Execute unit with thread
-    pub fn execute(&mut self){
+    pub fn execute(&'a mut self){
 
         if self.has_addr && self.has_instr{
-            println!("Address: {} \nFrom sign extend: {} ", self.addr, self.sign_ext_instr);
-            
-            let (res, overflow) = Self::add(self.addr.to_bitvec(), self.sign_ext_instr.to_bitvec());
-            println!("Result:   {} ", res);
-            self.result = res;
-            self.mux_branch.as_mut().unwrap().ping(MUX_IN_1_ID, self);
+            let (res,overflow) = Self::add(self.addr.to_bitvec(), self.sign_ext_instr.to_bitvec());
+            self.mux_branch.as_mut().unwrap().lock().unwrap().receive(MUX_IN_1_ID, res);
         }
     }
 
         /// Set Functions
-    pub fn set_mux_branch(&mut self, mux: &mut dyn Unit){
-        self.mux_branch = Some(unsafe { std::mem::transmute(mux) });
+    pub fn set_mux_branch(&'a mut self, mux: &'a Mutex<&'a mut dyn Unit>){
+        self.mux_branch = Some(mux);
     }
 
 
@@ -102,31 +95,28 @@ impl AddUnit<'_>{
         (!a && !b && sum || a && b && !sum)
     }
 
+
     
 }
 
-impl Unit for AddUnit<'_>  {
-    
-    fn receive_signal(&mut self ,signal_id:u32, signal: bool) {
-        // DO NOTHING
-    }
-
-    fn ping(&self, input_id : u32, source:&dyn Unit) {
+impl<'a> Unit for AddUnit<'a>  {
+    fn receive(&mut self, input_id: u32, data : Word){
         if input_id == ADD_IN_1_ID{
-            self.addr = source.get_data(input_id);
+            self.addr = data;
             self.has_addr = true;
         }else if input_id == ADD_IN_2_ID{
-            self.sign_ext_instr = source.get_data(input_id);
+            self.sign_ext_instr = data;
             self.has_instr = true;
         }
     }
 
-    fn get_data(&self, input_id : u32)->Word {
-        self.result.to_bitvec()
+    fn receive_signal(&mut self ,signal_id:u32, signal: bool) {
+        // DO NOTHING
     }
+
+
+    
 }
-
-
 
 
 

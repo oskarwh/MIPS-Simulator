@@ -2,6 +2,7 @@
 use bitvec::prelude::*;
 use crate::units::unit::*;
 use crate::units::mux::*;
+use std::sync::Mutex;
 
 
 
@@ -11,7 +12,7 @@ struct Ander<'a> {
     zero_signal: bool,
     branch_signal : bool,
 
-    mux_branch : Option<&'a mut dyn Unit>,
+    mux_branch : Option<&'a Mutex<&'a mut dyn Unit>>,
 
 }
 
@@ -32,14 +33,14 @@ impl Ander<'_>{
 
         if self.zero_signal && self.branch_signal{
             //Append bits from instruction memory with address from PC+4
-            self.mux_branch.as_mut().unwrap().receive_signal(DEFAULT_SIGNAL,true);
+            self.mux_branch.as_mut().unwrap().lock().unwrap().receive_signal(DEFAULT_SIGNAL,true);
         }else{
-            self.mux_branch.as_mut().unwrap().receive_signal(DEFAULT_SIGNAL,false);
+            self.mux_branch.as_mut().unwrap().lock().unwrap().receive_signal(DEFAULT_SIGNAL,false);
         }
     }
 
     /// Set Functions
-    pub fn set_mux_jump(&mut self, mux: &mut dyn Unit){
+    pub fn set_mux_jump(&mut self, mux: &Mutex<&mut dyn Unit>){
         self.mux_branch = Some(unsafe { std::mem::transmute(mux) });
     }
 

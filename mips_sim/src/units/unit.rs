@@ -1,10 +1,9 @@
 use bitvec::prelude::*;
+use std::{sync::Mutex, ops::Deref};
 
 pub type Word = BitVec<u32, Lsb0>;
-pub trait Unit: Send + Sync{
-    
-    fn ping(&self, input_id : u32, source:&dyn Unit);
-    fn get_data(&self, input_id : u32)-> Word;
+pub trait Unit: Send + Sync {
+    fn receive(&mut self, input_id : u32, data :Word);
     fn receive_signal(&mut self ,signal_id:u32, signal: bool);
 }
 
@@ -12,35 +11,31 @@ pub struct EmptyUnit<'a>{
     name:&'a str,
 }
 
-impl EmptyUnit<'_>{
-    pub fn new(name:&str)->EmptyUnit<'_>{
+
+
+impl<'a> EmptyUnit<'a>{
+    pub fn new(name:&'a str)->EmptyUnit<'a>{
         EmptyUnit{
             name
         }
     }
 }
 
-impl Unit for EmptyUnit<'_>{
+impl<'a> Unit for EmptyUnit<'a>{
+    fn receive(&mut self, input_id : u32, data :Word){
+        println!("Empty {} received at port {}: {}",self.name, input_id, data);
+    }
 
     fn receive_signal(&mut self ,signal_id:u32, signal: bool) {
-        println!("Empty {} received signal {}: with value {}",self.name, signal_id, signal);
-    }
-
-    fn ping(&self, input_id : u32, source:&dyn Unit) {
-        println!("Empty {} received ping at port {} ",self.name, input_id);
-    }
-
-    fn get_data(&self, input_id : u32)-> Word{
-        println!("Someone {} took data from port {} from empty unit",self.name, input_id);
-        bitvec![u32, Lsb0; 0; 32].to_bitvec()
+        todo!()
     }
 }
     
 
-pub const PC_IN_ID :u32 = 1;
+pub const PC_IN_ID :u32 = 0;
 
-pub const OP_CONTROL: u32 = 2;
-pub const FUNCT_CONTROL: u32 = 3;
+pub const OP_CONTROL: u32 = 0;
+pub const FUNCT_CONTROL: u32 = 0;
 
 pub const IM_READ_ADDRESS_ID:u32  = 0;
 
@@ -90,6 +85,14 @@ pub const ALU_CTRL0_SIGNAL:u32  = 0;
 pub const ALU_CTRL1_SIGNAL:u32  = 1;
 pub const ALU_CTRL2_SIGNAL:u32  = 2;
 pub const ALU_CTRL3_SIGNAL:u32  = 3;
+
+
+
+
+
+
+
+
 
 
 

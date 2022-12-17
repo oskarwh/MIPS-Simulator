@@ -13,6 +13,7 @@ use crate::units::unit::*;
 use crate::units::control::*;
 use bitvec::prelude::*;
 use assembler::parse_file;
+use std::convert::AsRef;
 
 
 // When compiling natively:
@@ -45,45 +46,84 @@ fn main() {
     println!("Have at memory 0: {}",instructions[0]);
 
     //Create empty objects for testing
-    let mut empty_control = EmptyUnit::new("control");
-    let mut empty_alu = EmptyUnit::new("alu");
-    let mut empty_add = EmptyUnit::new("add");
-    let mut empty_alu_ctrl = EmptyUnit::new("alu-control");
-    let mut empty_dm = EmptyUnit::new("data-memory");
-    let mut empty_im = EmptyUnit::new("instruction-memory");
+    let mut empty_control : Box<dyn  Unit> =  Box::new(EmptyUnit::new("control"));
+    let mut empty_alu: Box<dyn  Unit> =  Box::new(EmptyUnit::new("alu"));
+    let mut empty_add: Box<dyn  Unit> =  Box::new(EmptyUnit::new("add"));
+    let mut empty_alu_ctrl: Box<dyn  Unit> = Box::new(EmptyUnit::new("alu-control"));
+    let mut empty_dm: Box<dyn  Unit> =  Box::new(EmptyUnit::new("data-memory"));
+    let mut empty_im: Box<dyn  Unit> =  Box::new(EmptyUnit::new("instruction-memory"));
     
-    let mut empty_mux_branch = EmptyUnit::new("mux-branch");
-    let mut empty_mux_regdst = EmptyUnit::new("mux_Regdst");
-    let mut empty_mux_jump = EmptyUnit::new("mux-jump");
-    let mut empty_mux_alusrc = EmptyUnit::new("mux-alusrc");
-    let mut empty_mux_memtoreg = EmptyUnit::new("mux-memtoreg");
-    let mut empty_mux_jr = EmptyUnit::new("mux-memtoreg");
+    let mut empty_mux_branch: Box<dyn  Unit> = Box::new(EmptyUnit::new("mux-branch"));
+    let mut  empty_mux_regdst: Box<dyn  Unit> =  Box::new(EmptyUnit::new("mux_Regdst"));
+    let mut  empty_mux_jump: Box<dyn  Unit> =  Box::new(EmptyUnit::new("mux-jump"));
+    let mut  empty_mux_alusrc: Box<dyn  Unit> =  Box::new(EmptyUnit::new("mux-alusrc")) ;
+    let mut empty_mux_memtoreg: Box<dyn  Unit> =  Box::new(EmptyUnit::new("mux-memtoreg"));
+    let mut  empty_mux_jr: Box<dyn  Unit> =  Box::new(EmptyUnit::new("mux-memtoreg"));
 
-    let mut empty_pc = EmptyUnit::new("pc");
-    let mut empty_reg = EmptyUnit::new("register-file");
-    let mut empty_se= EmptyUnit::new("sign-extender");
-    let mut empty_conc = EmptyUnit::new("concater");
-    let mut empty_ander = EmptyUnit::new("ander");
+    let mut  empty_pc: Box<dyn  Unit> =  Box::new(EmptyUnit::new("pc"));
+    let mut  empty_reg: Box<dyn  Unit> =  Box::new(EmptyUnit::new("register-file"));
+    let mut  empty_se: Box<dyn  Unit> =  Box::new(EmptyUnit::new("sign-extender"));
+    let mut  empty_conc: Box<dyn  Unit> =  Box::new(EmptyUnit::new("concater"));
+    let mut  empty_ander: Box<dyn  Unit> =  Box::new(EmptyUnit::new("ander"));
+
+    //Create mutexes of Box<empty units>
+    let  mut_empty_control =  Mutex::new(&mut empty_control);
+    let  mut_empty_alu =  Mutex::new(&mut empty_alu);
+    let  mut_empty_add =  Mutex::new(&mut empty_add);
+    let  mut_empty_alu_ctrl =  Mutex::new(&mut empty_alu_ctrl);
+    let  mut_empty_dm =  Mutex::new(&mut empty_dm);
+    let  mut_empty_im =  Mutex::new(&mut empty_im);
+    
+    let  mut_empty_mux_branch = Mutex::new(&mut empty_mux_branch);
+    let  mut_empty_mux_regdst =  Mutex::new(&mut empty_mux_regdst);
+    let  mut_empty_mux_jump =  Mutex::new(&mut empty_mux_jump);
+    let  mut_empty_mux_alusrc =  Mutex::new(&mut empty_mux_alusrc) ;
+    let  mut_empty_mux_memtoreg =  Mutex::new(&mut empty_mux_memtoreg);
+    let  mut_empty_mux_jr =  Mutex::new(&mut empty_mux_jr);
+
+    let mut_empty_pc =  Mutex::new(&mut empty_pc);
+    let mut_empty_reg =  Mutex::new(&mut empty_reg );
+    let mut_empty_se=  Mutex::new(&mut empty_se);
+    let mut_empty_conc =  Mutex::new(&mut empty_conc);
+    let mut_empty_ander =  Mutex::new(&mut empty_ander);
 
     // Create all objects
-    let mut pc: ProgramCounter<'_> = ProgramCounter::new();
-    let mut instr_mem: InstructionMemory<'static> = InstructionMemory::new(instructions);
-    let mut sign_extend: SignExtend<'static> = SignExtend::new();
-    let mut alu_add: AddUnit<'static> = AddUnit::new();
-    let mut control: Control<'static> = Control::new(&mut empty_mux_regdst, &mut empty_mux_jump, &mut empty_mux_jr, &mut empty_ander, &mut empty_mux_alusrc, &mut empty_mux_memtoreg, &mut empty_alu_ctrl, &mut empty_reg, &mut empty_dm);
+    let mut pc: Box<dyn  Unit>  = Box::new(ProgramCounter::new());
+    let mut instr_mem: Box<dyn  Unit> = Box::new(InstructionMemory::new(instructions));
+    let mut sign_extend: Box<dyn  Unit> = Box::new(SignExtend::new());
+    let mut alu_add: Box<dyn  Unit> = Box::new(AddUnit::new());
+    
+
+    // Create mutexes for "real" objects
+    let mutex_pc = Mutex::new(&mut pc);
+    let mutex_instr_mem = Mutex::new(&mut instr_mem);
+    let mutex_sign_extend = Mutex::new(&mut sign_extend);
+    let mutex_alu_add = Mutex::new(&mut alu_add);
+    
+    
+    // Assemble Controller
+    let mut control: Control<'static> = Control::new(&mut_empty_mux_regdst,
+            &mut_empty_mux_jump, 
+            &mut_empty_mux_jr, 
+            &mut_empty_ander, 
+            &mut_empty_mux_alusrc,
+            &mut_empty_mux_memtoreg,
+            &mut_empty_alu_ctrl,
+            &mut_empty_reg,
+            &mut_empty_dm);
 
     // Add components to connect with program counter
-    pc.set_instr_memory(&mut instr_mem);
-    pc.set_concater(&mut empty_conc);
-    pc.set_add(&mut alu_add);
-    pc.set_mux_branch(&mut empty_mux_branch);
+    (pc as Box<InstructionMemory>).as_mut().set_instr_memory(&mutex_instr_mem); 
+    pc.set_concater(&mut_empty_conc);
+    pc.set_add(&mutex_alu_add);
+    pc.set_mux_branch(&mut_empty_mux_branch);
 
     // Add components to connect with instruction memory
-    instr_mem.set_aluctrl(&mut empty_alu_ctrl);
-    instr_mem.set_concater(&mut empty_conc);
-    instr_mem.set_control(&mut empty_control);
-    instr_mem.set_reg(&mut empty_reg);
-    instr_mem.set_signextend(&mut sign_extend);
+    instr_mem.set_aluctrl(&mut_empty_mux_alusrc);
+    instr_mem.set_concater(&mut_empty_conc);
+    instr_mem.set_control(& mut_empty_control);
+    instr_mem.set_reg(& mut_empty_reg);
+    instr_mem.set_signextend(&mutex_sign_extend);
 
     // Add components to connect with sign_extend
     //sign_extend.set_add(&mut alu_add);
