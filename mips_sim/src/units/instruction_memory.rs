@@ -1,14 +1,14 @@
-use bitvec::prelude::*;
 use crate::units::unit::*;
+
 use std::sync::Mutex;
 use std::boxed::Box;
 
+use bitvec::prelude::*;
 
 pub struct InstructionMemory<'a> {
-
-    instructions : Vec<Word>,
-    current_instruction : Word,
-    current_address : u32,
+    instructions: Vec<Word>,
+    current_instruction: Word,
+    current_address: u32,
     has_address: bool,
 
     reg : Option<Box<&'a Mutex<&'a mut dyn Unit>>>,
@@ -32,24 +32,21 @@ impl<'a> InstructionMemory<'a>{
             sign_extend: None,
             alu_ctrl: None,
             control: None,
-            concater: None
+            concater: None,
         }
-
     }
 
-        
     ///Execute unit with thread
-    pub fn execute(&mut self){
-      
+    pub fn execute(&mut self) {
         if self.has_address {
             //Received address on read_address! Find corresponding instruction. Need to right shift 2 steps (divide by 4)
-            self.current_address = self.current_address/4;
+            self.current_address = self.current_address / 4;
             self.current_instruction = self.instructions[self.current_address as usize].to_bitvec();
-
 
             //Send to concater, word will be shifted left (shift_right because of the way BitVec is designed)
             let mut borrow = self.current_instruction[0..26].to_bitvec();
             borrow.shift_right(2);
+
             self.concater.as_mut().unwrap().lock().unwrap().receive(CONC_IN_1_ID, borrow.to_bitvec() );
 
             //Send instruction to other units
@@ -65,7 +62,6 @@ impl<'a> InstructionMemory<'a>{
     }
 
     /// Set Functions
-
     pub fn set_control(&'a mut self, ctrl : Box<&'a Mutex<&'a mut dyn Unit>>){
         self.control = Some(ctrl);
     }
@@ -84,9 +80,8 @@ impl<'a> InstructionMemory<'a>{
 
     pub fn set_concater(&'a mut self, concater: Box<&'a Mutex<&'a mut dyn Unit>>){
         self.concater = Some(concater);
+
     }
-
-
 }
 
 impl Unit for InstructionMemory<'_>{
@@ -95,22 +90,14 @@ impl Unit for InstructionMemory<'_>{
         if input_id ==  IM_READ_ADDRESS_ID{
             self.current_address = address.to_bitvec().into_vec()[0];
             self.has_address = true;
-        }else{
+        } else {
             //Message came on undefined input
         }
-        
     }
 
-    fn receive_signal(&mut self ,_signal_id:u32, signal: bool) {
+    fn receive_signal(&mut self, _signal_id: u32, signal: bool) {
         // DO NOTHING
     }
-    
+
+
 }
-
-
-
-
-
-
-
-
