@@ -184,7 +184,7 @@ impl ALU<'_>{
         let temp_carry2 = carry_in && b; 
         let temp_carry3 = b && a;
 
-        let temp_sum1 = a && !b && carry_in;
+        let temp_sum1 = a && !b && !carry_in;
         let temp_sum2 = !a && b && !carry_in; 
         let temp_sum3 = !a && !b && carry_in;
         let temp_sum4 = a && b && carry_in;

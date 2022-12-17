@@ -19,7 +19,7 @@ use std::path::Path;
 const RS_POS: u32 = 21;
 const RT_POS: u32 = 16;
 const RD_POS: u32 = 11;
-const MAX_IMME_SIZE: u32 = u16::MAX as u32; //Maximum value that are used in arithmetic immediate commands
+const MAX_IMME_SIZE: i32 = u16::MAX as i32; //Maximum value that are used in arithmetic immediate commands
 const MAX_BEQ_OFFSET: u32 = i16::MAX as u32; //Maximum value for branch-jumps
 
 /// Enumerates the different types of instructions.
@@ -315,8 +315,9 @@ fn assemble_i1_type(
     let cmnd = &cap[1];
     let rt = &cap[2];
     let rs = &cap[3];
+    let mask = 0x0000FFFF;
 
-    let imme = (&cap[4]).parse::<u32>();
+    let imme = (&cap[4]).parse::<i32>();
     let mut instr = *instructions.get(&cmnd).unwrap();
 
     instr = instr | (parse_register(rs, registers)?) << RS_POS;
@@ -331,7 +332,7 @@ fn assemble_i1_type(
             //error
             Err("the immediate value is too big")
         } else {
-            Ok(imme_unwrap)
+            Ok((imme_unwrap & mask) as u32)
         }
     };
 
@@ -429,7 +430,8 @@ fn assemble_i3_type(
     let cmnd = &cap[1];
     let rt = &cap[2];
     let rs = &cap[4];
-    let offset = (&cap[3]).parse::<u32>();
+    let offset = (&cap[3]).parse::<i32>();
+    let mask = 0x0000FFFF;
 
     let mut instr = *instructions.get(&cmnd).unwrap();
 
@@ -445,7 +447,7 @@ fn assemble_i3_type(
             // Error
             Err("offset is too big")
         } else {
-            Ok(offset_unwrap)
+            Ok((offset_unwrap & mask) as u32)
         }
     };
 
@@ -456,6 +458,7 @@ fn assemble_i3_type(
         return Ok(instr);
     }
 }
+
 
 /// Creates a first kind J-type instruction.  
 ///

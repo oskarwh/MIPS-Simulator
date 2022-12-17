@@ -3,8 +3,8 @@ use bitvec::prelude::*;
 pub type Word = BitVec<u32, Lsb0>;
 pub trait Unit: Send + Sync{
     
-
-    fn receive(&mut self, input_id : u32, data :Word);
+    fn ping(&self, input_id : u32, source:&dyn Unit);
+    fn get_data(&self, input_id : u32)-> Word;
     fn receive_signal(&mut self ,signal_id:u32, signal: bool);
 }
 
@@ -21,22 +21,26 @@ impl EmptyUnit<'_>{
 }
 
 impl Unit for EmptyUnit<'_>{
-    fn receive(&mut self, input_id : u32, data :Word){
-        println!("Empty {} received at port {}: {}",self.name, input_id, data);
-    }
 
     fn receive_signal(&mut self ,signal_id:u32, signal: bool) {
-        todo!()
+        println!("Empty {} received signal {}: with value {}",self.name, signal_id, signal);
     }
 
+    fn ping(&self, input_id : u32, source:&dyn Unit) {
+        println!("Empty {} received ping at port {} ",self.name, input_id);
+    }
 
+    fn get_data(&self, input_id : u32)-> Word{
+        println!("Someone {} took data from port {} from empty unit",self.name, input_id);
+        bitvec![u32, Lsb0; 0; 32].to_bitvec()
+    }
 }
     
 
-pub const PC_IN_ID :u32 = 0;
+pub const PC_IN_ID :u32 = 1;
 
-pub const OP_CONTROL: u32 = 0;
-pub const FUNCT_CONTROL: u32 = 0;
+pub const OP_CONTROL: u32 = 2;
+pub const FUNCT_CONTROL: u32 = 3;
 
 pub const IM_READ_ADDRESS_ID:u32  = 0;
 

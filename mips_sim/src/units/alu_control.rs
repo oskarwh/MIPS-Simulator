@@ -199,14 +199,18 @@ impl Unit for AluControl<'_>{
             self.has_op2 = true;
         }
     }
-    
-    fn receive (&mut self, input_id : u32, data :BitVec::<u32, LocalBits>) {
+
+    fn ping(&self, input_id : u32, source:&dyn Unit) {
         if input_id == ALU_CTRL_IN_ID {
-            self.funct = data;
+            self.funct = source.get_data(input_id);
             self.has_funct = true;
         }else {
             // Wrong ID
         }
-        
+    }
+
+    fn get_data(&self, input_id : u32)-> Word{
+       // DO NOTHING
+       bitvec![u32, Lsb0; 0; 32].to_bitvec()
     }
 }

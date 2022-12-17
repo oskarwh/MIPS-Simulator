@@ -233,8 +233,8 @@ impl Control<'_> {
 
 impl Unit for Control<'_>{
 
-    fn receive (&mut self, input_id : u32, data : Word) {
-        // Check what type of data is comming 
+    fn ping(&self, input_id : u32, source:&dyn Unit) {
+         // Check what type of data is comming 
         // If a new op_code check what type of instruction
 
 /*r_bitvec: bitvec![u32, Lsb0; 0,0,0,0,0,0],
@@ -247,7 +247,7 @@ impl Unit for Control<'_>{
 
         if input_id == OP_CONTROL {
             
-            match data.to_bitvec().into_vec()[0] {
+            match source.get_data(input_id).to_bitvec().into_vec()[0] {
                 // R-format instructions 
                 0b000000=> 
                     self.set_r_signals(),
@@ -290,6 +290,11 @@ impl Unit for Control<'_>{
             // JR instruction
 
         }
+    }
+
+    fn get_data(&self, input_id : u32)-> Word{
+        // Does nothing
+        bitvec![u32, Lsb0; 0; 32].to_bitvec()
     }
 
     fn receive_signal(&mut self ,signal_id:u32, signal: bool) {

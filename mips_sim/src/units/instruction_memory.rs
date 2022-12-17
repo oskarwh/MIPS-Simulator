@@ -60,8 +60,6 @@ impl InstructionMemory<'_>{
             self.sign_extend.as_mut().unwrap().receive(ALU_CTRL_IN_ID, self.current_instruction[0..16].to_bitvec());
             self.has_address = false;
         }
-        
-        
     }
 
     /// Set Functions
@@ -91,14 +89,26 @@ impl InstructionMemory<'_>{
 
 impl Unit for InstructionMemory<'_>{
 
-    fn receive(&mut self, input_id: u32, address : Word){
+    fn receive(&mut self, input_id: u32, data : Word){
         if input_id ==  IM_READ_ADDRESS_ID{
-            self.current_address = address.to_bitvec().into_vec()[0];
+            self.current_address = data.to_bitvec().into_vec()[0];
             self.has_address = true;
         }else{
             //Message came on undefined input
         }
-        
+    }
+
+    fn get_data(&self, input_id : u32)-> Word {
+        match input_id{
+            CONC_IN_1_ID=>
+                return self.to_instruction_mem.to_bitvec(),
+            REG_READ_1_ID=>
+                return self.to_concater.to_bitvec(),
+            ADD_IN_1_ID=>
+                return self.to_add.to_bitvec(),
+            MUX_IN_0_ID=>
+                return self.to_mux_branch.to_bitvec(),
+        }
     }
 
     fn receive_signal(&mut self ,_signal_id:u32, signal: bool) {

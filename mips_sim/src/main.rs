@@ -8,7 +8,9 @@ mod assembler;
 
 use crate::units::program_counter::*;
 use crate::units::instruction_memory::*;
+use crate::units::add_unit::*;
 use crate::units::unit::*;
+use crate::units::control::*;
 use bitvec::prelude::*;
 use assembler::parse_file;
 
@@ -49,7 +51,14 @@ fn main() {
     let mut empty_alu_ctrl = EmptyUnit::new("alu-control");
     let mut empty_dm = EmptyUnit::new("data-memory");
     let mut empty_im = EmptyUnit::new("instruction-memory");
-    let mut empty_mux = EmptyUnit::new("mux");
+    
+    let mut empty_mux_branch = EmptyUnit::new("mux-branch");
+    let mut empty_mux_regdst = EmptyUnit::new("mux_Regdst");
+    let mut empty_mux_jump = EmptyUnit::new("mux-jump");
+    let mut empty_mux_alusrc = EmptyUnit::new("mux-alusrc");
+    let mut empty_mux_memtoreg = EmptyUnit::new("mux-memtoreg");
+    let mut empty_mux_jr = EmptyUnit::new("mux-memtoreg");
+
     let mut empty_pc = EmptyUnit::new("pc");
     let mut empty_reg = EmptyUnit::new("register-file");
     let mut empty_se= EmptyUnit::new("sign-extender");
@@ -57,17 +66,17 @@ fn main() {
     let mut empty_ander = EmptyUnit::new("ander");
 
     // Create all objects
-    let mut pc: ProgramCounter = ProgramCounter::new();
+    let mut pc: ProgramCounter<'_> = ProgramCounter::new();
     let mut instr_mem: InstructionMemory<'static> = InstructionMemory::new(instructions);
     let mut sign_extend: SignExtend<'static> = SignExtend::new();
-
-
+    let mut alu_add: AddUnit<'static> = AddUnit::new();
+    let mut control: Control<'static> = Control::new(&mut empty_mux_regdst, &mut empty_mux_jump, &mut empty_mux_jr, &mut empty_ander, &mut empty_mux_alusrc, &mut empty_mux_memtoreg, &mut empty_alu_ctrl, &mut empty_reg, &mut empty_dm);
 
     // Add components to connect with program counter
     pc.set_instr_memory(&mut instr_mem);
     pc.set_concater(&mut empty_conc);
-    pc.set_add(&mut empty_add);
-    pc.set_mux_branch(&mut empty_mux);
+    pc.set_add(&mut alu_add);
+    pc.set_mux_branch(&mut empty_mux_branch);
 
     // Add components to connect with instruction memory
     instr_mem.set_aluctrl(&mut empty_alu_ctrl);
@@ -77,14 +86,18 @@ fn main() {
     instr_mem.set_signextend(&mut sign_extend);
 
     // Add components to connect with sign_extend
-    sign_extend.set_add(&mut empty_add);
+    //sign_extend.set_add(&mut alu_add);
 
-   /* pc.execute();
+    // Add components to connect with ALU ADD
+    //alu_add.set_mux_branch(&mut empty_mux);
+
+    pc.execute();
     instr_mem.execute();
-
-    sign_extend.execute();*/
     
-
+    sign_extend.execute();
+    alu_add.execute();
+    
+ /*
     let pc_arc = Arc::new(Mutex::new(pc));
     let pc_ref = Arc::clone(&pc_arc);
 
@@ -106,7 +119,7 @@ fn main() {
         
             prog_c.execute();
         
-    }); 
+    }); */
     
    // let instr_mem = Arc::new(Mutex::new(instr_mem));
    // let instr_mem_ref = Arc::clone(&instr_mem);
