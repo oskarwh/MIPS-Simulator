@@ -19,21 +19,6 @@ pub struct Control<'a> {
     alu_ctrl: &'a mut dyn  Unit,
     reg_file: &'a mut dyn  Unit,
     data_memory: &'a mut dyn  Unit,
-
-    // Bit vector for R format instruction
-    r_bitvec: BitVec<u32>, 
-    // Bit vector for load-woard instruction
-    lw_bitvec: BitVec<u32>, 
-    // Bit vector for store-word instruction
-    sw_bitvec: BitVec<u32>,
-    // Bit vector for branch on equal instruction
-    beq_bitvec: BitVec<u32>,
-    // Bit vector for jump instruction
-    j_bitvec: BitVec<u32>, 
-    // Bit vector for addi instruction
-    addi_bitvec: BitVec<u32>,
-    // Bit vector for ori instruction
-    ori_bitvec: BitVec<u32>,
 }
 
 
@@ -64,14 +49,6 @@ impl Control<'_> {
             alu_ctrl,
             reg_file,
             data_memory,
-
-            r_bitvec: bitvec![u32, Lsb0; 0,0,0,0,0,0],
-            lw_bitvec: bitvec![u32, Lsb0; 1,0,0,0,1,1],
-            sw_bitvec: bitvec![u32, Lsb0; 1,0,1,0,1,1],
-            beq_bitvec: bitvec![u32, Lsb0; 0,0,0,1,0,0],
-            j_bitvec: bitvec![u32, Lsb0; 0,0,0,0,1,0],
-            addi_bitvec:  bitvec![u32, Lsb0; 0,0,1,0,0,0],
-            ori_bitvec: bitvec![u32, Lsb0; 0,0,1,1,0,1],
         }
     }
 
@@ -259,41 +236,54 @@ impl Unit for Control<'_>{
     fn receive (&mut self, input_id : u32, data : Word) {
         // Check what type of data is comming 
         // If a new op_code check what type of instruction
+
+/*r_bitvec: bitvec![u32, Lsb0; 0,0,0,0,0,0],
+        lw_bitvec: bitvec![u32, Lsb0; 1,0,0,0,1,1],
+        sw_bitvec: bitvec![u32, Lsb0; 1,0,1,0,1,1],
+        beq_bitvec: bitvec![u32, Lsb0; 0,0,0,1,0,0],
+        j_bitvec: bitvec![u32, Lsb0; 0,0,0,0,1,0],
+        addi_bitvec:  bitvec![u32, Lsb0; 0,0,1,0,0,0],
+        ori_bitvec: bitvec![u32, Lsb0; 0,0,1,1,0,1],*/
+
         if input_id == OP_CONTROL {
             
-            match data{
+            match data.to_bitvec().into_vec()[0] {
                 // R-format instructions 
-                r_bitvec =>
+                0b000000=> 
                     self.set_r_signals(),
                     // Set reg_dst, reg_wrt, alu_op1
-
+                
                 // LW instruction
-                lw_bitvec =>
+                0b100011 =>
                     self.set_lw_signals(),
                     // Set alu_src, memto_reg, reg_wrt, mem_read, 
 
                 // SW instruction
-                sw_bitvec =>
+                0b101011 =>
                     self.set_sw_signals(),
                     // Set alu_src, mem_write
 
                 // Beq instruction
-                beq_bitvec =>
+                0b000100 =>
                     self.set_beq_signals(),
                     // Set branch, alu_op0
 
                 // Jump instruction
-                j_bitvec =>
+                0b000010 =>
                     self.set_j_signals(),
                     // Set jump
 
                 // Addi instruction
-                addi_bitvec =>
+                0b001000 =>
                     self.set_addi_signals(),
 
                 // Ori instruction
-                ori_bitvec =>
+                0b001101 =>
                     self.set_ori_signals(),
+
+                //DO NOTHING
+                _ =>(),
+                 //DO NOTHING
             }
         // Check if the data is funct code, if it is we a JR instruction is coming   
         } else if input_id == FUNCT_CONTROL {

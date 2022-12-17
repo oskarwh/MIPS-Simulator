@@ -16,26 +16,6 @@ pub struct AluControl<'a>{
     has_op1: bool,
     has_op2: bool,
     has_funct: bool,
-    
-    // Bit vector for add instruction
-    add_bitvec: BitVec<u32>,
-    // Bit vector for sub instruction
-    sub_bitvec: BitVec<u32>,
-    // Bit vector for and instruction
-     and_bitvec: BitVec<u32>,
-    // Bit vector for or instruction
-    or_bitvec: BitVec<u32>,
-    // Bit vector for slt instruction
-    slt_bitvec: BitVec<u32>,
-    // Bit vector for jr instruction
-    jr_bitvec: BitVec<u32>,
-    // Bit vector for nor instruction
-    nor_bitvec: BitVec<u32>,
-    // Bit vector for srl instruction
-    srl_bitvec: BitVec<u32>,
-    // Bit vector for sra instruction
-    sra_bitvec: BitVec<u32>,
-
 }
 
 
@@ -51,16 +31,6 @@ impl<'a> AluControl<'_> {
             has_op1: false,
             has_op2: false,
             has_funct: false,
-
-            add_bitvec: bitvec![u32, Lsb0; 1,0,0,0,0,0],
-            sub_bitvec: bitvec![u32, Lsb0; 1,0,0,0,1,0],
-            and_bitvec: bitvec![u32, Lsb0; 1,0,0,1,0,0],
-            or_bitvec: bitvec![u32, Lsb0; 1,0,0,1,0,1],
-            slt_bitvec: bitvec![u32, Lsb0; 1,0,1,0,1,0],
-            jr_bitvec: bitvec![u32, Lsb0; 0,0,1,0,0,0],
-            nor_bitvec: bitvec![u32, Lsb0; 1,0,0,1,1,1],
-            srl_bitvec: bitvec![u32, Lsb0; 0,0,0,0,1,0],
-            sra_bitvec: bitvec![u32, Lsb0; 0,0,0,0,1,1],
         }
     }
 
@@ -69,45 +39,58 @@ impl<'a> AluControl<'_> {
             // Check if instuction is r type
            if !self.has_op2 && self.alu_op1 && !self.alu_op0 {
 
+           /* add_bitvec: bitvec![u32, Lsb0; 1,0,0,0,0,0],
+            sub_bitvec: bitvec![u32, Lsb0; 1,0,0,0,1,0],
+            and_bitvec: bitvec![u32, Lsb0; 1,0,0,1,0,0],
+            or_bitvec: bitvec![u32, Lsb0; 1,0,0,1,0,1],
+            slt_bitvec: bitvec![u32, Lsb0; 1,0,1,0,1,0],
+            jr_bitvec: bitvec![u32, Lsb0; 0,0,1,0,0,0],
+            nor_bitvec: bitvec![u32, Lsb0; 1,0,0,1,1,1],
+            srl_bitvec: bitvec![u32, Lsb0; 0,0,0,0,1,0],
+            sra_bitvec: bitvec![u32, Lsb0; 0,0,0,0,1,1],*/
+
                 // Check which r type alu should do
-                match self.funct.to_bitvec() {
+                match self.funct.to_bitvec().into_vec()[0] {
                     // Add instruction
-                    add_bitvec =>
+                    0b100000 =>
                         self.set_add_signals(),
                     
                     // Sub instruction
-                    sub_bitvec =>
+                    0b100010 =>
                         self.set_sub_signals(),
 
                     // And instruction
-                    and_bitvec =>
+                    0b100100 =>
                         self.set_and_signals(),
 
                     // Or instruction
-                    or_bitvec =>
+                    0b100101 =>
                         self.set_or_signals(),
                     
                     // Set On Less Than instruction
-                    slt_bitvec =>
+                    0b101010 =>
                         self.set_slt_signals(),
 
                     // Jr instruction
-                    jr_bitvec =>
+                    0b001000 =>
                         todo!(),
                         // What should i send to the alu?
                         // I do not need to du anything in the alu here i think?
                     
                     // Nor instruction
-                    nor_bitvec =>
+                    0b100111 =>
                         self.set_nor_signals(),
 
                     // Srl instruction
-                    srl_bitvec =>
+                    0b000010 =>
                         self.set_srl_signals(),
                     
                     // Sra instruction
-                    sra_bitvec =>
+                    0b000011 =>
                         self.set_sra_signals(),
+                    //DO NOTHING
+                    _ =>(),
+                    //DO NOTHING
                 }
             // Check for ori
             } else if self.has_op2 && !self.alu_op1 && !self.alu_op0 {

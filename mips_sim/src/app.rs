@@ -20,7 +20,7 @@ fn heading2() -> TextStyle {
 fn heading3() -> TextStyle {
     TextStyle::Name("ContextHeading".into())
 }
-// Bunch of text styles.
+// Configure text styles.
 fn configure_text_styles(ctx: &egui::Context) {
     use FontFamily::Proportional;
     use TextStyle::*;
@@ -42,7 +42,7 @@ fn configure_text_styles(ctx: &egui::Context) {
 /// if we add new fields, give them default values when deserializing old state
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct MipsApp {
-    // Example stuff:
+    // All data that needs to be accessed while GUI is running.
     selected: DataFormat,
     labels: hash_map::HashMap<String, u32>,
     registers: hash_map::HashMap<&'static str, u32>,

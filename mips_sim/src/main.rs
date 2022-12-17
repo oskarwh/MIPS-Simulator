@@ -32,7 +32,7 @@ fn main() {
 
     //Parse the file into machine code
     let file_path = "test1";
-    let (machine_code, assembler_code, labels) = parse_file(file_path);
+    let (machine_code, assembler_code, labels, registers) = parse_file(file_path);
 
 
     // Add vector with machine-code to a vector of Words
@@ -97,11 +97,9 @@ fn main() {
         loop {
             reg_file.execute();
         }
-        
     });
-
-   
-
+    
+    
     // Thread for the instruction memory
     let pc_thread = thread::spawn(move||{
         let mut prog_c = pc_ref.lock().unwrap();
