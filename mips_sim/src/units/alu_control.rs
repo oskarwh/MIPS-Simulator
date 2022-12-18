@@ -1,16 +1,18 @@
+use std::sync::{Mutex, Arc};
+
 use bitvec::prelude::*;
 use crate::units::unit::*;
 
 
 
 
-pub struct AluControl<'a>{
+pub struct AluControl{
     alu_op0: bool,
     alu_op1: bool,
     alu_op2: bool,
     funct: BitVec::<u32, LocalBits>,
 
-    alu_unit: Option<&'a mut dyn Unit>,
+    alu_unit: Option<Arc<Mutex<dyn Unit>>>,
 
     has_op0: bool,
     has_op1: bool,
@@ -19,8 +21,8 @@ pub struct AluControl<'a>{
 }
 
 
-impl<'a> AluControl<'_> {
-    pub fn new () -> AluControl<'a>{
+impl<'a> AluControl {
+    pub fn new () -> AluControl{
         AluControl { 
             alu_op0: false,
             alu_op1: false,
@@ -112,70 +114,78 @@ impl<'a> AluControl<'_> {
 
     pub fn set_add_signals(&mut self) {
         // Send 0010 to ALU
-        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL0_SIGNAL, false);
-        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL1_SIGNAL, true);
-        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL2_SIGNAL, false);
-        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL3_SIGNAL, false);
+        let mut lock = self.alu_unit.as_mut().unwrap().lock().unwrap();
+        lock.receive_signal(ALU_CTRL0_SIGNAL, false);
+        lock.receive_signal(ALU_CTRL1_SIGNAL, true);
+        lock.receive_signal(ALU_CTRL2_SIGNAL, false);
+        lock.receive_signal(ALU_CTRL3_SIGNAL, false);
     }
 
     pub fn set_sub_signals(&mut self) {
         // Send 0110 to ALU
-        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL0_SIGNAL, false);
-        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL1_SIGNAL, true);
-        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL2_SIGNAL, true);
-        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL3_SIGNAL, false);
+        let mut lock = self.alu_unit.as_mut().unwrap().lock().unwrap();
+        lock.receive_signal(ALU_CTRL0_SIGNAL, false);
+        lock.receive_signal(ALU_CTRL1_SIGNAL, true);
+        lock.receive_signal(ALU_CTRL2_SIGNAL, true);
+        lock.receive_signal(ALU_CTRL3_SIGNAL, false);
     }
 
     pub fn set_and_signals(&mut self) {
         // Send 0000 to ALU
-        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL0_SIGNAL, false);
-        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL1_SIGNAL, false);
-        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL2_SIGNAL, false);
-        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL3_SIGNAL, false);
+        let mut lock = self.alu_unit.as_mut().unwrap().lock().unwrap();
+        lock.receive_signal(ALU_CTRL0_SIGNAL, false);
+        lock.receive_signal(ALU_CTRL1_SIGNAL, false);
+        lock.receive_signal(ALU_CTRL2_SIGNAL, false);
+        lock.receive_signal(ALU_CTRL3_SIGNAL, false);
     }
 
     pub fn set_or_signals(&mut self) {
         // Send 0001 to ALU
-        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL0_SIGNAL, true);
-        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL1_SIGNAL, false);
-        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL2_SIGNAL, false);
-        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL3_SIGNAL, false);
+        let mut lock = self.alu_unit.as_mut().unwrap().lock().unwrap();
+        lock.receive_signal(ALU_CTRL0_SIGNAL, true);
+        lock.receive_signal(ALU_CTRL1_SIGNAL, false);
+        lock.receive_signal(ALU_CTRL2_SIGNAL, false);
+        lock.receive_signal(ALU_CTRL3_SIGNAL, false);
     }
 
     pub fn set_slt_signals(&mut self) {
         // Send 0111 to ALU
-        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL0_SIGNAL, true);
-        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL1_SIGNAL, true);
-        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL2_SIGNAL, true);
-        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL3_SIGNAL, false);
+        let mut lock = self.alu_unit.as_mut().unwrap().lock().unwrap();
+        lock.receive_signal(ALU_CTRL0_SIGNAL, true);
+        lock.receive_signal(ALU_CTRL1_SIGNAL, true);
+        lock.receive_signal(ALU_CTRL2_SIGNAL, true);
+        lock.receive_signal(ALU_CTRL3_SIGNAL, false);
     }
 
     pub fn set_nor_signals(&mut self) {
         // Send 1100 to ALU
-        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL0_SIGNAL, false);
-        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL1_SIGNAL, false);
-        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL2_SIGNAL, true);
-        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL3_SIGNAL, true);
+        let mut lock = self.alu_unit.as_mut().unwrap().lock().unwrap();
+        lock.receive_signal(ALU_CTRL0_SIGNAL, false);
+        lock.receive_signal(ALU_CTRL1_SIGNAL, false);
+        lock.receive_signal(ALU_CTRL2_SIGNAL, true);
+        lock.receive_signal(ALU_CTRL3_SIGNAL, true);
     }
 
     pub fn set_srl_signals(&mut self) {
         // Send 1101 to ALU
-        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL0_SIGNAL, true);
-        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL1_SIGNAL, false);
-        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL2_SIGNAL, true);
-        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL3_SIGNAL, true);
+        let mut lock = self.alu_unit.as_mut().unwrap().lock().unwrap();
+        lock.receive_signal(ALU_CTRL0_SIGNAL, true);
+        lock.receive_signal(ALU_CTRL1_SIGNAL, false);
+        lock.receive_signal(ALU_CTRL2_SIGNAL, true);
+        lock.receive_signal(ALU_CTRL3_SIGNAL, true);
     }
 
     pub fn set_sra_signals(&mut self) {
         // Send 1011 to ALU
-        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL0_SIGNAL, true);
-        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL1_SIGNAL, true);
-        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL2_SIGNAL, false);
-        self.alu_unit.as_mut().unwrap().receive_signal(ALU_CTRL3_SIGNAL, true);
+        let mut lock = self.alu_unit.as_mut().unwrap().lock().unwrap();
+        lock.receive_signal(ALU_CTRL0_SIGNAL, true);
+        lock.receive_signal(ALU_CTRL1_SIGNAL, true);
+        lock.receive_signal(ALU_CTRL2_SIGNAL, false);
+        lock.receive_signal(ALU_CTRL3_SIGNAL, true);
     }
 
-    pub fn set_alu(&mut self, alu: &mut dyn Unit) {
-        self.alu_unit = Some(unsafe { std::mem::transmute(alu) });
+    pub fn set_alu(&mut self, alu: Arc<Mutex<dyn Unit>>) {
+        self.alu_unit = Some(alu);
     }
 
     fn reset_bools(&mut self) {
@@ -186,7 +196,7 @@ impl<'a> AluControl<'_> {
     }
 }
 
-impl Unit for AluControl<'_>{
+impl Unit for AluControl {
     fn receive_signal(&mut self ,signal_id:u32, signal: bool) {
         if signal_id == ALU_OP0_SIGNAL {
             self.alu_op0 = signal;

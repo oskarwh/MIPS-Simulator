@@ -1,5 +1,6 @@
 
 use std::ops::BitAnd;
+use std::sync::Arc;
 use std::sync::Mutex;
 
 use bitvec::prelude::*;
@@ -15,7 +16,7 @@ enum Operand{
     Slt,
 }
 
-pub struct ALU<'a> {
+pub struct ALU {
 
     data1 : Word,
     data2 : Word,
@@ -23,9 +24,9 @@ pub struct ALU<'a> {
     has_data1: bool,
     has_data2: bool,
 
-    mux_mem_to_reg :Option<&'a Mutex<&'a mut dyn Unit>>,
-    data_memory :Option<&'a Mutex<&'a mut dyn Unit>>,
-    ander :Option<&'a Mutex<&'a mut dyn Unit>>,
+    mux_mem_to_reg :Option<Arc<Mutex<dyn Unit>>>,
+    data_memory :Option<Arc<Mutex<dyn Unit>>>,
+    ander :Option<Arc<Mutex<dyn Unit>>>,
 
     alu_signal0: bool,
     alu_signal1:bool,
@@ -36,9 +37,9 @@ pub struct ALU<'a> {
 }
 
 
-impl<'a> ALU<'a>{
+impl ALU {
     //Define MUX id's
-    pub fn new() -> ALU<'static>{
+    pub fn new() -> ALU {
         ALU { 
             data1: bitvec![u32, Lsb0; 0; 32],
             data2: bitvec![u32, Lsb0; 0; 32],
@@ -163,15 +164,15 @@ impl<'a> ALU<'a>{
     }  
 
         /// Set Functions
-    pub fn set_mux_mem_to_reg(&'a mut self, mux: &'a Mutex<&'a mut dyn Unit>){
+    pub fn set_mux_mem_to_reg(&mut self, mux: Arc<Mutex<dyn Unit>>){
         self.mux_mem_to_reg = Some(unsafe { std::mem::transmute(mux)});
     }
 
-    pub fn set_data_mem_to_reg(&'a mut self, dm: &'a Mutex<&'a mut dyn Unit>){
+    pub fn set_data_mem_to_reg(&mut self, dm: Arc<Mutex<dyn Unit>>){
         self.data_memory = Some(unsafe { std::mem::transmute(dm)});
     }
 
-    pub fn set_ander(&'a mut self, ander: &'a Mutex<&'a mut dyn Unit>){
+    pub fn set_ander(&mut self, ander: Arc<Mutex<dyn Unit>>){
         self.ander = Some(unsafe { std::mem::transmute(ander)});
     }
 
@@ -217,7 +218,7 @@ impl<'a> ALU<'a>{
 
 }
 
-impl Unit for ALU<'_>  {
+impl Unit for ALU  {
     fn receive(&mut self, input_id: u32, data : Word){
         if input_id == ALU_IN_1_ID{
             self.data1 = data;

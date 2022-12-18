@@ -1,9 +1,10 @@
 use bitvec::prelude::*;
 use crate::units::unit::*;
+use std::sync::Mutex;
+use std::sync::Arc;
 
 
-
-pub struct Registers<'a> {
+pub struct Registers {
 
     registers: Vec<Word>,
 
@@ -18,18 +19,18 @@ pub struct Registers<'a> {
     has_write_data : bool,
 
 
-    alu : Option<&'a mut dyn Unit>,
-    mux_alu_src : Option<&'a mut dyn  Unit>,
-    data_memory : Option<&'a mut dyn Unit>,
+    alu : Option<Arc<Mutex<dyn Unit>>>,
+    mux_alu_src : Option<Arc<Mutex<dyn Unit>>>,
+    data_memory : Option<Arc<Mutex<dyn Unit>>>,
 
     reg_write_signal : bool,
 
 }
 
 
-impl<'a> Registers<'_>{
+impl Registers {
 
-    pub fn new() -> Registers<'static>{
+    pub fn new() -> Registers{
         //Make registers and insert 0 into all of them
         const N_REGS:usize = 32;
         let mut registers: Vec<Word> = vec![bitvec![u32, Lsb0; 0; 32]; N_REGS];
@@ -61,15 +62,15 @@ impl<'a> Registers<'_>{
         if self.has_read1{
             //Received reg1! Find corresponding data and send to ALU
             let data = self.registers[self.read1_reg as usize].to_bitvec();
-            self.alu.as_mut().unwrap().receive(ALU_IN_1_ID, data.to_bitvec());
+            self.alu.as_mut().unwrap().lock().unwrap().receive(ALU_IN_1_ID, data.to_bitvec());
             self.has_read1 = false;
         }
 
         if self.has_read2{
             //Received reg1! Find corresponding data and send to ALU-src mux and Data Memory
             let data = self.registers[self.read2_reg as usize].to_bitvec();
-            self.mux_alu_src.as_mut().unwrap().receive(MUX_IN_0_ID, data.to_bitvec());
-            self.data_memory.as_mut().unwrap().receive(DM_DATA_ID, data.to_bitvec());
+            self.mux_alu_src.as_mut().unwrap().lock().unwrap().receive(MUX_IN_0_ID, data.to_bitvec());
+            self.data_memory.as_mut().unwrap().lock().unwrap().receive(DM_DATA_ID, data.to_bitvec());
             self.has_read2 = false;
         }
 
@@ -82,22 +83,22 @@ impl<'a> Registers<'_>{
     }
 
     /// Set Functions
-    pub fn set_alu(&'a mut self, alu: &mut dyn Unit){
-        self.alu = Some(unsafe { std::mem::transmute(alu) });
+    pub fn set_alu(& mut self, alu: Arc<Mutex<dyn Unit>>){
+        self.alu = Some(alu);
     }
 
-    pub fn set_mux_alu_src(&mut self, mux: &mut dyn Unit){
-        self.mux_alu_src = Some(unsafe { std::mem::transmute(mux) });
+    pub fn set_mux_alu_src(&mut self, mux: Arc<Mutex<dyn Unit>>){
+        self.mux_alu_src = Some(mux);
     }
 
-    pub fn set_data_memory(&mut self, data_memory: &mut dyn Unit){
-        self.data_memory = Some(unsafe { std::mem::transmute(data_memory) });
+    pub fn set_data_memory(&mut self, data_memory: Arc<Mutex<dyn Unit>>){
+        self.data_memory = Some(data_memory);
     }
 
 
 }
 
-impl Unit for Registers<'_>{
+impl Unit for Registers {
 
     fn receive(&mut self, input_id: u32, data : Word){
         if input_id ==  REG_READ_1_ID{

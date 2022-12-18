@@ -1,27 +1,27 @@
 use crate::units::unit::*;
 
-use std::sync::Mutex;
+use std::sync::{Mutex, Arc};
 use std::boxed::Box;
 
 use bitvec::prelude::*;
 
-pub struct InstructionMemory<'a> {
+pub struct InstructionMemory {
     instructions: Vec<Word>,
     current_instruction: Word,
     current_address: u32,
     has_address: bool,
 
-    reg : Option<Box<&'a Mutex<&'a mut dyn Unit>>>,
-    sign_extend : Option<Box<&'a Mutex<&'a mut dyn Unit>>>,
-    alu_ctrl : Option<Box<&'a Mutex<&'a mut dyn Unit>>>,
-    control : Option<Box<&'a Mutex<&'a mut dyn Unit>>>,
-    concater: Option<Box<&'a Mutex<&'a mut dyn Unit>>>,
+    reg : Option<Arc<Mutex<dyn Unit>>>,
+    sign_extend : Option<Arc<Mutex<dyn Unit>>>,
+    alu_ctrl : Option<Arc<Mutex<dyn Unit>>>,
+    control : Option<Arc<Mutex<dyn Unit>>>,
+    concater: Option<Arc<Mutex<dyn Unit>>>,
 }
 
 
-impl<'a> InstructionMemory<'a>{
+impl<'a> InstructionMemory{
 
-    pub fn new(instr: Vec<Word>) -> InstructionMemory<'static>{
+    pub fn new(instr: Vec<Word>) -> InstructionMemory{
         InstructionMemory{
             instructions:instr,
             current_instruction: bitvec![u32, Lsb0; 0; 32],
@@ -39,6 +39,7 @@ impl<'a> InstructionMemory<'a>{
     ///Execute unit with thread
     pub fn execute(&mut self) {
         if self.has_address {
+            println!("Has address");
             //Received address on read_address! Find corresponding instruction. Need to right shift 2 steps (divide by 4)
             self.current_address = self.current_address / 4;
             self.current_instruction = self.instructions[self.current_address as usize].to_bitvec();
@@ -62,29 +63,29 @@ impl<'a> InstructionMemory<'a>{
     }
 
     /// Set Functions
-    pub fn set_control(&'a mut self, ctrl : Box<&'a Mutex<&'a mut dyn Unit>>){
+    pub fn set_control(&'a mut self, ctrl : Arc<Mutex<dyn Unit>>){
         self.control = Some(ctrl);
     }
 
-    pub fn set_reg(&'a mut self, reg : Box<&'a Mutex<&'a mut dyn Unit>>){
+    pub fn set_reg(&'a mut self, reg : Arc<Mutex<dyn Unit>>){
         self.reg = Some(reg);
     }
 
-    pub fn set_signextend(&'a mut self, sign_extend: Box<&'a Mutex<&'a mut dyn Unit>>){
+    pub fn set_signextend(&'a mut self, sign_extend: Arc<Mutex<dyn Unit>>){
         self.sign_extend = Some(sign_extend);
     } 
 
-    pub fn set_aluctrl(&'a mut self, alu_ctrl: Box<&'a Mutex<&'a mut dyn Unit>>){
+    pub fn set_aluctrl(&'a mut self, alu_ctrl: Arc<Mutex<dyn Unit>>){
         self.alu_ctrl = Some(alu_ctrl);
     }
 
-    pub fn set_concater(&'a mut self, concater: Box<&'a Mutex<&'a mut dyn Unit>>){
+    pub fn set_concater(&'a mut self, concater: Arc<Mutex<dyn Unit>>){
         self.concater = Some(concater);
 
     }
 }
 
-impl Unit for InstructionMemory<'_>{
+impl Unit for InstructionMemory{
 
     fn receive(&mut self, input_id: u32, address : Word){
         if input_id ==  IM_READ_ADDRESS_ID{

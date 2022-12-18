@@ -2,26 +2,27 @@
 use bitvec::prelude::*;
 use crate::units::unit::*;
 use crate::units::mux::*;
+use std::sync::Arc;
 use std::sync::Mutex;
 
 
 
 
-struct Concater<'a> {
+struct Concater {
 
     addr : Word,
     instr : Word,
     has_instr: bool,
     has_addr : bool,
 
-    mux_jump : Option<&'a Mutex<&'a mut Box<&'a mut dyn  Unit>>>,
+    mux_jump : Option<Arc<Mutex<dyn Unit>>>,
 
 }
 
 
-impl<'a> Concater<'a>{
+impl Concater{
 
-    pub fn new() -> Concater<'static>{
+    pub fn new() -> Concater{
         Concater{
             has_addr:false,
             has_instr:false,
@@ -39,18 +40,20 @@ impl<'a> Concater<'a>{
             //Append bits from instruction memory with address from PC+4
             self.addr.append(&mut self.instr);
             self.mux_jump.as_mut().unwrap().lock().unwrap().receive(MUX_IN_1_ID, self.addr.to_bitvec());
+            self.has_addr = false;
+            self.has_instr = false;
         }
     }
 
     /// Set Functions
-    pub fn set_mux_jump(&mut self, mux: &'a Mutex<&'a mut dyn Unit>){
+    pub fn set_mux_jump(&mut self, mux: Arc<Mutex<dyn Unit>>){
         self.mux_jump = Some(mux);
     }
 
 
 }
 
-impl Unit for Concater<'_>{
+impl Unit for Concater{
 
     fn receive(&mut self, input_id: u32, data : Word){
         if input_id == CONC_IN_1_ID{

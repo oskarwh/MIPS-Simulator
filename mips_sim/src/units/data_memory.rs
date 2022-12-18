@@ -1,4 +1,5 @@
 use std::collections::hash_map;
+use std::sync::Arc;
 use std::sync::Mutex;
 
 use bitvec::prelude::*;
@@ -7,7 +8,7 @@ use crate::units::mux::*;
 
 
 
-pub struct DataMemory<'a> {
+pub struct DataMemory {
     data: Vec<Word>,
 
     address : u32,
@@ -16,16 +17,16 @@ pub struct DataMemory<'a> {
     has_address : bool,
     has_write_data : bool,
 
-    mux_mem_to_reg : Option<&'a Mutex<&'a mut dyn Unit>>,
+    mux_mem_to_reg : Option<Arc<Mutex<dyn Unit>>>,
 
     mem_write_signal : bool,
     mem_read_signal : bool,
 }
 
 
-impl DataMemory<'_>{
+impl DataMemory{
 
-    pub fn new() -> DataMemory<'static>{
+    pub fn new() -> DataMemory{
         //Make DataMemory and insert 0 into all of them
         const n_regs:usize = 32;
         // Create array with zeros
@@ -57,19 +58,21 @@ impl DataMemory<'_>{
         }else if self.has_address  && self.mem_read_signal{
             let data = self.data[self.address as usize].to_bitvec();
             self.mux_mem_to_reg.as_mut().unwrap().lock().unwrap().receive(MUX_IN_1_ID, data);
+            self.has_address = false;
+            self.has_write_data = false;
         }
     }
 
     /// Set Functions
 
-    pub fn set_mux_mem_to_reg<'a>(&mut self, mux: &'a Mutex<&'a dyn Unit>){
-        self.mux_mem_to_reg = Some(unsafe { std::mem::transmute(mux) });
+    pub fn set_mux_mem_to_reg(&mut self, mux: Arc<Mutex<dyn Unit>>){
+        self.mux_mem_to_reg = Some(mux);
     }
 
 
 }
 
-impl Unit for DataMemory<'_>{
+impl Unit for DataMemory{
 
     fn receive(&mut self, input_id: u32, data : Word){
         if input_id ==  DM_ADDR_ID{

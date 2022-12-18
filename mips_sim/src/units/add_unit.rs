@@ -1,24 +1,24 @@
 use bitvec::prelude::*;
-use std::sync::Mutex;
+use std::sync::{Mutex, Arc};
 use crate::units::unit::*;
 
 
 // Liftime paramters
 
-pub struct AddUnit<'a> {
+pub struct AddUnit {
 
     addr : Word,
     sign_ext_instr: Word,
     has_instr: bool,
     has_addr : bool,
 
-    mux_branch :Option<&'a Mutex<&'a mut dyn Unit>>,
+    mux_branch :Option<Arc<Mutex<dyn Unit>>>,
 }
 
 
-impl<'a> AddUnit<'a>{
+impl<'a> AddUnit{
     //Define MUX id's
-    pub fn new() -> AddUnit<'static>{
+    pub fn new() -> AddUnit{
         AddUnit{
             has_instr:false,
             has_addr:false,
@@ -36,11 +36,13 @@ impl<'a> AddUnit<'a>{
         if self.has_addr && self.has_instr{
             let (res,overflow) = Self::add(self.addr.to_bitvec(), self.sign_ext_instr.to_bitvec());
             self.mux_branch.as_mut().unwrap().lock().unwrap().receive(MUX_IN_1_ID, res);
+            self.has_addr = false;
+            self.has_instr = false;
         }
     }
 
         /// Set Functions
-    pub fn set_mux_branch(&'a mut self, mux: &'a Mutex<&'a mut dyn Unit>){
+    pub fn set_mux_branch(&'a mut self, mux: Arc<Mutex<dyn Unit>>){
         self.mux_branch = Some(mux);
     }
 
@@ -99,7 +101,7 @@ impl<'a> AddUnit<'a>{
     
 }
 
-impl<'a> Unit for AddUnit<'a>  {
+impl<'a> Unit for AddUnit {
     fn receive(&mut self, input_id: u32, data : Word){
         if input_id == ADD_IN_1_ID{
             self.addr = data;

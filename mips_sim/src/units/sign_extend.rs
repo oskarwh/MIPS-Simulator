@@ -1,19 +1,21 @@
 use bitvec::prelude::*;
 use crate::units::unit::*;
 use std::sync::Mutex;
-pub struct SignExtend<'a>  {
+use std::sync::Arc;
+
+pub struct SignExtend {
 
     data : Word,
     has_data: bool,
 
-    add_unit : Option<&'a Mutex<&'a mut dyn Unit>>,
+    add_unit : Option<Arc<Mutex<dyn Unit>>>,
 
 }
 
 
-impl<'a> SignExtend<'a>{
+impl SignExtend{
 
-    pub fn new() -> SignExtend<'static>{
+    pub fn new() -> SignExtend{
         SignExtend{
             has_data:false,
             data: bitvec![u32, Lsb0; 0; 32],
@@ -41,7 +43,7 @@ impl<'a> SignExtend<'a>{
     }
 
     /// Set Functions
-    pub fn set_add(&'a mut self, add: &'a Mutex<&'a mut dyn Unit>){
+    pub fn set_add(&mut self, add: Arc<Mutex<dyn Unit>>){
         self.add_unit = Some(add);
     }
 
@@ -49,7 +51,7 @@ impl<'a> SignExtend<'a>{
 
 }
 
-impl Unit for SignExtend<'_>{
+impl Unit for SignExtend{
 
     fn receive(&mut self, input_id: u32, data : Word){
         if input_id == SE_IN_ID{

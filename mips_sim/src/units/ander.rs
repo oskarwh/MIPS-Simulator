@@ -3,23 +3,24 @@ use bitvec::prelude::*;
 use crate::units::unit::*;
 use crate::units::mux::*;
 use std::sync::Mutex;
+use std::sync::Arc;
 
 
 
 
-struct Ander<'a> {
+pub struct Ander{
 
     zero_signal: bool,
     branch_signal : bool,
 
-    mux_branch : Option<&'a Mutex<&'a mut dyn Unit>>,
+    mux_branch : Option<Arc<Mutex<dyn Unit>>>,
 
 }
 
 
-impl Ander<'_>{
+impl Ander{
 
-    pub fn new() -> Ander<'static>{
+    pub fn new() -> Ander{
         Ander{
             zero_signal: false,
             branch_signal: false,
@@ -40,14 +41,14 @@ impl Ander<'_>{
     }
 
     /// Set Functions
-    pub fn set_mux_jump(&mut self, mux: &Mutex<&mut dyn Unit>){
+    pub fn set_mux_jump(&mut self, mux: Arc<Mutex<dyn Unit>>){
         self.mux_branch = Some(unsafe { std::mem::transmute(mux) });
     }
 
 
 }
 
-impl Unit for Ander<'_>{
+impl Unit for Ander{
 
     fn receive(&mut self, input_id: u32, data : Word){
         //EMpty

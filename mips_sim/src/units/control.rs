@@ -7,38 +7,38 @@
 // The booleans here can be removed but they are left if they maybe are need in the future
 use crate::units::unit::*;
 use bitvec::prelude::*;
-use std::sync::Mutex;
+use std::sync::{Mutex, Arc};
 
 
-pub struct Control<'a> {
-    mux_reg_dst: &'a Mutex<&'a mut Box<dyn  Unit>>,
-    mux_jump: &'a Mutex<&'a mut Box<dyn  Unit>>,
-    ander_branch:&'a Mutex<&'a mut Box<dyn  Unit>>,
-    mux_alu_src: &'a Mutex<&'a mut Box<dyn  Unit>>,
-    mux_mem_to_reg: &'a Mutex<&'a mut Box<dyn  Unit>>,
-    mux_jr:&'a Mutex<&'a mut Box<dyn Unit>>,
-    alu_ctrl:&'a Mutex<&'a mut Box<dyn  Unit>>,
-    reg_file:&'a Mutex<&'a mut Box<dyn  Unit>>,
-    data_memory:&'a Mutex<&'a mut Box<dyn  Unit>>,
+pub struct Control {
+    mux_reg_dst: Arc<Mutex<dyn Unit>>,
+    mux_jump: Arc<Mutex<dyn Unit>>,
+    ander_branch:Arc<Mutex<dyn Unit>>,
+    mux_alu_src: Arc<Mutex<dyn Unit>>,
+    mux_mem_to_reg: Arc<Mutex<dyn Unit>>,
+    mux_jr: Arc<Mutex<dyn Unit>>,
+    alu_ctrl:Arc<Mutex<dyn Unit>>,
+    reg_file:Arc<Mutex<dyn Unit>>,
+    data_memory:Arc<Mutex<dyn Unit>>,
 }
 
 
 
-impl<'a> Control<'a> {
+impl<'a> Control {
 
 
 
     pub fn new(
-        mux_reg_dst: &'a Mutex<&'a mut Box<dyn  Unit>>,
-        mux_jump: &'a Mutex<&'a mut Box<dyn  Unit>>,
-        ander_branch:&'a Mutex<&'a mut Box<dyn  Unit>>,
-        mux_alu_src: &'a Mutex<&'a mut Box<dyn  Unit>>,
-        mux_mem_to_reg: &'a Mutex<&'a mut Box<dyn  Unit>>,
-        mux_jr:&'a Mutex<&'a mut Box<dyn Unit>>,
-        alu_ctrl:&'a Mutex<&'a mut Box<dyn  Unit>>,
-        reg_file:&'a Mutex<&'a mut Box<dyn  Unit>>,
-        data_memory:&'a Mutex<&'a mut Box<dyn  Unit>>,
-    ) -> Control<'a>{
+        mux_reg_dst: Arc<Mutex<dyn Unit>>,
+        mux_jump: Arc<Mutex<dyn Unit>>,
+        ander_branch:Arc<Mutex<dyn Unit>>,
+        mux_alu_src: Arc<Mutex<dyn Unit>>,
+        mux_mem_to_reg: Arc<Mutex<dyn Unit>>,
+        mux_jr: Arc<Mutex<dyn Unit>>,
+        alu_ctrl:Arc<Mutex<dyn Unit>>,
+        reg_file:Arc<Mutex<dyn Unit>>,
+        data_memory:Arc<Mutex<dyn Unit>>,
+    ) -> Control{
         Control{
             mux_reg_dst,
             mux_jump,
@@ -231,7 +231,7 @@ impl<'a> Control<'a> {
     }
 }
 
-impl Unit for Control<'_>{
+impl Unit for Control{
 
     fn receive (&mut self, input_id : u32, data : Word) {
         // Check what type of data is comming 

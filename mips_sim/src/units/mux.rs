@@ -1,23 +1,25 @@
 
+use std::sync::{Arc, Mutex};
+
 use crate::units::unit::*;
 use bitvec::prelude::*;
 
-pub struct Mux<'a> {
+pub struct Mux {
     data0 : Word,
     data1 : Word,
 
     signal : bool,
-    output_unit : &'a mut dyn  Unit,
+    output_unit :Arc<Mutex<dyn Unit>>,
     output_id : u32,
 
     has_val0 : bool,
     has_val1 : bool,
 }
 
-impl Mux<'_> {
+impl Mux {
 
 
-    pub fn new(out: &mut dyn  Unit, out_id : u32) -> Mux<'_>{
+    pub fn new(out: Arc<Mutex<dyn Unit>>, out_id : u32) -> Mux{
         
         Mux{
             output_unit: out,
@@ -33,15 +35,15 @@ impl Mux<'_> {
     pub fn execute(&mut self){
         // Some type of loop so the signal doesnt go unnoticed
         if self.signal{
-            self.output_unit.receive(self.output_id, self.data1.to_bitvec());
+            self.output_unit.lock().unwrap().receive(self.output_id, self.data1.to_bitvec());
         }else{
-            self.output_unit.receive(self.output_id, self.data0.to_bitvec());
+            self.output_unit.lock().unwrap().receive(self.output_id, self.data0.to_bitvec());
         }
     }
 
 }
 
-impl Unit for Mux<'_>{
+impl Unit for Mux{
     fn receive(&mut self, input_id: u32, data : BitVec::<u32, LocalBits> ){
         if input_id == MUX_IN_0_ID{
             self.data0 == data;
