@@ -10,7 +10,7 @@ pub struct AluControl{
     alu_op0: bool,
     alu_op1: bool,
     alu_op2: bool,
-    funct: BitVec::<u32, LocalBits>,
+    funct: Word,
 
     alu_unit: Option<Arc<Mutex<dyn Unit>>>,
 
@@ -36,81 +36,6 @@ impl<'a> AluControl {
         }
     }
 
-    pub fn execute(&mut self) {
-        if self.has_op0 && self.has_op1 && self.has_op2 && self.has_funct{
-            // Check if instuction is r type
-           if !self.has_op2 && self.alu_op1 && !self.alu_op0 {
-
-           /* add_bitvec: bitvec![u32, Lsb0; 1,0,0,0,0,0],
-            sub_bitvec: bitvec![u32, Lsb0; 1,0,0,0,1,0],
-            and_bitvec: bitvec![u32, Lsb0; 1,0,0,1,0,0],
-            or_bitvec: bitvec![u32, Lsb0; 1,0,0,1,0,1],
-            slt_bitvec: bitvec![u32, Lsb0; 1,0,1,0,1,0],
-            jr_bitvec: bitvec![u32, Lsb0; 0,0,1,0,0,0],
-            nor_bitvec: bitvec![u32, Lsb0; 1,0,0,1,1,1],
-            srl_bitvec: bitvec![u32, Lsb0; 0,0,0,0,1,0],
-            sra_bitvec: bitvec![u32, Lsb0; 0,0,0,0,1,1],*/
-
-                // Check which r type alu should do
-                match self.funct.to_bitvec().into_vec()[0] {
-                    // Add instruction
-                    0b100000 =>
-                        self.set_add_signals(),
-                    
-                    // Sub instruction
-                    0b100010 =>
-                        self.set_sub_signals(),
-
-                    // And instruction
-                    0b100100 =>
-                        self.set_and_signals(),
-
-                    // Or instruction
-                    0b100101 =>
-                        self.set_or_signals(),
-                    
-                    // Set On Less Than instruction
-                    0b101010 =>
-                        self.set_slt_signals(),
-
-                    // Jr instruction
-                    0b001000 =>
-                        todo!(),
-                        // What should i send to the alu?
-                        // I do not need to du anything in the alu here i think?
-                    
-                    // Nor instruction
-                    0b100111 =>
-                        self.set_nor_signals(),
-
-                    // Srl instruction
-                    0b000010 =>
-                        self.set_srl_signals(),
-                    
-                    // Sra instruction
-                    0b000011 =>
-                        self.set_sra_signals(),
-                    //DO NOTHING
-                    _ =>(),
-                    //DO NOTHING
-                }
-            // Check for ori
-            } else if self.has_op2 && !self.alu_op1 && !self.alu_op0 {
-                self.set_or_signals();
-
-            // Check for addi
-            } else if !self.has_op2 && !self.alu_op1 && !self.alu_op0 {
-                 self.set_add_signals();
-        
-            // Check for branch
-            }else if !self.has_op2 && !self.alu_op1 && self.alu_op0 {
-                self.set_sub_signals();
-            }
-
-        }
-        // Make object ready to recieve new data
-        self.reset_bools();
-    }
 
     pub fn set_add_signals(&mut self) {
         // Send 0010 to ALU
@@ -219,4 +144,81 @@ impl Unit for AluControl {
         }
         
     }
+
+    fn execute(&mut self) {
+        if self.has_op0 && self.has_op1 && self.has_op2 && self.has_funct{
+            // Check if instuction is r type
+           if !self.has_op2 && self.alu_op1 && !self.alu_op0 {
+
+           /* add_bitvec: bitvec![u32, Lsb0; 1,0,0,0,0,0],
+            sub_bitvec: bitvec![u32, Lsb0; 1,0,0,0,1,0],
+            and_bitvec: bitvec![u32, Lsb0; 1,0,0,1,0,0],
+            or_bitvec: bitvec![u32, Lsb0; 1,0,0,1,0,1],
+            slt_bitvec: bitvec![u32, Lsb0; 1,0,1,0,1,0],
+            jr_bitvec: bitvec![u32, Lsb0; 0,0,1,0,0,0],
+            nor_bitvec: bitvec![u32, Lsb0; 1,0,0,1,1,1],
+            srl_bitvec: bitvec![u32, Lsb0; 0,0,0,0,1,0],
+            sra_bitvec: bitvec![u32, Lsb0; 0,0,0,0,1,1],*/
+
+                // Check which r type alu should do
+                match self.funct.to_bitvec().into_vec()[0] {
+                    // Add instruction
+                    0b100000 =>
+                        self.set_add_signals(),
+                    
+                    // Sub instruction
+                    0b100010 =>
+                        self.set_sub_signals(),
+
+                    // And instruction
+                    0b100100 =>
+                        self.set_and_signals(),
+
+                    // Or instruction
+                    0b100101 =>
+                        self.set_or_signals(),
+                    
+                    // Set On Less Than instruction
+                    0b101010 =>
+                        self.set_slt_signals(),
+
+                    // Jr instruction
+                    0b001000 =>
+                        todo!(),
+                        // What should i send to the alu?
+                        // I do not need to du anything in the alu here i think?
+                    
+                    // Nor instruction
+                    0b100111 =>
+                        self.set_nor_signals(),
+
+                    // Srl instruction
+                    0b000010 =>
+                        self.set_srl_signals(),
+                    
+                    // Sra instruction
+                    0b000011 =>
+                        self.set_sra_signals(),
+                    //DO NOTHING
+                    _ =>(),
+                    //DO NOTHING
+                }
+            // Check for ori
+            } else if self.has_op2 && !self.alu_op1 && !self.alu_op0 {
+                self.set_or_signals();
+
+            // Check for addi
+            } else if !self.has_op2 && !self.alu_op1 && !self.alu_op0 {
+                 self.set_add_signals();
+        
+            // Check for branch
+            }else if !self.has_op2 && !self.alu_op1 && self.alu_op0 {
+                self.set_sub_signals();
+            }
+
+        }
+        // Make object ready to recieve new data
+        self.reset_bools();
+    }
+
 }

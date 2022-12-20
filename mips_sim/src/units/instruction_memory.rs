@@ -36,31 +36,7 @@ impl<'a> InstructionMemory{
         }
     }
 
-    ///Execute unit with thread
-    pub fn execute(&mut self) {
-        if self.has_address {
-            println!("Has address");
-            //Received address on read_address! Find corresponding instruction. Need to right shift 2 steps (divide by 4)
-            self.current_address = self.current_address / 4;
-            self.current_instruction = self.instructions[self.current_address as usize].to_bitvec();
 
-            //Send to concater, word will be shifted left (shift_right because of the way BitVec is designed)
-            let mut borrow = self.current_instruction[0..26].to_bitvec();
-            borrow.shift_right(2);
-
-            self.concater.as_mut().unwrap().lock().unwrap().receive(CONC_IN_1_ID, borrow.to_bitvec() );
-
-            //Send instruction to other units
-            self.reg.as_mut().unwrap().lock().unwrap().receive(REG_READ_1_ID, self.current_instruction[21..26].to_bitvec());
-            self.reg.as_mut().unwrap().lock().unwrap().receive(REG_READ_2_ID, self.current_instruction[16..21].to_bitvec());
-            self.control.as_mut().unwrap().lock().unwrap().receive(CTRL_IN_ID, self.current_instruction[26..32].to_bitvec());
-            self.alu_ctrl.as_mut().unwrap().lock().unwrap().receive(ALU_CTRL_IN_ID, self.current_instruction[0..6].to_bitvec());
-            self.sign_extend.as_mut().unwrap().lock().unwrap().receive(ALU_CTRL_IN_ID, self.current_instruction[0..16].to_bitvec());
-            self.has_address = false;
-        }
-        
-        
-    }
 
     /// Set Functions
     pub fn set_control(&'a mut self, ctrl : Arc<Mutex<dyn Unit>>){
@@ -98,6 +74,31 @@ impl Unit for InstructionMemory{
 
     fn receive_signal(&mut self, _signal_id: u32, signal: bool) {
         // DO NOTHING
+    }
+
+    ///Execute unit with thread
+    fn execute(&mut self) {
+        if self.has_address {
+            //Received address on read_address! Find corresponding instruction. Need to right shift 2 steps (divide by 4)
+            self.current_address = self.current_address / 4;
+            self.current_instruction = self.instructions[self.current_address as usize].to_bitvec();
+
+            //Send to concater, word will be shifted left (shift_right because of the way BitVec is designed)
+            let mut borrow = self.current_instruction[0..26].to_bitvec();
+            borrow.shift_right(2);
+
+            self.concater.as_mut().unwrap().lock().unwrap().receive(CONC_IN_1_ID, borrow.to_bitvec() );
+
+            //Send instruction to other units
+            self.reg.as_mut().unwrap().lock().unwrap().receive(REG_READ_1_ID, self.current_instruction[21..26].to_bitvec());
+            self.reg.as_mut().unwrap().lock().unwrap().receive(REG_READ_2_ID, self.current_instruction[16..21].to_bitvec());
+            self.control.as_mut().unwrap().lock().unwrap().receive(CTRL_IN_ID, self.current_instruction[26..32].to_bitvec());
+            self.alu_ctrl.as_mut().unwrap().lock().unwrap().receive(ALU_CTRL_IN_ID, self.current_instruction[0..6].to_bitvec());
+            self.sign_extend.as_mut().unwrap().lock().unwrap().receive(ALU_CTRL_IN_ID, self.current_instruction[0..16].to_bitvec());
+            self.has_address = false;
+        }
+        
+        
     }
 
 

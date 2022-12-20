@@ -8,7 +8,7 @@ use std::sync::Mutex;
 
 
 
-struct Concater {
+pub struct Concater {
 
     addr : Word,
     instr : Word,
@@ -33,17 +33,7 @@ impl Concater{
     }
 
 
-    ///Execute unit with thread
-    pub fn execute(&mut self){
 
-        if self.has_addr && self.has_instr{
-            //Append bits from instruction memory with address from PC+4
-            self.addr.append(&mut self.instr);
-            self.mux_jump.as_mut().unwrap().lock().unwrap().receive(MUX_IN_1_ID, self.addr.to_bitvec());
-            self.has_addr = false;
-            self.has_instr = false;
-        }
-    }
 
     /// Set Functions
     pub fn set_mux_jump(&mut self, mux: Arc<Mutex<dyn Unit>>){
@@ -67,6 +57,18 @@ impl Unit for Concater{
 
     fn receive_signal(&mut self ,signal_id:u32, signal: bool) {
         // DO NOTHING
+    }
+
+    ///Execute unit with thread
+    fn execute(&mut self){
+
+        if self.has_addr && self.has_instr{
+            //Append bits from instruction memory with address from PC+4
+            self.addr.append(&mut self.instr);
+            self.mux_jump.as_mut().unwrap().lock().unwrap().receive(MUX_IN_1_ID, self.addr.to_bitvec());
+            self.has_addr = false;
+            self.has_instr = false;
+        }
     }
     
 }

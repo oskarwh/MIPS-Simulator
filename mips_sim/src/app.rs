@@ -1,6 +1,6 @@
-use egui::{Color32, FontFamily, FontId, RichText, TextStyle};
+use egui::{Color32, FontFamily, FontId, RichText, TextStyle, Button};
 use egui_extras::{Size, StripBuilder, TableBuilder};
-use std::collections::hash_map;
+use std::{collections::hash_map, sync::{Arc, Mutex}};
 
 #[derive(Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -38,6 +38,7 @@ fn configure_text_styles(ctx: &egui::Context) {
     .into();
     ctx.set_style(style);
 }
+const MAX_WORDS: usize = 250;
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
 /// if we add new fields, give them default values when deserializing old state
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -45,32 +46,46 @@ pub struct MipsApp {
     // All data that needs to be accessed while GUI is running.
     selected: DataFormat,
     labels: hash_map::HashMap<String, u32>,
-    registers: hash_map::HashMap<&'static str, u32>,
+    register_table: hash_map::HashMap<&'static str, u32>,
+    registers: Arc<Mutex<Vec<u32>>>,
+    data_memory: Arc<Mutex<Vec<u32>>>,
     instructions: Vec<u32>,
     mips_instructions: Vec<(String, bool)>,
     program_counter: u32,
+    enable_buttons: bool,
 }
 
 impl MipsApp {
     /// Called once before the first frame.
     pub fn new(
-        cc: &eframe::CreationContext<'_>,
+        cc:&eframe::CreationContext<'_>,
         label_table: hash_map::HashMap<String, u32>,
         register_table: hash_map::HashMap<&'static str, u32>,
         instructions: Vec<u32>,
         mips_instructions: Vec<(String, bool)>,
     ) -> MipsApp {
         configure_text_styles(&cc.egui_ctx);
-        let open_file: String;
 
+        let reg_size = register_table.len();
         MipsApp {
             selected: DataFormat::Hex,
             labels: label_table,
-            registers: register_table,
+            register_table: register_table,
+            registers: Arc::new(Mutex::new(vec![0 ;reg_size])),
+            data_memory:  Arc::new(Mutex::new(vec![0 ;MAX_WORDS])),
             instructions: instructions,
             mips_instructions: mips_instructions,
             program_counter: 0,
+            enable_buttons: true,
         }
+    }
+
+    pub fn update_reg((value, index): (u32, usize)) {
+
+    }
+
+    pub fn update_data() {
+
     }
 
     fn write_int(number: u32, dformat: &DataFormat) -> String {
@@ -100,11 +115,11 @@ impl MipsApp {
                 })
                 .body(|mut body| {
                     // Iterate data memory
-                    for row_index in 0..999 {
+                    for row_index in 0..MAX_WORDS {
                         body.row(30.0, |mut row| {
                             row.col(|ui| {
                                 ui.visuals_mut().override_text_color = Some(Color32::WHITE);
-                                ui.label(MipsApp::write_int(row_index * 4, data_format));
+                                ui.label(MipsApp::write_int(row_index as u32 * 4, data_format));
                             });
                             row.col(|ui| {
                                 ui.visuals_mut().override_text_color = Some(Color32::WHITE);
@@ -191,7 +206,8 @@ impl MipsApp {
     fn register_table(
         data_format: &DataFormat,
         ui: &mut egui::Ui,
-        registers: &hash_map::HashMap<&'static str, u32>,
+        register_table: &hash_map::HashMap<&'static str, u32>,
+        registers: &mut Arc<Mutex<Vec<u32>>>,
     ) {
         ui.push_id(3, |ui| {
             TableBuilder::new(ui)
@@ -214,7 +230,7 @@ impl MipsApp {
                 })
                 .body(|mut body| {
                     // Transform hashmap into vector so it can be sorted.
-                    let mut sorted_reg: Vec<_> = registers.iter().collect();
+                    let mut sorted_reg: Vec<_> = register_table.iter().collect();
                     sorted_reg.sort_by(|a, b| a.1.cmp(&b.1));
 
                     for (name, num) in sorted_reg {
@@ -283,10 +299,13 @@ impl eframe::App for MipsApp {
         let Self {
             selected,
             labels,
+            register_table,
             registers,
+            data_memory,
             instructions,
             mips_instructions,
             program_counter,
+            enable_buttons,
         } = self;
 
         // Examples of how to create different panels and windows.
@@ -348,7 +367,7 @@ impl eframe::App for MipsApp {
                     .vertical(|mut strip| {
                         // Add the top 'cell'
                         strip.cell(|ui| {
-                            MipsApp::register_table(&selected, ui, registers);
+                            MipsApp::register_table(&selected, ui, register_table, registers);
                         });
                         // Add cell for label table
                         strip.cell(|ui| {
@@ -369,21 +388,26 @@ impl eframe::App for MipsApp {
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     ui.visuals_mut().override_text_color = Some(Color32::WHITE);
                     ui.heading(format!("PC: {}", *program_counter));
-                    if ui.add(egui::Button::new("Reset")).clicked() {
+
+                    if ui.add_enabled(*enable_buttons, egui::Button::new("Reset")).clicked() {
                         // Reset memory temp
                         *program_counter = 0;
+                        *enable_buttons = false;       
                     }
-                    // Add Run button
-                    if ui.add(egui::Button::new("Run")).clicked() {
+                        
+                    if ui.add_enabled(*enable_buttons, egui::Button::new("Run")).clicked() {
                         // Run program
+                        *enable_buttons = false;
                     }
-                    // Add step
-                    if ui.add(egui::Button::new("Step")).clicked() {
+
+                    if ui.add_enabled(*enable_buttons, egui::Button::new("Step")).clicked() {
                         // Step forward in program
                         if *program_counter as usize != instructions.len() - 1 {
-                            *program_counter += 1;
+                                *program_counter += 1;
                         }
+                        *enable_buttons = false;
                     }
+                     
                 });
             });
             StripBuilder::new(ui)

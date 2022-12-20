@@ -6,7 +6,7 @@ use bitvec::prelude::*;
 use crate::units::unit::*;
 use crate::units::mux::*;
 
-
+const MAX_WORDS: usize = 250;
 
 pub struct DataMemory {
     data: Vec<Word>,
@@ -21,6 +21,10 @@ pub struct DataMemory {
 
     mem_write_signal : bool,
     mem_read_signal : bool,
+
+    //Last changed memory
+    prev_memory_index: usize,
+    prev_data: u32,
 }
 
 
@@ -30,7 +34,7 @@ impl DataMemory{
         //Make DataMemory and insert 0 into all of them
         const n_regs:usize = 32;
         // Create array with zeros
-        let mut data = vec![bitvec![u32, Lsb0; 0; 32]; 1000];
+        let mut data = vec![bitvec![u32, Lsb0; 0; 32]; MAX_WORDS];
         //Create DataMemory object
         DataMemory{
             data: data,
@@ -43,31 +47,24 @@ impl DataMemory{
             mem_read_signal:false,
             mem_write_signal:false,
             mux_mem_to_reg:None,
+
+            prev_memory_index: 0,
+            prev_data: 0,
         }
     }
 
-
-    ///Execute unit with thread
-    pub fn execute(&mut self){
-
-        if self.has_address && self.has_write_data && self.mem_write_signal{
-            //Received reg1! Find corresponding data and send to ALU
-            self.data[self.address as usize] = self.write_data.to_bitvec();
-            self.has_address = false;
-            self.has_write_data = false;
-        }else if self.has_address  && self.mem_read_signal{
-            let data = self.data[self.address as usize].to_bitvec();
-            self.mux_mem_to_reg.as_mut().unwrap().lock().unwrap().receive(MUX_IN_1_ID, data);
-            self.has_address = false;
-            self.has_write_data = false;
-        }
+    //Get last changed register
+    pub fn get_changed_memory(&self) -> (u32,usize) {
+        (self.prev_data, self.prev_memory_index)
     }
+
 
     /// Set Functions
 
     pub fn set_mux_mem_to_reg(&mut self, mux: Arc<Mutex<dyn Unit>>){
         self.mux_mem_to_reg = Some(mux);
     }
+
 
 
 }
@@ -92,6 +89,24 @@ impl Unit for DataMemory{
             self.mem_read_signal = signal;
         }else if signal_id == MEM_WRITE_SIGNAL{
             self.mem_write_signal = signal;
+        }
+    }
+
+    ///Execute unit with thread
+    fn execute(&mut self){
+
+        if self.has_address && self.has_write_data && self.mem_write_signal{
+            //Received reg1! Find corresponding data and send to ALU
+            self.data[self.address as usize] = self.write_data.to_bitvec();
+            self.prev_memory_index = self.address as usize;
+            self.prev_data = self.write_data.to_bitvec().into_vec()[0];
+            self.has_address = false;
+            self.has_write_data = false;
+        }else if self.has_address  && self.mem_read_signal{
+            let data = self.data[self.address as usize].to_bitvec();
+            self.mux_mem_to_reg.as_mut().unwrap().lock().unwrap().receive(MUX_IN_1_ID, data);
+            self.has_address = false;
+            self.has_write_data = false;
         }
     }
     

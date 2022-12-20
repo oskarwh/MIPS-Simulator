@@ -5,6 +5,7 @@ pub type Word = BitVec<u32, Lsb0>;
 pub trait Unit: Send + Sync {
     fn receive(&mut self, input_id : u32, data :Word);
     fn receive_signal(&mut self ,signal_id:u32, signal: bool);
+    fn execute(&mut self);
 }
 
 pub struct EmptyUnit<'a>{
@@ -27,7 +28,11 @@ impl<'a> Unit for EmptyUnit<'a>{
     }
 
     fn receive_signal(&mut self ,signal_id:u32, signal: bool) {
-        todo!()
+       
+    }
+
+    fn execute(&mut self) {
+       
     }
 }
     

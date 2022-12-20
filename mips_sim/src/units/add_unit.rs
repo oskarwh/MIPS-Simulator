@@ -30,16 +30,7 @@ impl<'a> AddUnit{
         }
     }
 
-    //Execute unit with thread
-    pub fn execute(&'a mut self){
 
-        if self.has_addr && self.has_instr{
-            let (res,overflow) = Self::add(self.addr.to_bitvec(), self.sign_ext_instr.to_bitvec());
-            self.mux_branch.as_mut().unwrap().lock().unwrap().receive(MUX_IN_1_ID, res);
-            self.has_addr = false;
-            self.has_instr = false;
-        }
-    }
 
         /// Set Functions
     pub fn set_mux_branch(&'a mut self, mux: Arc<Mutex<dyn Unit>>){
@@ -114,6 +105,17 @@ impl<'a> Unit for AddUnit {
 
     fn receive_signal(&mut self ,signal_id:u32, signal: bool) {
         // DO NOTHING
+    }
+
+    //Execute unit with thread
+    fn execute(&mut self){
+
+        if self.has_addr && self.has_instr{
+            let (res,overflow) = Self::add(self.addr.to_bitvec(), self.sign_ext_instr.to_bitvec());
+            self.mux_branch.as_mut().unwrap().lock().unwrap().receive(MUX_IN_1_ID, res);
+            self.has_addr = false;
+            self.has_instr = false;
+        }
     }
 
 

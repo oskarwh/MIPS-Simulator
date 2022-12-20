@@ -33,6 +33,11 @@ pub struct ALU {
     alu_signal2:bool,
     alu_signal3:bool,
 
+    has_alu_signal0: bool,
+    has_alu_signal1: bool,
+    has_alu_signal2: bool,
+    has_alu_signal3: bool,
+
 
 }
 
@@ -51,6 +56,11 @@ impl ALU {
             data_memory: None,
             ander:None,
 
+            has_alu_signal0: false,
+            has_alu_signal1: false,
+            has_alu_signal2: false,
+            has_alu_signal3: false,
+
             alu_signal0: false,
             alu_signal1: false,
             alu_signal2: false,
@@ -60,49 +70,6 @@ impl ALU {
         }
     }
 
-    //Execute unit with thread
-    pub fn execute(&mut self){
-
-        //Check if input should be inverted (bit 3 in control signal => a-invert, bit 2 => b-invert)
-        if self.alu_signal3{
-            self.data1= self.data1.to_bitvec().not();
-        }
-        if self.alu_signal2{
-            self.data2= self.data2.to_bitvec().not();
-        }
-                
-        //Check which operation should be done
-        let operation = match self.alu_signal1{
-            true =>{
-                if self.alu_signal0{
-                    println!("SLT");
-                    Operand::Slt
-                }else{
-                    println!("ADD");
-                    Operand::Add
-                }
-    
-            }
-                
-            false =>{
-                if self.alu_signal0{
-                    println!("OR");
-                    Operand::Or
-                }else{
-                    println!("AND");
-                    Operand::And
-                }
-            }
-        };
-        
-        //Process the data through the ALU in the same way as in hardware
-        let (res,overflow,zero) = Self::process_data(operation, self.data1.to_bitvec(), self.data2.to_bitvec());
-
-        //Send processed data to next units
-        self.mux_mem_to_reg.as_mut().unwrap().lock().unwrap().receive(MUX_IN_0_ID, res.to_bitvec());
-        self.data_memory.as_mut().unwrap().lock().unwrap().receive(DM_ADDR_ID, res.to_bitvec());
-        self.ander.as_mut().unwrap().lock().unwrap().receive_signal(ZERO_SIGNAL, zero);
-    }
 
    
     /// returns (result, overflow, zero)
@@ -215,6 +182,14 @@ impl ALU {
         zero
     }
 
+    fn reset_bools(&mut self) {
+        self.has_data1 = false;
+        self.has_data2 = false;
+        self.has_alu_signal0= false;
+        self.has_alu_signal1= false;
+        self.has_alu_signal2= false;
+        self.has_alu_signal3=false;
+    }
 
 }
 
@@ -234,16 +209,69 @@ impl Unit for ALU  {
     fn receive_signal(&mut self ,signal_id:u32, signal: bool) {
         if signal_id == ALU_CTRL0_SIGNAL{
             self.alu_signal0 = signal;
+            self.has_alu_signal0 =true;
         }else if signal_id==ALU_CTRL1_SIGNAL{
             self.alu_signal1 = signal;
+            self.has_alu_signal1 =true;
         }else if signal_id==ALU_CTRL2_SIGNAL{
             self.alu_signal2 = signal;
+            self.has_alu_signal2 = true;
         }else if signal_id==ALU_CTRL3_SIGNAL{
             self.alu_signal3 = signal;
+            self.has_alu_signal3 = true;
         }else{
             //Undefined signal
         }
     }
+
+        //Execute unit with thread
+    fn execute(&mut self){
+        if self.has_data1 && self.has_data2{
+                    //Check if input should be inverted (bit 3 in control signal => a-invert, bit 2 => b-invert)
+            if self.alu_signal3{
+                self.data1= self.data1.to_bitvec().not();
+            }
+            if self.alu_signal2{
+                self.data2= self.data2.to_bitvec().not();
+            }
+                    
+            //Check which operation should be done
+            let operation = match self.alu_signal1{
+                true =>{
+                    if self.alu_signal0{
+                        println!("SLT");
+                        Operand::Slt
+                    }else{
+                        println!("ADD");
+                        Operand::Add
+                    }
+
+                }
+                    
+                false =>{
+                    if self.alu_signal0{
+                        println!("OR");
+                        Operand::Or
+                    }else{
+                        println!("AND");
+                        Operand::And
+                    }
+                }
+            };
+            
+            //Process the data through the ALU in the same way as in hardware
+            let (res,overflow,zero) = Self::process_data(operation, self.data1.to_bitvec(), self.data2.to_bitvec());
+
+            //Send processed data to next units
+            self.mux_mem_to_reg.as_mut().unwrap().lock().unwrap().receive(MUX_IN_0_ID, res.to_bitvec());
+            self.data_memory.as_mut().unwrap().lock().unwrap().receive(DM_ADDR_ID, res.to_bitvec());
+            self.ander.as_mut().unwrap().lock().unwrap().receive_signal(ZERO_SIGNAL, zero);
+
+            self.reset_bools();
+        }
+       
+    }
+    
 }
 
 

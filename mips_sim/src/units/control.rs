@@ -296,5 +296,9 @@ impl Unit for Control{
         // Does nothing
     }
 
+    fn execute(&mut self) {
+        
+    }
+
 }
 

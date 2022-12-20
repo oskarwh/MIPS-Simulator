@@ -13,6 +13,9 @@ pub struct Ander{
     zero_signal: bool,
     branch_signal : bool,
 
+    has_zero_signal: bool,
+    has_branch_signal :bool,
+
     mux_branch : Option<Arc<Mutex<dyn Unit>>>,
 
 }
@@ -25,20 +28,11 @@ impl Ander{
             zero_signal: false,
             branch_signal: false,
             mux_branch: None,
+            has_zero_signal: false,
+            has_branch_signal: false,
         }
     }
 
-
-    ///Execute unit with thread
-    pub fn execute(&mut self){
-
-        if self.zero_signal && self.branch_signal{
-            //Append bits from instruction memory with address from PC+4
-            self.mux_branch.as_mut().unwrap().lock().unwrap().receive_signal(DEFAULT_SIGNAL,true);
-        }else{
-            self.mux_branch.as_mut().unwrap().lock().unwrap().receive_signal(DEFAULT_SIGNAL,false);
-        }
-    }
 
     /// Set Functions
     pub fn set_mux_jump(&mut self, mux: Arc<Mutex<dyn Unit>>){
@@ -57,9 +51,21 @@ impl Unit for Ander{
     fn receive_signal(&mut self ,signal_id:u32, signal: bool) {
         if signal_id == ZERO_SIGNAL{
             self.zero_signal = signal;
+            self.has_zero_signal = true;
         }else if signal_id == BRANCH_SIGNAL{
             self.branch_signal ==signal;
+            self.has_branch_signal = true;
         }
     }
     
+    
+
+    ///Execute unit with thread
+    fn execute(&mut self){
+
+        if self.has_zero_signal && self.has_branch_signal{
+            //Append bits from instruction memory with address from PC+4
+            self.mux_branch.as_mut().unwrap().lock().unwrap().receive_signal(DEFAULT_SIGNAL,self.branch_signal && self.zero_signal);
+        }
+    }
 }

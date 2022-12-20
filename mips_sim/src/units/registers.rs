@@ -6,7 +6,10 @@ use std::sync::Arc;
 
 pub struct Registers {
 
-    registers: Vec<Word>,
+    data_recently_written: bool,
+    prev_register_index: usize,
+
+    registers: Vec<Word>, 
 
     read1_reg : u32,
     read2_reg : u32,
@@ -21,10 +24,10 @@ pub struct Registers {
 
     alu : Option<Arc<Mutex<dyn Unit>>>,
     mux_alu_src : Option<Arc<Mutex<dyn Unit>>>,
+    mux_jr : Option<Arc<Mutex<dyn Unit>>>,
     data_memory : Option<Arc<Mutex<dyn Unit>>>,
 
     reg_write_signal : bool,
-
 }
 
 
@@ -37,6 +40,9 @@ impl Registers {
 
         //Create registers object
         Registers{
+            data_recently_written: false,
+            prev_register_index: 0,
+
             registers,
             
             has_read1:false,
@@ -53,34 +59,12 @@ impl Registers {
             alu: None,
             mux_alu_src: None,
             data_memory: None,
+            mux_jr: None,
         }
     }
 
 
-    ///Execute unit with thread
-    pub fn execute(&mut self){
-        if self.has_read1{
-            //Received reg1! Find corresponding data and send to ALU
-            let data = self.registers[self.read1_reg as usize].to_bitvec();
-            self.alu.as_mut().unwrap().lock().unwrap().receive(ALU_IN_1_ID, data.to_bitvec());
-            self.has_read1 = false;
-        }
 
-        if self.has_read2{
-            //Received reg1! Find corresponding data and send to ALU-src mux and Data Memory
-            let data = self.registers[self.read2_reg as usize].to_bitvec();
-            self.mux_alu_src.as_mut().unwrap().lock().unwrap().receive(MUX_IN_0_ID, data.to_bitvec());
-            self.data_memory.as_mut().unwrap().lock().unwrap().receive(DM_DATA_ID, data.to_bitvec());
-            self.has_read2 = false;
-        }
-
-        if self.has_write_reg && self.has_write_data && self.reg_write_signal{
-            //Got data to write and is signaled to write! Insert into registers on index write_reg
-            self.registers[self.write_reg as usize] = self.write_data.to_bitvec();
-        }
-        
-    
-    }
 
     /// Set Functions
     pub fn set_alu(& mut self, alu: Arc<Mutex<dyn Unit>>){
@@ -95,6 +79,22 @@ impl Registers {
         self.data_memory = Some(data_memory);
     }
 
+    pub fn set_mux_jr(&mut self, mux: Arc<Mutex<dyn Unit>>){
+        self.mux_jr = Some(mux);
+    }
+
+    pub fn get_changed_register(&self) -> (u32, usize) {
+        return (self.registers[self.prev_register_index].clone().into_vec()[0], self.prev_register_index);
+    }
+
+    pub fn instruction_completed(&mut self) -> bool {
+        if self.data_recently_written {
+            self.data_recently_written = false;
+            true
+        }else {
+            false
+        }    
+    }
 
 }
 
@@ -113,6 +113,7 @@ impl Unit for Registers {
         }else if input_id ==  REG_WRITE_DATA_ID{
             self.write_data = data;
             self.has_write_data = true;
+            // Instruction about to be completed
         }else{
             //Message came on undefined input
         }
@@ -121,8 +122,43 @@ impl Unit for Registers {
 
     fn receive_signal(&mut self ,signal_id:u32, signal: bool){
         if signal_id == DEFAULT_SIGNAL{
-            self.reg_write_signal = true;
+            self.reg_write_signal = signal;
         }
+    }
+
+    ///Execute unit with thread
+    fn execute(&mut self){
+        if self.has_read1{
+            //Received reg1! Find corresponding data and send to ALU
+            let data = self.registers[self.read1_reg as usize].to_bitvec();
+
+            self.alu.as_mut().unwrap().lock().unwrap().receive(ALU_IN_1_ID, data.to_bitvec());
+            // Send to Jump Register mux
+            self.mux_jr.as_mut().unwrap().lock().unwrap().receive(MUX_IN_1_ID, data.to_bitvec());
+            self.has_read1 = false;
+        }
+
+        if self.has_read2{
+            //Received reg1! Find corresponding data and send to ALU-src mux and Data Memory
+            let data = self.registers[self.read2_reg as usize].to_bitvec();
+            self.mux_alu_src.as_mut().unwrap().lock().unwrap().receive(MUX_IN_0_ID, data.to_bitvec());
+            self.data_memory.as_mut().unwrap().lock().unwrap().receive(DM_DATA_ID, data.to_bitvec());
+            self.has_read2 = false;
+        }
+
+        if self.has_write_reg && self.has_write_data && self.reg_write_signal{
+            // Reset register bool
+            self.prev_register_index = self.write_reg as usize;
+
+            //Got data to write and is signaled to write! Insert into registers on index write_reg
+            self.registers[self.write_reg as usize] = self.write_data.to_bitvec();
+            self.has_write_reg = false;
+            self.has_write_data = false;
+            // Data was written to register, which means instruction is done
+            self.data_recently_written = true;
+        }
+        
+    
     }
     
 }

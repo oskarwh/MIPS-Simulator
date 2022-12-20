@@ -32,14 +32,7 @@ impl Mux {
         }
     }
 
-    pub fn execute(&mut self){
-        // Some type of loop so the signal doesnt go unnoticed
-        if self.signal{
-            self.output_unit.lock().unwrap().receive(self.output_id, self.data1.to_bitvec());
-        }else{
-            self.output_unit.lock().unwrap().receive(self.output_id, self.data0.to_bitvec());
-        }
-    }
+
 
 }
 
@@ -57,6 +50,15 @@ impl Unit for Mux{
 
     fn receive_signal(&mut self ,signal_id:u32, signal: bool){
         self.signal = signal;
+    }
+
+    fn execute(&mut self){
+        // Some type of loop so the signal doesnt go unnoticed
+        if self.signal{
+            self.output_unit.lock().unwrap().receive(self.output_id, self.data1.to_bitvec());
+        }else{
+            self.output_unit.lock().unwrap().receive(self.output_id, self.data0.to_bitvec());
+        }
     }
 }
 
