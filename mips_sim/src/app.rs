@@ -169,20 +169,35 @@ impl MipsApp {
                 })
                 .body(|mut body| {
                     // Iterate data memory
-                    let mut row_index = 0;
-                    for data in locked_data_memory.iter() {
+                    
+                        body.rows(30.0, locked_data_memory.len(), |row_index, mut row| {
+                            row.col(|ui| {
+                                ui.visuals_mut().override_text_color = Some(Color32::WHITE);
+                                ui.label(MipsApp::write_u32(row_index as u32 * 4, data_format));
+                            });
+                            row.col(|ui| {
+                                ui.visuals_mut().override_text_color = Some(Color32::WHITE);
+                                ui.label(MipsApp::write_i32(locked_data_memory[row_index], data_format));
+                            });
+                        });
+                        
+                        
+                        
+                        
+                        /* 
                         body.row(30.0, |mut row| {
+                            
                             row.col(|ui| {
                                 ui.visuals_mut().override_text_color = Some(Color32::WHITE);
                                 ui.label(MipsApp::write_u32(row_index * 4, data_format));
                             });
                             row.col(|ui| {
-                                ui.visuals_mut().override_text_color = Some(Color32::WHITE);
-                                ui.label(MipsApp::write_i32(*data, data_format));
+                                
                             });
                         });
-                        row_index += 1;
-                    }
+                        */
+                
+                    
                 });
         });
     }
@@ -223,39 +238,50 @@ impl MipsApp {
                     });
                 })
                 .body(|mut body| {
-                    let mut i = 0;
                     // Iterate over listing file, only add rows containing machine code
-                    for mips_instruction in mips_instructions.iter() {
+                    body.rows(30.0, mips_instructions.len(), |row_index, mut row| {
+                        if mips_instructions[row_index].1  {
+                            row.col(|ui| {
+                                // Print arrow for keeping track of where in the code the user is.
+                                if row_index as u32 == locked_program_counter {
+                                    ui.visuals_mut().override_text_color = Some(Color32::WHITE);
+                                    ui.label(
+                                        RichText::new("➡").text_style(heading2()).strong(),
+                                    );
+                                }
+                            });
+                            row.col(|ui| {
+                                ui.visuals_mut().override_text_color = Some(Color32::WHITE);
+                                ui.label(MipsApp::write_u32(row_index as u32 * 4, data_format));
+                            });
+                            row.col(|ui| {
+                                ui.visuals_mut().override_text_color = Some(Color32::WHITE);
+                                ui.label(MipsApp::write_u32(
+                                    instructions[row_index - 1],
+                                    data_format,
+                                ));
+                            });
+                            row.col(|ui| {
+                                ui.visuals_mut().override_text_color = Some(Color32::WHITE);
+                                ui.label(mips_instructions[row_index].0.clone());
+                            });  
+                        }
+                        
+                    });
+
+
+                    /*
+                        for mips_instruction in mips_instructions.iter() {
                         if mips_instruction.1 {
                             body.row(30.0, |mut row| {
-                                row.col(|ui| {
-                                    // Print arrow for keeping track of where in the code the user is.
-                                    if i as u32 == locked_program_counter {
-                                        ui.visuals_mut().override_text_color = Some(Color32::WHITE);
-                                        ui.label(
-                                            RichText::new("➡").text_style(heading2()).strong(),
-                                        );
-                                    }
-                                });
-                                row.col(|ui| {
-                                    ui.visuals_mut().override_text_color = Some(Color32::WHITE);
-                                    ui.label(MipsApp::write_u32(i * 4, data_format));
-                                });
-                                row.col(|ui| {
-                                    ui.visuals_mut().override_text_color = Some(Color32::WHITE);
-                                    ui.label(MipsApp::write_u32(
-                                        (*instructions)[i as usize],
-                                        data_format,
-                                    ));
-                                });
-                                row.col(|ui| {
-                                    ui.visuals_mut().override_text_color = Some(Color32::WHITE);
-                                    ui.label(mips_instruction.0.clone());
-                                });
+                                
                             });
                             i += 1;
                         }
                     }
+                    */
+
+                    
                 });
         });
     }
@@ -577,7 +603,7 @@ impl eframe::App for MipsApp {
             });
 
        }
-        
+       ctx.request_repaint();
     }
 
 
