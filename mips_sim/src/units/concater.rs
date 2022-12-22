@@ -32,9 +32,6 @@ impl Concater{
         }
     }
 
-
-
-
     /// Set Functions
     pub fn set_mux_jump(&mut self, mux: Arc<Mutex<dyn Unit>>){
         self.mux_jump = Some(mux);
@@ -64,7 +61,8 @@ impl Unit for Concater{
 
         if self.has_addr && self.has_instr{
             //Append bits from instruction memory with address from PC+4
-            self.addr.append(&mut self.instr);
+            self.instr.append(&mut self.addr);
+            println!("\tConcater sending: {}", self.instr);
             self.mux_jump.as_mut().unwrap().lock().unwrap().receive(MUX_IN_1_ID, self.addr.to_bitvec());
             self.has_addr = false;
             self.has_instr = false;

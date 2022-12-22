@@ -78,12 +78,11 @@ struct RegexCom {
 ///
 pub fn parse_file(
     file_path: &str,
-) -> (
+) -> Option<(
     Vec<u32>,
     Vec<(String, bool)>,
     hash_map::HashMap<String, u32>,
-    hash_map::HashMap<&'static str, u32>,
-) {
+)> {
     // Set up all Regexes
     let regex_coms = RegexCom {
         r_type: Regex::new(r"^\s(add|sub|nor|or|and|slt)\s+\$(\S+),\s*\$(\S+),\s*\$(\S+)\s*$")
@@ -194,7 +193,7 @@ pub fn parse_file(
             }
         }
     } else {
-        panic!("Cannot open file");
+        return None
     }
 
     //update commands that referred to previously undefined labels that are now defined
@@ -207,7 +206,7 @@ pub fn parse_file(
         }
     }
 
-    (machine_code, assembler_code, labels, registers)
+    Some((machine_code, assembler_code, labels))
 }
 
 /// Assembles a line using strings for each individual part of the command contained in a regex::Captures
@@ -776,7 +775,7 @@ fn setup_registers_table(registers: &mut hash_map::HashMap<&'static str, u32>) {
 ///
 /// * `instructions` - The instruction table.
 ///
-fn setup_instruction_table(instruction: &mut hash_map::HashMap<&'static str, u32>) {
+fn setup_instruction_table(instruction: &mut hash_map::HashMap<&str, u32>) {
     instruction.insert("add", 0x00000020);
     instruction.insert("sub", 0x00000022);
     instruction.insert("addi", 0x08000000 << 2);

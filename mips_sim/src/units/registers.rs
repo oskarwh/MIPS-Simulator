@@ -83,8 +83,8 @@ impl Registers {
         self.mux_jr = Some(mux);
     }
 
-    pub fn get_changed_register(&self) -> (u32, usize) {
-        return (self.registers[self.prev_register_index].clone().into_vec()[0], self.prev_register_index);
+    pub fn get_changed_register(&self) -> (i32, usize) {
+        return (self.registers[self.prev_register_index].clone().into_vec()[0] as i32, self.prev_register_index);
     }
 
     pub fn instruction_completed(&mut self) -> bool {
@@ -101,11 +101,12 @@ impl Registers {
 impl Unit for Registers {
 
     fn receive(&mut self, input_id: u32, data : Word){
+        println!("\t registers received {} from {}", data, input_id);
         if input_id ==  REG_READ_1_ID{
             self.read1_reg = data.to_bitvec().into_vec()[0];
             self.has_read1 = true;
         }else if input_id ==  REG_READ_2_ID{
-            self.read1_reg = data.to_bitvec().into_vec()[0];
+            self.read2_reg = data.to_bitvec().into_vec()[0];
             self.has_read2 = true;
         }else if input_id ==  REG_WRITE_REG_ID{
             self.write_reg = data.to_bitvec().into_vec()[0];
@@ -147,6 +148,7 @@ impl Unit for Registers {
         }
 
         if self.has_write_reg && self.has_write_data && self.reg_write_signal{
+            println!("\t register writing to reg {} with data {}", self.write_reg ,  self.write_data);
             // Reset register bool
             self.prev_register_index = self.write_reg as usize;
 

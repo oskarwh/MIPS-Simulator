@@ -35,7 +35,7 @@ impl Ander{
 
 
     /// Set Functions
-    pub fn set_mux_jump(&mut self, mux: Arc<Mutex<dyn Unit>>){
+    pub fn set_mux_branch(&mut self, mux: Arc<Mutex<dyn Unit>>){
         self.mux_branch = Some(unsafe { std::mem::transmute(mux) });
     }
 
@@ -49,6 +49,7 @@ impl Unit for Ander{
     }
 
     fn receive_signal(&mut self ,signal_id:u32, signal: bool) {
+        println!("\t Ander received signal {} from {}", signal, signal_id);
         if signal_id == ZERO_SIGNAL{
             self.zero_signal = signal;
             self.has_zero_signal = true;
@@ -66,6 +67,8 @@ impl Unit for Ander{
         if self.has_zero_signal && self.has_branch_signal{
             //Append bits from instruction memory with address from PC+4
             self.mux_branch.as_mut().unwrap().lock().unwrap().receive_signal(DEFAULT_SIGNAL,self.branch_signal && self.zero_signal);
+            self.has_branch_signal = false;
+            self.has_zero_signal = false;
         }
     }
 }

@@ -195,6 +195,7 @@ impl ALU {
 
 impl Unit for ALU  {
     fn receive(&mut self, input_id: u32, data : Word){
+        println!("\t Alu: I received data {} from {}", data, input_id);
         if input_id == ALU_IN_1_ID{
             self.data1 = data;
             self.has_data1 = true;
@@ -207,6 +208,7 @@ impl Unit for ALU  {
     }
 
     fn receive_signal(&mut self ,signal_id:u32, signal: bool) {
+        println!("\t Alu: I received signal {}", signal_id);
         if signal_id == ALU_CTRL0_SIGNAL{
             self.alu_signal0 = signal;
             self.has_alu_signal0 =true;
@@ -226,8 +228,10 @@ impl Unit for ALU  {
 
         //Execute unit with thread
     fn execute(&mut self){
-        if self.has_data1 && self.has_data2{
+        if self.has_data1 && self.has_data2 && self.has_alu_signal0 &&  self.has_alu_signal1 && self.has_alu_signal2 && self.has_alu_signal3{
                     //Check if input should be inverted (bit 3 in control signal => a-invert, bit 2 => b-invert)
+            println!("\tAlu: i have \n\t data1 {} \n\t data2 {}", self.data1, self.data2);
+            println!("\tcontrol bits: {} {} {} {}", self.alu_signal3,self.alu_signal2,self.alu_signal1,self.alu_signal0);
             if self.alu_signal3{
                 self.data1= self.data1.to_bitvec().not();
             }

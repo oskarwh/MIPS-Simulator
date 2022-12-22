@@ -52,9 +52,10 @@ impl<'a>  ProgramCounter {
         self.mux_branch = Some(mux);
     }
 
-    pub fn get_program_count(&self) -> Word {
-        self.current_address.clone()
+    pub fn get_program_count(&self) -> u32 {
+        self.current_address.clone().into_vec()[0]
     }
+
 
 }
 
@@ -74,8 +75,8 @@ impl Unit for ProgramCounter {
     }
 
     fn execute(&mut self){
-        
         if self.has_address {
+            println!("\t Programe-counter: Im sending address {}", self.current_address);
             //Send address to instruction memory
             self.instruction_memory.as_mut().unwrap().lock().unwrap().receive(IM_READ_ADDRESS_ID, self.current_address.to_bitvec());
 

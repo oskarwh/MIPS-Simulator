@@ -137,6 +137,7 @@ impl Unit for AluControl {
     
     fn receive (&mut self, input_id : u32, data :BitVec::<u32, LocalBits>) {
         if input_id == ALU_CTRL_IN_ID {
+            println!("\t Alu Control received: {}",data);
             self.funct = data;
             self.has_funct = true;
         }else {
@@ -148,7 +149,7 @@ impl Unit for AluControl {
     fn execute(&mut self) {
         if self.has_op0 && self.has_op1 && self.has_op2 && self.has_funct{
             // Check if instuction is r type
-           if !self.has_op2 && self.alu_op1 && !self.alu_op0 {
+           if !self.alu_op2 && self.alu_op1 && !self.alu_op0 {
 
            /* add_bitvec: bitvec![u32, Lsb0; 1,0,0,0,0,0],
             sub_bitvec: bitvec![u32, Lsb0; 1,0,0,0,1,0],
@@ -204,21 +205,22 @@ impl Unit for AluControl {
                     //DO NOTHING
                 }
             // Check for ori
-            } else if self.has_op2 && !self.alu_op1 && !self.alu_op0 {
+            } else if self.alu_op2 && !self.alu_op1 && !self.alu_op0 {
                 self.set_or_signals();
 
             // Check for addi
-            } else if !self.has_op2 && !self.alu_op1 && !self.alu_op0 {
+            } else if !self.alu_op2 && !self.alu_op1 && !self.alu_op0 {
                  self.set_add_signals();
         
             // Check for branch
-            }else if !self.has_op2 && !self.alu_op1 && self.alu_op0 {
+            }else if !self.alu_op2 && !self.alu_op1 && self.alu_op0 {
                 self.set_sub_signals();
             }
 
+            // Make object ready to recieve new data
+            self.reset_bools();
         }
-        // Make object ready to recieve new data
-        self.reset_bools();
+
     }
 
 }

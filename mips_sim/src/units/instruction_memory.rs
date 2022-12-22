@@ -16,6 +16,7 @@ pub struct InstructionMemory {
     alu_ctrl : Option<Arc<Mutex<dyn Unit>>>,
     control : Option<Arc<Mutex<dyn Unit>>>,
     concater: Option<Arc<Mutex<dyn Unit>>>,
+    mux_regdst: Option<Arc<Mutex<dyn Unit>>>,
 }
 
 
@@ -33,6 +34,7 @@ impl<'a> InstructionMemory{
             alu_ctrl: None,
             control: None,
             concater: None,
+            mux_regdst:None,
         }
     }
 
@@ -59,12 +61,24 @@ impl<'a> InstructionMemory{
         self.concater = Some(concater);
 
     }
+
+    pub fn set_mux_regdst(&'a mut self, mux: Arc<Mutex<dyn Unit>>){
+        self.mux_regdst = Some(mux);
+
+    }
+
+    fn shift_left(mut word: Word, shift: u32)->Word{
+        word.shift_left(shift as usize);
+        word
+    }
 }
 
 impl Unit for InstructionMemory{
 
     fn receive(&mut self, input_id: u32, address : Word){
+
         if input_id ==  IM_READ_ADDRESS_ID{
+            println!("\t Instruction-mem: recevied {}", address);
             self.current_address = address.to_bitvec().into_vec()[0];
             self.has_address = true;
         } else {
@@ -79,10 +93,11 @@ impl Unit for InstructionMemory{
     ///Execute unit with thread
     fn execute(&mut self) {
         if self.has_address {
+
             //Received address on read_address! Find corresponding instruction. Need to right shift 2 steps (divide by 4)
             self.current_address = self.current_address / 4;
             self.current_instruction = self.instructions[self.current_address as usize].to_bitvec();
-
+            println!("\t Instruction-mem: i have instruction  {}", self.current_instruction);
             //Send to concater, word will be shifted left (shift_right because of the way BitVec is designed)
             let mut borrow = self.current_instruction[0..26].to_bitvec();
             borrow.shift_right(2);
@@ -90,16 +105,21 @@ impl Unit for InstructionMemory{
             self.concater.as_mut().unwrap().lock().unwrap().receive(CONC_IN_1_ID, borrow.to_bitvec() );
 
             //Send instruction to other units
-            self.reg.as_mut().unwrap().lock().unwrap().receive(REG_READ_1_ID, self.current_instruction[21..26].to_bitvec());
-            self.reg.as_mut().unwrap().lock().unwrap().receive(REG_READ_2_ID, self.current_instruction[16..21].to_bitvec());
-            self.control.as_mut().unwrap().lock().unwrap().receive(CTRL_IN_ID, self.current_instruction[26..32].to_bitvec());
-            self.alu_ctrl.as_mut().unwrap().lock().unwrap().receive(ALU_CTRL_IN_ID, self.current_instruction[0..6].to_bitvec());
-            self.sign_extend.as_mut().unwrap().lock().unwrap().receive(ALU_CTRL_IN_ID, self.current_instruction[0..16].to_bitvec());
+
+            self.reg.as_mut().unwrap().lock().unwrap().receive(REG_READ_1_ID, Self::shift_left(self.current_instruction.to_bitvec(),21)[0..=4].to_bitvec());
+            self.reg.as_mut().unwrap().lock().unwrap().receive(REG_READ_2_ID, Self::shift_left(self.current_instruction.to_bitvec(),16)[0..=4].to_bitvec());
+            self.control.as_mut().unwrap().lock().unwrap().receive(CTRL_IN_ID,  Self::shift_left(self.current_instruction.to_bitvec(), 26)[0..=5].to_bitvec());
+            self.alu_ctrl.as_mut().unwrap().lock().unwrap().receive(ALU_CTRL_IN_ID,  self.current_instruction[0..=5].to_bitvec());
+            self.sign_extend.as_mut().unwrap().lock().unwrap().receive(SE_IN_ID,  self.current_instruction[0..=15].to_bitvec());
+            self.mux_regdst.as_mut().unwrap().lock().unwrap().receive(MUX_IN_0_ID,  Self::shift_left(self.current_instruction.to_bitvec(),16)[0..=4].to_bitvec());
+            self.mux_regdst.as_mut().unwrap().lock().unwrap().receive(MUX_IN_1_ID,  Self::shift_left(self.current_instruction.to_bitvec(),11)[0..=4].to_bitvec());
             self.has_address = false;
         }
         
         
     }
+
+    
 
 
 }
