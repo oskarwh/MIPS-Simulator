@@ -162,6 +162,7 @@ impl Unit for Registers {
                 
             }
             //register have received write data (indicates that instruction is done)
+            println!("\t reg indicates instructions finished!");
             self.has_write_reg = false;
             self.has_write_data = false;
             self.instruction_complete = true;  

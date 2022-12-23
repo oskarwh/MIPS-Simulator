@@ -63,7 +63,7 @@ impl Unit for Concater{
             //Append bits from instruction memory with address from PC+4
             self.instr.append(&mut self.addr);
             println!("\tConcater sending: {}", self.instr);
-            self.mux_jump.as_mut().unwrap().lock().unwrap().receive(MUX_IN_1_ID, self.addr.to_bitvec());
+            self.mux_jump.as_mut().unwrap().lock().unwrap().receive(MUX_IN_1_ID, self.instr.to_bitvec());
             self.has_addr = false;
             self.has_instr = false;
         }
