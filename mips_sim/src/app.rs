@@ -2,7 +2,7 @@ use egui::{Color32, FontFamily, FontId, RichText, TextStyle, Button, Align};
 use egui_extras::{Size, StripBuilder, TableBuilder, Column};
 use std::{collections::hash_map, sync::{Arc, Mutex}};
 
-use crate::{simulation, simulation_controller::{self, SimulationController}, assembler};
+use crate::{units::unit, simulation_controller::{self, SimulationController}};
 
 #[derive(Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -40,7 +40,8 @@ fn configure_text_styles(ctx: &egui::Context) {
     .into();
     ctx.set_style(style);
 }
-const MAX_WORDS: usize = 250;
+
+const LIGHT_GREEN: Color32 = Color32::from_rgba_premultiplied(60, 171, 60, 255);
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
 /// if we add new fields, give them default values when deserializing old state
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -59,7 +60,8 @@ pub struct MipsApp {
     data_index: Arc<Mutex<usize>>,
     register_index: Arc<Mutex<usize>>,
     valid_file: bool,
-    updated: bool,
+    updated_data: bool,
+    updated_reg: bool,
 }
 
 
@@ -79,15 +81,16 @@ impl MipsApp {
             labels: hash_map::HashMap::new(),
             register_table: Self::setup_registers_table(),
             registers: Arc::new(Mutex::new(vec![0 ;32])),
-            data_memory:  Arc::new(Mutex::new(vec![0 ;MAX_WORDS])),
+            data_memory:  Arc::new(Mutex::new(vec![0 ; unit::MAX_WORDS])),
             instructions: Vec::new(),
             mips_instructions: Vec::new(),
             program_counter: Arc::new(Mutex::new(0)),
             enable_buttons: Arc::new(Mutex::new(true)),
-            data_index: Arc::new(Mutex::new(0)),
-            register_index: Arc::new(Mutex::new(0)),
+            data_index: Arc::new(Mutex::new(1001)),
+            register_index: Arc::new(Mutex::new(33)),
             valid_file: false,
-            updated: true,
+            updated_data: false,
+            updated_reg: false,
         }
     }
 
@@ -155,6 +158,19 @@ impl MipsApp {
         }
     }
 
+    fn reset_gui(&mut self) {
+        self.data_memory =  Arc::new(Mutex::new(vec![0 ; unit::MAX_WORDS]));
+        self.program_counter = Arc::new(Mutex::new(0));
+        self.registers = Arc::new(Mutex::new(vec![0 ;32]));
+        self.data_memory =  Arc::new(Mutex::new(vec![0 ; unit::MAX_WORDS]));
+        self.enable_buttons = Arc::new(Mutex::new(true));
+        self.data_index = Arc::new(Mutex::new(1001));
+        self.register_index = Arc::new(Mutex::new(33));
+        self.valid_file = true;
+        self.updated_data = false;
+        self.updated_reg = false;
+    }
+
     fn memory_table(
         data_format: &DataFormat,
         ui: &mut egui::Ui,
@@ -165,74 +181,51 @@ impl MipsApp {
         // Setup table
         let locked_data_index = *data_index.lock().unwrap();
         let locked_data_memory = data_memory.lock().unwrap();
-        if *updated {
-            ui.push_id(1, |ui| {
-                // Create table builder & Configure settings
-                TableBuilder::new(ui)
-                    .striped(true)
-                    .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
-                    .column(Column::remainder().at_least(150.0))
-                    .column(Column::remainder().at_least(150.0))
-                    .resizable(true)
-                    .scroll_to_row(locked_data_index, Some(Align::Center))
-                    .header(30.0, |mut header| {
-                        header.col(|ui| {
-                            ui.label(RichText::new("Address").text_style(heading2()).strong());
+        ui.push_id(1, |ui| {
+            // Create table builder
+            let mut tbb = TableBuilder::new(ui);
+            // Configure settings
+            tbb = tbb.striped(true)
+                .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
+                .column(Column::remainder().at_least(150.0))
+                .column(Column::remainder().at_least(150.0))
+                .resizable(true);
+            // Scroll to row that was updated.
+            if *updated {
+                tbb = tbb.scroll_to_row(locked_data_index, Some(Align::Center));
+                *updated = false;
+            }
+            // Add header
+            tbb.header(30.0, |mut header| {
+                header.col(|ui| {
+                    ui.label(RichText::new("Address").text_style(heading2()).strong());
+                });
+                header.col(|ui| {
+                    ui.label(RichText::new("Data").text_style(heading2()).strong());
+                });
+            }).body(|mut body| {
+                // Iterate data memory
+                    body.rows(30.0, locked_data_memory.len(), |row_index, mut row| {
+                        let mut text_color = Some(Color32::WHITE);
+                        // Change color of row changed.
+                        if row_index == locked_data_index {
+                            text_color = Some(LIGHT_GREEN);
+                        } 
+                        row.col(|ui| {
+                            ui.visuals_mut().override_text_color = text_color;
+                            ui.label(MipsApp::write_u32(row_index as u32 * 4, data_format));
                         });
-                        header.col(|ui| {
-                            ui.label(RichText::new("Data").text_style(heading2()).strong());
+                        row.col(|ui| {
+                            ui.visuals_mut().override_text_color = text_color;
+                            ui.label(MipsApp::write_i32(locked_data_memory[row_index], data_format));
                         });
-                    }).body(|mut body| {
-                        // Iterate data memory
-                        body.rows(30.0, locked_data_memory.len(), |row_index, mut row| {
-                            row.col(|ui| {
-                                ui.visuals_mut().override_text_color = Some(Color32::WHITE);
-                                ui.label(MipsApp::write_u32(row_index as u32 * 4, data_format));
-                            });
-                            row.col(|ui| {
-                                ui.visuals_mut().override_text_color = Some(Color32::WHITE);
-                                ui.label(MipsApp::write_i32(locked_data_memory[row_index], data_format));
-                            });
-                        })
-                    });
-                    
+                    })
             });
-            *updated = false;
-        } else {
-            ui.push_id(1, |ui| {
-                // Create table builder & Configure settings
-                TableBuilder::new(ui)
-                    .striped(true)
-                    .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
-                    .column(Column::remainder().at_least(150.0))
-                    .column(Column::remainder().at_least(150.0))
-                    .resizable(true)
-                    .header(30.0, |mut header| {
-                        header.col(|ui| {
-                            ui.label(RichText::new("Address").text_style(heading2()).strong());
-                        });
-                        header.col(|ui| {
-                            ui.label(RichText::new("Data").text_style(heading2()).strong());
-                        });
-                    }).body(|mut body| {
-                        // Iterate data memory
-                        body.rows(30.0, locked_data_memory.len(), |row_index, mut row| {
-                            row.col(|ui| {
-                                ui.visuals_mut().override_text_color = Some(Color32::WHITE);
-                                ui.label(MipsApp::write_u32(row_index as u32 * 4, data_format));
-                            });
-                            row.col(|ui| {
-                                ui.visuals_mut().override_text_color = Some(Color32::WHITE);
-                                ui.label(MipsApp::write_i32(locked_data_memory[row_index], data_format));
-                            });
-                        })
-                    });
-                    
-            });
+                
+        });
         }
 
         
-    }
 
     fn instruction_table(
         data_format: &DataFormat,
@@ -315,105 +308,66 @@ impl MipsApp {
         register_index: &mut Arc<Mutex<usize>>,
         updated: &mut bool,
     ) {
+        // If data was updated, scroll to row. Ugly solution, I know.
         // Lock registers & reg index
         let locked_reg_index = *register_index.lock().unwrap();
         let locked_registers = registers.lock().unwrap();
-        // If data was updated, scroll to row. Ugly solution, I know.
-        if *updated {
-            // Set table ID
-            ui.push_id(3, |ui| {
-                // Build table & configure settings.
-                TableBuilder::new(ui)
-                    .striped(true)
-                    .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
-                    .column(Column::remainder().at_least(75.0))
-                    .column(Column::remainder().at_most(75.0))
-                    .column(Column::remainder().at_least(100.0))
-                    .scroll_to_row(locked_reg_index, Some(Align::Center))
-                    .resizable(false)
-                    .header(30.0, |mut header| {
-                    header.col(|ui| {
-                        ui.label(RichText::new("Register").text_style(heading2()).strong());
+        ui.push_id(3, |ui| {
+            let mut tbb = TableBuilder::new(ui);
+            tbb = tbb.striped(true)
+                .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
+                .column(Column::remainder().at_least(75.0))
+                .column(Column::remainder().at_most(75.0))
+                .column(Column::remainder().at_least(100.0))
+                .resizable(false);
+            // If data was updated, scroll to row.
+            
+            if *updated {
+                tbb = tbb.scroll_to_row(locked_reg_index, Some(Align::Center));
+                *updated = false; 
+            }
+            tbb.header(30.0, |mut header| {
+                header.col(|ui| {
+                    ui.label(RichText::new("Register").text_style(heading2()).strong());
+                });
+                header.col(|ui| {
+                    ui.label(RichText::new("Name").text_style(heading2()).strong());
+                });
+                header.col(|ui| {
+                    ui.label(RichText::new("Data").text_style(heading2()).strong());
+                });
+            })
+            .body(|mut body| {
+                // Transform hashmap into vector so it can be sorted.
+                let mut sorted_reg: Vec<_> = register_table.iter().collect();
+                sorted_reg.sort_by(|a, b| a.1.cmp(&b.1));
+
+                let mut i = 0;
+                for (name, num) in sorted_reg {
+                    body.row(30.0, |mut row| {
+                        let mut text_color = Some(Color32::WHITE);
+                        // Change color of row changed.
+                        if i == locked_reg_index {
+                            text_color = Some(LIGHT_GREEN);
+                        } 
+                        row.col(|ui| {
+                            
+                            ui.visuals_mut().override_text_color = text_color;
+                            ui.label(num.to_string());
+                        });
+                        row.col(|ui| {
+                            ui.visuals_mut().override_text_color = text_color;
+                            ui.label(name);
+                        });
+                        row.col(|ui| {
+                            ui.visuals_mut().override_text_color = text_color;
+                            ui.label(MipsApp::write_i32(locked_registers[i], data_format));
+                        });
                     });
-                    header.col(|ui| {
-                        ui.label(RichText::new("Name").text_style(heading2()).strong());
-                    });
-                    header.col(|ui| {
-                        ui.label(RichText::new("Data").text_style(heading2()).strong());
-                    });
-                    })
-                    .body(|mut body| {
-                        // Transform hashmap into vector so it can be sorted.
-                        let mut sorted_reg: Vec<_> = register_table.iter().collect();
-                        sorted_reg.sort_by(|a, b| a.1.cmp(&b.1));
-    
-                        let mut i = 0;
-                        for (name, num) in sorted_reg {
-                            body.row(30.0, |mut row| {
-                                row.col(|ui| {
-                                    ui.visuals_mut().override_text_color = Some(Color32::WHITE);
-                                    ui.label(num.to_string());
-                                });
-                                row.col(|ui| {
-                                    ui.visuals_mut().override_text_color = Some(Color32::WHITE);
-                                    ui.label(name);
-                                });
-                                row.col(|ui| {
-                                    ui.visuals_mut().override_text_color = Some(Color32::WHITE);
-                                    ui.label(MipsApp::write_i32(locked_registers[i], data_format));
-                                });
-                            });
-                            i += 1;
-                        }
-                    });
+                    i += 1;
+                }
             });
-            *updated = false;
-        } else {
-            ui.push_id(3, |ui| {
-                TableBuilder::new(ui)
-                    .striped(true)
-                    .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
-                    .column(Column::remainder().at_least(75.0))
-                    .column(Column::remainder().at_most(75.0))
-                    .column(Column::remainder().at_least(100.0))
-                    .resizable(false)
-                    .header(30.0, |mut header| {
-                    header.col(|ui| {
-                        ui.label(RichText::new("Register").text_style(heading2()).strong());
-                    });
-                    header.col(|ui| {
-                        ui.label(RichText::new("Name").text_style(heading2()).strong());
-                    });
-                    header.col(|ui| {
-                        ui.label(RichText::new("Data").text_style(heading2()).strong());
-                    });
-                    })
-                    .body(|mut body| {
-                        // Transform hashmap into vector so it can be sorted.
-                        let mut sorted_reg: Vec<_> = register_table.iter().collect();
-                        sorted_reg.sort_by(|a, b| a.1.cmp(&b.1));
-    
-                        let mut i = 0;
-                        for (name, num) in sorted_reg {
-                            body.row(30.0, |mut row| {
-                                row.col(|ui| {
-                                    ui.visuals_mut().override_text_color = Some(Color32::WHITE);
-                                    ui.label(num.to_string());
-                                });
-                                row.col(|ui| {
-                                    ui.visuals_mut().override_text_color = Some(Color32::WHITE);
-                                    ui.label(name);
-                                });
-                                row.col(|ui| {
-                                    ui.visuals_mut().override_text_color = Some(Color32::WHITE);
-                                    ui.label(MipsApp::write_i32(locked_registers[i], data_format));
-                                });
-                            });
-                            i += 1;
-                        }
-                    });
-            });
-        }
+        });
         
     }
 
@@ -454,7 +408,56 @@ impl MipsApp {
         });
     }
 
-    fn mips_code(ui: &mut egui::Ui, mips_instructions: &Vec<(String, bool)>) {}
+    fn mips_code(
+        ui: &mut egui::Ui,
+        mips_instructions: &Vec<(String, bool)>,
+        program_counter: &Arc<Mutex<u32>>,
+    ){  
+        let locked_program_counter = *program_counter.lock().unwrap();
+        ui.push_id(5, |ui| {
+            TableBuilder::new(ui)
+                .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
+                .column(Column::exact(25 as f32))
+                .column(Column::remainder().at_least(200.0))
+                .resizable(false)
+                .striped(true)
+                .header(30.0, |mut header| {
+                    header.col(|ui| {
+                        ui.label(RichText::new("").text_style(heading2()).strong());
+                    });
+                    header.col(|ui| {
+                        ui.label(RichText::new("").text_style(heading2()).strong());
+                    });
+                })
+                .body(|mut body| {
+                    // Iterate over listing file, only add rows containing machine code
+                    let mut machine_index = 0;
+                    body.rows(30.0, mips_instructions.len(), |row_index, mut row| {
+                        
+                        row.col(|ui| {
+                            // Only print arrow if line contains instruction. 
+                            if mips_instructions[row_index].1 {
+                                // Print arrow for keeping track of where in the code the user is.
+                                if machine_index as u32 == locked_program_counter {
+                                    ui.visuals_mut().override_text_color = Some(Color32::WHITE);
+                                    ui.label(
+                                        RichText::new("➡").text_style(heading2()).strong(),
+                                    );
+                                }
+                            machine_index += 1;
+                            }
+                        });
+                              
+                        row.col(|ui| {
+                            ui.visuals_mut().override_text_color = Some(Color32::WHITE);
+                            ui.label(mips_instructions[row_index as usize].0.clone());
+                        });
+                                           
+                    });
+
+                });
+        });
+    }
 }
 
 impl eframe::App for MipsApp {
@@ -559,6 +562,8 @@ impl eframe::App for MipsApp {
                                 self.instructions = machine_code;
                                 self.mips_instructions = assembler_code;
                                 self.labels = labels;
+                                // Reset tables
+                                MipsApp::reset_gui(self);
                             }else{
                                 //FILE NOT FOUND WADDAFUCK
                             }
@@ -575,7 +580,7 @@ impl eframe::App for MipsApp {
                 .show(ctx, |ui| {
                     ui.heading("Data memory panel");
                     ui.vertical(|ui| {
-                        MipsApp::memory_table(&mut self.selected, ui, &mut self.data_memory, &mut self.data_index, &mut self.updated);
+                        MipsApp::memory_table(&mut self.selected, ui, &mut self.data_memory, &mut self.data_index, &mut self.updated_data);
                     });
                 });
 
@@ -604,7 +609,7 @@ impl eframe::App for MipsApp {
                         .vertical(|mut strip| {
                             // Add the top 'cell'
                             strip.cell(|ui| {
-                                MipsApp::register_table(&self.selected, ui, &mut self.register_table, &mut self.registers, &mut self.register_index, &mut self.updated);
+                                MipsApp::register_table(&self.selected, ui, &mut self.register_table, &mut self.registers, &mut self.register_index, &mut self.updated_reg);
                             });
                             // Add cell for label table
                             strip.cell(|ui| {
@@ -632,26 +637,24 @@ impl eframe::App for MipsApp {
                         // Lock buttons while processor is running.
                         let mut locked_enable_button = *self.enable_buttons.lock().unwrap();
                         if ui.add_enabled(locked_enable_button, egui::Button::new("Reset")).clicked() {
-                            // Reset memory temp
+                            // Reset simulation & GUI
                             self.simulation_controller.reset_simulation(&mut self.instructions);
-                            self.updated = true;
+                            MipsApp::reset_gui(self);
                         }
                         // Add run buton
                         if ui.add_enabled(locked_enable_button, egui::Button::new("Run")).clicked() {
                             // Run program
                             locked_enable_button = false;
                             self.simulation_controller.run_program(self.registers.clone(), self.data_memory.clone(), self.program_counter.clone(), self.enable_buttons.clone(), self.data_index.clone(), self.register_index.clone());
-                            self.updated = true;
-                            println!("\n\nINDEX: {}\n\n", *self.register_index.lock().unwrap());
-                            println!("\n\nINDEX: {}\n\n", *self.data_index.lock().unwrap());
+                            self.updated_reg = true;
+                            self.updated_data= true;
                         }
-
+                        // Add step button
                         if ui.add_enabled(locked_enable_button, egui::Button::new("Step")).clicked() {
                             locked_enable_button = false;
                             self.simulation_controller.step_instruction(self.registers.clone(), self.data_memory.clone(), self.program_counter.clone(), self.enable_buttons.clone(), self.data_index.clone(), self.register_index.clone());
-                            self.updated = true;
-                            println!("\n\nINDEX: {}\n\n", *self.register_index.lock().unwrap());
-                            println!("\n\nINDEX: {}\n\n", *self.data_index.lock().unwrap());
+                            self.updated_reg = true;
+                            self.updated_data= true;
                         }
                     
                     });
@@ -659,7 +662,7 @@ impl eframe::App for MipsApp {
                 StripBuilder::new(ui)
                     .size(Size::relative(0.6)) // top cell
                     .size(Size::remainder().at_most(30.))
-                    .size(Size::relative(1.0)) // bottom cell
+                    .size(Size::remainder()) // bottom cell
                     .vertical(|mut strip| {
                         // Add the top 'cell'
                         strip.cell(|ui| {
@@ -677,7 +680,7 @@ impl eframe::App for MipsApp {
                         });
 
                         strip.cell(|ui| {
-                            //MipsApp::symbol_table(&selected, ui, labels);
+                            MipsApp::mips_code(ui, &self.mips_instructions, &self.program_counter);
                         });
                     });
             });
@@ -689,5 +692,3 @@ impl eframe::App for MipsApp {
 
 
 }
-
-

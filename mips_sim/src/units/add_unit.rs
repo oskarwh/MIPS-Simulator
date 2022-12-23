@@ -93,7 +93,9 @@ impl<'a> AddUnit{
 }
 
 impl<'a> Unit for AddUnit {
+    
     fn receive(&mut self, input_id: u32, data : Word){
+        println!("\t Add unit: received {} from {}", data, input_id);
         if input_id == ADD_IN_1_ID{
             self.addr = data;
             self.has_addr = true;

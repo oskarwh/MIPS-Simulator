@@ -239,7 +239,7 @@ impl Simulation {
             locked_instr_left = locked_instr_left - 1;
             loop {
                 // Check when instruction is done
-                if reg_file.lock().unwrap().instruction_completed() {
+                if reg_file.lock().unwrap().instruction_completed() && pc.lock().unwrap().has_address() {
                     // Update data for GUI
                     // Update changed register
                     let changed_data = reg_file.lock().unwrap().get_changed_register();
@@ -294,7 +294,7 @@ impl Simulation {
                 locked_instr_left = locked_instr_left - 1;
                 loop {
                     // Check when instruction is done
-                    if reg_file.lock().unwrap().instruction_completed() {
+                    if reg_file.lock().unwrap().instruction_completed() && pc.lock().unwrap().has_address()  {
                         // Update data for GUI
                         // Update changed register
                         let changed_data = reg_file.lock().unwrap().get_changed_register();

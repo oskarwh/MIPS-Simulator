@@ -1,0 +1,3 @@
+*dispaly binary numbers
+*arrow in input file
+*bool if parsing detected some error , then not make it runnable

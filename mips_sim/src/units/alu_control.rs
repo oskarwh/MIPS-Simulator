@@ -192,8 +192,7 @@ impl Unit for AluControl {
                         self.set_slt_signals(),
 
                     // Jr instruction
-                    0b001000 =>
-                        todo!(),
+                    0b001000 =>(),
                         // What should i send to the alu?
                         // I do not need to du anything in the alu here i think?
                     

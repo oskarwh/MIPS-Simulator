@@ -53,7 +53,7 @@ impl SimulationController {
         for instruction in machine_code{
             instructions.push(instruction.view_bits::<Lsb0>().to_bitvec());
         }
-        Simulation::set_up_simulation(instructions);
+        self.simulation = Some(Simulation::set_up_simulation(instructions));
         self.simulation.as_mut().unwrap().start_simulation();
     }
 

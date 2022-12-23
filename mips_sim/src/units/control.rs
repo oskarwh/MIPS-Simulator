@@ -120,7 +120,7 @@ impl<'a> Control {
     pub fn set_beq_signals(&mut self) {
         println!("\t Controller sending beq signals");
         // Set singal to branch high
-        self.ander_branch.lock().unwrap().receive_signal(DEFAULT_SIGNAL, true);
+        self.ander_branch.lock().unwrap().receive_signal(BRANCH_SIGNAL, true);
         // Since alu ctrl has two signals we have to define which signal to assert.
         self.alu_ctrl.lock().unwrap().receive_signal(ALU_OP0_SIGNAL, true);
 

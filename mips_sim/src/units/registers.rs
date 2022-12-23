@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 pub struct Registers {
 
-    data_recently_written: bool,
+    instruction_complete: bool,
     prev_register_index: usize,
 
     registers: Vec<Word>, 
@@ -40,7 +40,7 @@ impl Registers {
 
         //Create registers object
         Registers{
-            data_recently_written: false,
+            instruction_complete: false,
             prev_register_index: 0,
 
             registers,
@@ -88,13 +88,14 @@ impl Registers {
     }
 
     pub fn instruction_completed(&mut self) -> bool {
-        if self.data_recently_written {
-            self.data_recently_written = false;
+        if self.instruction_complete {
+            self.instruction_complete = false;
             true
         }else {
             false
         }    
     }
+
 
 }
 
@@ -129,6 +130,10 @@ impl Unit for Registers {
 
     ///Execute unit with thread
     fn execute(&mut self){
+        //Check if register have received write data (indicates that instruction is done)
+        if self.has_write_data {
+            self.instruction_complete = true;
+        }
         if self.has_read1{
             //Received reg1! Find corresponding data and send to ALU
             let data = self.registers[self.read1_reg as usize].to_bitvec();
@@ -156,9 +161,9 @@ impl Unit for Registers {
             self.registers[self.write_reg as usize] = self.write_data.to_bitvec();
             self.has_write_reg = false;
             self.has_write_data = false;
-            // Data was written to register, which means instruction is done
-            self.data_recently_written = true;
+            
         }
+
         
     
     }

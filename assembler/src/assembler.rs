@@ -956,4 +956,6 @@ fn setup_instruction_table(instruction: &mut hash_map::HashMap<&'static str, u32
     instruction.insert("jr", 0x00000008);
     instruction.insert("nop", 0x00000000);
     instruction.insert("ori", 0x0d000000<<2);
+    instruction.insert("srl", 0x00000002);
+    instruction.insert("sra", 0x00000003);
 }

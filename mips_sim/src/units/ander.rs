@@ -36,7 +36,7 @@ impl Ander{
 
     /// Set Functions
     pub fn set_mux_branch(&mut self, mux: Arc<Mutex<dyn Unit>>){
-        self.mux_branch = Some(unsafe { std::mem::transmute(mux) });
+        self.mux_branch = Some(mux) ;
     }
 
 
@@ -54,7 +54,7 @@ impl Unit for Ander{
             self.zero_signal = signal;
             self.has_zero_signal = true;
         }else if signal_id == BRANCH_SIGNAL{
-            self.branch_signal ==signal;
+            self.branch_signal =signal;
             self.has_branch_signal = true;
         }
     }

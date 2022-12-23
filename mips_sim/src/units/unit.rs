@@ -1,6 +1,8 @@
 use bitvec::prelude::*;
 use std::{sync::Mutex, ops::Deref};
 
+pub const MAX_WORDS: usize = 250;
+
 pub type Word = BitVec<u32, Lsb0>;
 pub trait Unit: Send + Sync {
     fn receive(&mut self, input_id : u32, data :Word);

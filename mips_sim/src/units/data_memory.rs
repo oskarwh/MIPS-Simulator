@@ -119,11 +119,13 @@ impl Unit for DataMemory{
                 self.prev_memory_index = self.address as usize;
                 self.prev_data = self.write_data.to_bitvec().into_vec()[0] as i32;
                 println!("\t DM WRITING DATA, {} on index {}", self.prev_data, self.address);
+              
             }else if self.mem_read_signal{
                 let data = self.data[self.address as usize].to_bitvec();
                 self.mux_mem_to_reg.as_mut().unwrap().lock().unwrap().receive(MUX_IN_1_ID, data);
                 
-            }else{
+            }
+            if !self.mem_read_signal {
                 //Send shit value to mux to make it stop waiting
                 let data = bitvec![u32, Lsb0; 0; 32];
                 self.mux_mem_to_reg.as_mut().unwrap().lock().unwrap().receive(MUX_IN_1_ID, data);

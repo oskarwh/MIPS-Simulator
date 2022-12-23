@@ -56,11 +56,16 @@ impl<'a>  ProgramCounter {
         self.current_address.clone().into_vec()[0]
     }
 
+    pub fn has_address(&self)->bool{
+        self.has_address
+    }
+
 
 }
 
 impl Unit for ProgramCounter {
     fn receive(&mut self, input_id: u32, address : Word){
+        println!("\t Programe-counter: received new address {}", address);
         if input_id == PC_IN_ID{
             self.current_address = address;
             self.has_address = true;
