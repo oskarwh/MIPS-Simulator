@@ -125,15 +125,13 @@ impl Unit for Registers {
     fn receive_signal(&mut self ,signal_id:u32, signal: bool){
         if signal_id == DEFAULT_SIGNAL{
             self.reg_write_signal = signal;
+            
         }
     }
 
     ///Execute unit with thread
     fn execute(&mut self){
-        //Check if register have received write data (indicates that instruction is done)
-        if self.has_write_data {
-            self.instruction_complete = true;
-        }
+
         if self.has_read1{
             //Received reg1! Find corresponding data and send to ALU
             let data = self.registers[self.read1_reg as usize].to_bitvec();
@@ -152,16 +150,21 @@ impl Unit for Registers {
             self.has_read2 = false;
         }
 
-        if self.has_write_reg && self.has_write_data && self.reg_write_signal{
-            println!("\t register writing to reg {} with data {}", self.write_reg ,  self.write_data);
-            // Reset register bool
-            self.prev_register_index = self.write_reg as usize;
-
-            //Got data to write and is signaled to write! Insert into registers on index write_reg
-            self.registers[self.write_reg as usize] = self.write_data.to_bitvec();
+        if self.has_write_reg && self.has_write_data {
+            if self.reg_write_signal{
+                println!("\t register writing to reg {} with data {}", self.write_reg ,  self.write_data);
+                // Reset register bool
+                self.prev_register_index = self.write_reg as usize;
+    
+                //Got data to write and is signaled to write! Insert into registers on index write_reg
+                self.registers[self.write_reg as usize] = self.write_data.to_bitvec();
+                
+                
+            }
+            //register have received write data (indicates that instruction is done)
             self.has_write_reg = false;
             self.has_write_data = false;
-            
+            self.instruction_complete = true;  
         }
 
         
