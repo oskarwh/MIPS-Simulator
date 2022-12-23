@@ -62,6 +62,10 @@ fn main() {
         follow_system_theme: false,
         default_theme: eframe::Theme::Dark,
         run_and_return: true,
+        mouse_passthrough: false,
+        event_loop_builder: None,
+        shader_version: None,
+        centered: true,
     };
 
     let sim_controller = SimulationController::new();

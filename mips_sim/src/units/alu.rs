@@ -14,15 +14,19 @@ enum Operand{
     And,
     Or,
     Slt,
+    Srl,
+    Sra,
 }
 
 pub struct ALU {
 
     data1 : Word,
     data2 : Word,
+    shamt: Word,
     
     has_data1: bool,
     has_data2: bool,
+    has_shamt: bool,
 
     mux_mem_to_reg :Option<Arc<Mutex<dyn Unit>>>,
     data_memory :Option<Arc<Mutex<dyn Unit>>>,
@@ -32,11 +36,13 @@ pub struct ALU {
     alu_signal1:bool,
     alu_signal2:bool,
     alu_signal3:bool,
+    alu_signal4:bool,
 
     has_alu_signal0: bool,
     has_alu_signal1: bool,
     has_alu_signal2: bool,
     has_alu_signal3: bool,
+    has_alu_signal4:bool,
 
 
 }
@@ -48,9 +54,11 @@ impl ALU {
         ALU { 
             data1: bitvec![u32, Lsb0; 0; 32],
             data2: bitvec![u32, Lsb0; 0; 32],
+            shamt: bitvec![u32, Lsb0; 0; 32],
 
             has_data1: false, 
             has_data2: false, 
+            has_shamt: false,
 
             mux_mem_to_reg: None, 
             data_memory: None,
@@ -60,11 +68,16 @@ impl ALU {
             has_alu_signal1: false,
             has_alu_signal2: false,
             has_alu_signal3: false,
+            has_alu_signal4: false,
 
             alu_signal0: false,
             alu_signal1: false,
             alu_signal2: false,
             alu_signal3: false,
+            alu_signal4 : false,
+            
+            
+            
 
 
         }
@@ -73,7 +86,7 @@ impl ALU {
 
    
     /// returns (result, overflow, zero)
-    fn process_data(operation:Operand, data1:Word, data2:Word)->(Word,bool,bool){
+    fn process_data(operation:Operand, data1:Word, data2:Word, shamt:u32)->(Word,bool,bool){
         let mut res:Word = bitvec![u32, Lsb0; 0; 32];
         let mut overflow:bool = false;
         let mut word_a = data1.to_bitvec();
@@ -120,6 +133,20 @@ impl ALU {
     
             Operand::Or => {
                 word_a.bitor(word_b)
+            }
+
+            Operand::Sra => {
+                word_a.shift_left(shamt as usize);
+                let zeros = 32 - shamt as usize;
+                let mask = bitvec![u32, Lsb0; 0; zeros];
+                let ones = bitvec![u32, Lsb0; 1; shamt as usize];
+               // mask.append(&mut ones);
+                word_a
+            }
+
+            Operand::Srl => {
+                word_a.shift_left(shamt as usize);
+                word_a
             }
     
         };
@@ -202,6 +229,9 @@ impl Unit for ALU  {
         }else if input_id == ALU_IN_2_ID{
             self.data2 = data;
             self.has_data2 = true;
+        }else if input_id == ALU_SHAMT_IN_ID{
+            self.shamt = data;
+            self.has_shamt = true;
         }else{
             //data came on undefined port
         }
@@ -221,6 +251,9 @@ impl Unit for ALU  {
         }else if signal_id==ALU_CTRL3_SIGNAL{
             self.alu_signal3 = signal;
             self.has_alu_signal3 = true;
+        }else if signal_id==ALU_CTRL4_SIGNAL{
+            self.alu_signal4 = signal;
+            self.has_alu_signal4 = true;
         }else{
             //Undefined signal
         }
@@ -228,8 +261,10 @@ impl Unit for ALU  {
 
         //Execute unit with thread
     fn execute(&mut self){
-        if self.has_data1 && self.has_data2 && self.has_alu_signal0 &&  self.has_alu_signal1 && self.has_alu_signal2 && self.has_alu_signal3{
-                    //Check if input should be inverted (bit 3 in control signal => a-invert, bit 2 => b-invert)
+        if self.has_data1 && self.has_data2 && self.has_alu_signal0 &&  self.has_alu_signal1 && self.has_alu_signal2 
+                && self.has_alu_signal3 && self.has_alu_signal4 && self.has_shamt{
+
+            //Check if input should be inverted (bit 3 in control signal => a-invert, bit 2 => b-invert)
             println!("\tAlu: i have \n\t data1 {} \n\t data2 {}", self.data1, self.data2);
             println!("\tcontrol bits: {} {} {} {}", self.alu_signal3,self.alu_signal2,self.alu_signal1,self.alu_signal0);
             if self.alu_signal3{
@@ -240,31 +275,45 @@ impl Unit for ALU  {
             }
                     
             //Check which operation should be done
-            let operation = match self.alu_signal1{
-                true =>{
-                    if self.alu_signal0{
-                        println!("SLT");
-                        Operand::Slt
-                    }else{
-                        println!("ADD");
-                        Operand::Add
+            let operation = match self.alu_signal4{
+                false=>{
+                    match self.alu_signal1{
+                        true =>{
+                            if self.alu_signal0{
+                                println!("SLT");
+                                Operand::Slt
+                            }else{
+                                println!("ADD");
+                                Operand::Add
+                            }
+        
+                        }
+                        false =>{
+                            if self.alu_signal0{
+                                println!("OR");
+                                Operand::Or
+                            }else{
+                                println!("AND");
+                                Operand::And
+                            }
+                        }
                     }
-
+                   
                 }
-                    
-                false =>{
+                true=>{
                     if self.alu_signal0{
-                        println!("OR");
-                        Operand::Or
+                        println!("SRA");
+                        Operand::Sra
                     }else{
-                        println!("AND");
-                        Operand::And
+                        println!("Srl");
+                        Operand::Srl
                     }
                 }
+                
             };
             
             //Process the data through the ALU in the same way as in hardware
-            let (res,overflow,zero) = Self::process_data(operation, self.data1.to_bitvec(), self.data2.to_bitvec());
+            let (res,overflow,zero) = Self::process_data(operation, self.data1.to_bitvec(), self.data2.to_bitvec(), self.shamt.to_bitvec().into_vec()[0]);
 
             //Send processed data to next units
             self.mux_mem_to_reg.as_mut().unwrap().lock().unwrap().receive(MUX_IN_0_ID, res.to_bitvec());

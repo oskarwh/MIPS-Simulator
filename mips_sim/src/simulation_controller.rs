@@ -63,9 +63,11 @@ impl SimulationController {
         gui_data_memory:Arc<Mutex<Vec<i32>>>,
         gui_pc:Arc<Mutex<u32>>,
         gui_lock:Arc<Mutex<bool>>,
+        gui_changed_dm_index:Arc<Mutex<usize>>,
+        gui_changed_reg_index:Arc<Mutex<usize>>,
     ) {
         
-        self.simulation.as_mut().unwrap().step_simulation(gui_registers, gui_data_memory, gui_pc, gui_lock);
+        self.simulation.as_mut().unwrap().step_simulation(gui_registers, gui_data_memory, gui_pc, gui_lock,gui_changed_dm_index,gui_changed_reg_index);
     
     }
 
@@ -75,8 +77,10 @@ impl SimulationController {
         gui_data_memory:Arc<Mutex<Vec<i32>>>,
         gui_pc:Arc<Mutex<u32>>,
         gui_lock:Arc<Mutex<bool>>,
+        gui_changed_dm_index:Arc<Mutex<usize>>,
+        gui_changed_reg_index:Arc<Mutex<usize>>,
     ){
-        self.simulation.as_mut().unwrap().run_simulation(gui_registers, gui_data_memory, gui_pc, gui_lock);
+        self.simulation.as_mut().unwrap().run_simulation(gui_registers, gui_data_memory, gui_pc, gui_lock,gui_changed_dm_index,gui_changed_reg_index);
      
     }
 

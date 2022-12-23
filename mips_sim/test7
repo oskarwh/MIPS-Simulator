@@ -6,4 +6,4 @@
 	add $t6, $t1, $t2
 	addi $t1, $zero, -50
 	sub $t2, $t3, $t4
-	sw $t2 , 0($zero)
+	sw $t2, 0($zero)

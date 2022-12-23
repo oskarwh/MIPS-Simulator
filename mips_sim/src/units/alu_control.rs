@@ -44,6 +44,7 @@ impl<'a> AluControl {
         lock.receive_signal(ALU_CTRL1_SIGNAL, true);
         lock.receive_signal(ALU_CTRL2_SIGNAL, false);
         lock.receive_signal(ALU_CTRL3_SIGNAL, false);
+        lock.receive_signal(ALU_CTRL4_SIGNAL, false);
     }
 
     pub fn set_sub_signals(&mut self) {
@@ -53,6 +54,7 @@ impl<'a> AluControl {
         lock.receive_signal(ALU_CTRL1_SIGNAL, true);
         lock.receive_signal(ALU_CTRL2_SIGNAL, true);
         lock.receive_signal(ALU_CTRL3_SIGNAL, false);
+        lock.receive_signal(ALU_CTRL4_SIGNAL, false);
     }
 
     pub fn set_and_signals(&mut self) {
@@ -62,6 +64,7 @@ impl<'a> AluControl {
         lock.receive_signal(ALU_CTRL1_SIGNAL, false);
         lock.receive_signal(ALU_CTRL2_SIGNAL, false);
         lock.receive_signal(ALU_CTRL3_SIGNAL, false);
+        lock.receive_signal(ALU_CTRL4_SIGNAL, false);
     }
 
     pub fn set_or_signals(&mut self) {
@@ -71,6 +74,7 @@ impl<'a> AluControl {
         lock.receive_signal(ALU_CTRL1_SIGNAL, false);
         lock.receive_signal(ALU_CTRL2_SIGNAL, false);
         lock.receive_signal(ALU_CTRL3_SIGNAL, false);
+        lock.receive_signal(ALU_CTRL4_SIGNAL, false);
     }
 
     pub fn set_slt_signals(&mut self) {
@@ -80,6 +84,7 @@ impl<'a> AluControl {
         lock.receive_signal(ALU_CTRL1_SIGNAL, true);
         lock.receive_signal(ALU_CTRL2_SIGNAL, true);
         lock.receive_signal(ALU_CTRL3_SIGNAL, false);
+        lock.receive_signal(ALU_CTRL4_SIGNAL, false);
     }
 
     pub fn set_nor_signals(&mut self) {
@@ -89,24 +94,27 @@ impl<'a> AluControl {
         lock.receive_signal(ALU_CTRL1_SIGNAL, false);
         lock.receive_signal(ALU_CTRL2_SIGNAL, true);
         lock.receive_signal(ALU_CTRL3_SIGNAL, true);
+        lock.receive_signal(ALU_CTRL4_SIGNAL, false);
     }
 
     pub fn set_srl_signals(&mut self) {
         // Send 1101 to ALU
         let mut lock = self.alu_unit.as_mut().unwrap().lock().unwrap();
-        lock.receive_signal(ALU_CTRL0_SIGNAL, true);
+        lock.receive_signal(ALU_CTRL0_SIGNAL, false);
         lock.receive_signal(ALU_CTRL1_SIGNAL, false);
-        lock.receive_signal(ALU_CTRL2_SIGNAL, true);
-        lock.receive_signal(ALU_CTRL3_SIGNAL, true);
+        lock.receive_signal(ALU_CTRL2_SIGNAL, false);
+        lock.receive_signal(ALU_CTRL3_SIGNAL, false);
+        lock.receive_signal(ALU_CTRL4_SIGNAL, true);
     }
 
     pub fn set_sra_signals(&mut self) {
         // Send 1011 to ALU
         let mut lock = self.alu_unit.as_mut().unwrap().lock().unwrap();
         lock.receive_signal(ALU_CTRL0_SIGNAL, true);
-        lock.receive_signal(ALU_CTRL1_SIGNAL, true);
+        lock.receive_signal(ALU_CTRL1_SIGNAL, false);
         lock.receive_signal(ALU_CTRL2_SIGNAL, false);
-        lock.receive_signal(ALU_CTRL3_SIGNAL, true);
+        lock.receive_signal(ALU_CTRL3_SIGNAL, false);
+        lock.receive_signal(ALU_CTRL4_SIGNAL, true);
     }
 
     pub fn set_alu(&mut self, alu: Arc<Mutex<dyn Unit>>) {

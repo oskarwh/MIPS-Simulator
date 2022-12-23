@@ -59,6 +59,7 @@ pub const AC_IN_ID:u32  = 0;
 
 pub const ALU_IN_1_ID:u32  = 0;
 pub const ALU_IN_2_ID :u32 = 1;
+pub const ALU_SHAMT_IN_ID :u32 = 2;
 
 pub const DM_ADDR_ID:u32  = 0;
 pub const DM_DATA_ID:u32  = 1;
@@ -90,6 +91,8 @@ pub const ALU_CTRL0_SIGNAL:u32  = 0;
 pub const ALU_CTRL1_SIGNAL:u32  = 1;
 pub const ALU_CTRL2_SIGNAL:u32  = 2;
 pub const ALU_CTRL3_SIGNAL:u32  = 3;
+pub const ALU_CTRL4_SIGNAL:u32  = 4;
+
 
 
 

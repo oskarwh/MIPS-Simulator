@@ -25,18 +25,22 @@ use std::path::Path;
 const RS_POS: u32 = 21;
 const RT_POS: u32 = 16;
 const RD_POS: u32 = 11;
-const MAX_IMME_SIZE: u32 = u16::MAX as u32;//Maximum value that are used in arithmetic immediate commands
-const MAX_BEQ_OFFSET: u32 = i16::MAX as u32;//Maximum value for branch-jumps
+const SHAMT: u32 = 6;
+const MAX_IMME_SIZE: i32 = u16::MAX as i32; //Maximum value that are used in arithmetic immediate commands
+const MAX_BEQ_OFFSET: u32 = i16::MAX as u32; //Maximum value for branch-jumps
+const MAX_SHAMT_SIZE: i32 =  31;
 
 /// Enumerates the different types of instructions.
 enum InstructionType {
     /// R-Type instruction.
-    R,
+    R1,
     /// First I-Type instruction.
-    I1,
+    R2,
     /// Second I-Type instruction.
-    I2,
+    I1,
     /// Third I-Type instruction.
+    I2,
+    /// Fourth I-Type instruction.
     I3,
     /// First J-Type instruction.
     J1,
@@ -59,7 +63,8 @@ struct UndefinedLabel {
 }
 
 struct RegexCom {
-    r_type: Regex,
+    r1_type: Regex,
+    r2_type: Regex,
     i1_type: Regex,
     i2_type: Regex,
     i3_type: Regex,
@@ -108,10 +113,11 @@ fn parse_file(
 ) {
     // Set up all Regexes 
     let regex_coms = RegexCom {
-        r_type: Regex::new(r"^\s(add|sub|nor|or|and|slt)\s+\$(\S+),\s*\$(\S+),\s*\$(\S+)\s*$").unwrap(),
+        r1_type: Regex::new(r"^\s(add|sub|nor|or|and|slt)\s+\$(\S+),\s*\$(\S+),\s*\$(\S+)\s*$").unwrap(),
+        r2_type: Regex::new(r"^\s(sll)\s+\$(\S+),\s*\$(\S+),\s*(\S+)\s*$").unwrap(),
         i1_type: Regex::new(r"^\s(addi)\s+\$(\S+),\s*\$(\S+),\s*(\S+)\s*$").unwrap(),
         i2_type: Regex::new(r"^\s(beq)\s+\$(\S+),\s*\$(\S+),\s*(\w+)\s*$" ).unwrap(),
-        i3_type: Regex::new(r"^\s(lw|sw)\s+\$(\S+),\s*(\S*)\(\$(\S+)\)\s*$").unwrap(),
+        i3_type: Regex::new(r"^\s(lw|sw)\s+\$(\S+),\s*(\S*)\(\$(\S+)\)\s*$").unwrap(), 
         j1_type: Regex::new(r"^\s(j)\s+(\w+)\s*$").unwrap(),
         j2_type: Regex::new(r"^\s(jr)\s+\$(\S+)\s*$").unwrap(),
         nop_type: Regex::new(r"^\s(nop)\s*$").unwrap(),
@@ -258,13 +264,16 @@ fn assemble_line(
     instructions: &hash_map::HashMap<&'static str, u32>,
 )-> Result<u32, &'static str>{
     let line_code = match inst_type {
-        InstructionType::R => {
-            assemble_r_type(cap, &registers, &instructions)
-        }
+        InstructionType::R1 => {
+            assemble_r1_type(cap, &registers, &instructions)
+        },
+        InstructionType::R2 => {
+            assemble_r2_type(cap, &registers, &instructions)
+        },
         InstructionType::I1 => {
             assemble_i1_type(cap, &registers, &instructions)
-        }
-        InstructionType::I2 => assemble_i2_type(
+        },    
+        InstructionType::I2 => { assemble_i2_type(
             file_row,
             addr_index,
             cap,
@@ -272,10 +281,10 @@ fn assemble_line(
             undefined_labels,
             registers,
             instructions,
-        ),
+        )},
         InstructionType::I3 => {
             assemble_i3_type(cap, &registers, &instructions)
-        }
+        },
         InstructionType::J1 => assemble_j1_type(
             file_row,
             addr_index,
@@ -305,7 +314,7 @@ fn assemble_line(
 ///
 /// *  Result<u32, &'static str> - Where the u32 is the converted instruction.
 ///
-fn assemble_r_type(
+fn assemble_r1_type(
     cap: Captures,
     registers: &hash_map::HashMap<&'static str, u32>,
     instructions: &hash_map::HashMap<&'static str, u32>,
@@ -321,6 +330,56 @@ fn assemble_r_type(
     instr = instr | (parse_register(rt, registers)?) << RT_POS;
     instr = instr | (parse_register(rd, registers)?) << RD_POS;
     Ok(instr)
+}
+
+/// Creates a R-type instruction.  
+///
+/// # Arguments
+///
+/// * `cap` - A regex::Captures, contains the individual part of the command in assembly code
+/// * `registers` - A reference to a hashmap containing all registers.
+/// * `instruction` - A reference to a hashmap containing all instructions.
+///
+/// # Returns
+///
+/// *  Result<u32, &'static str> - Where the u32 is the converted instruction.
+///
+fn assemble_r2_type(
+    cap: Captures,
+    registers: &hash_map::HashMap<&'static str, u32>,
+    instructions: &hash_map::HashMap<&'static str, u32>,
+) -> Result<u32, &'static str> {
+    let cmnd = &cap[1];
+    let rd = &cap[2];
+    let rt = &cap[3];
+    let mask = 0x0000FFFF;
+
+    let shamt = (&cap[4]).parse::<i32>();
+    let mut instr = *instructions.get(&cmnd).unwrap();
+
+    instr = instr | (parse_register(rt, registers)?) << RT_POS;
+    instr = instr | (parse_register(rd, registers)?) << RD_POS;
+
+    let shamt_val = if shamt.is_err() {
+        // ErrorVALUE
+        Err("the immediate value is not a number")
+    } else {
+        let shamt_unwrap = shamt.unwrap();
+        if shamt_unwrap > MAX_SHAMT_SIZE || shamt_unwrap < 0 {
+            //error
+            Err("the immediate value is not between 0-31")
+        } else {
+            Ok((shamt_unwrap & mask) as u32)
+        }
+    };
+
+    // Check if immi value created error if so return error
+    if shamt_val.is_err() {
+        return shamt_val;
+    } else {
+        instr = instr | (shamt_val.unwrap() << SHAMT);
+        Ok(instr)
+    }
 }
 
 /// Creates a first kind I-type instruction.  
@@ -343,8 +402,9 @@ fn assemble_i1_type(
     let cmnd = &cap[1];
     let rt = &cap[2];
     let rs = &cap[3];
+    let mask = 0x0000FFFF;
 
-    let imme = (&cap[4]).parse::<u32>();
+    let imme = (&cap[4]).parse::<i32>();
     let mut instr = *instructions.get(&cmnd).unwrap();
 
     instr = instr | (parse_register(rs, registers)?) << RS_POS;
@@ -359,7 +419,7 @@ fn assemble_i1_type(
             //error
             Err("the immediate value is too big")
         } else {
-            Ok(imme_unwrap)
+            Ok((imme_unwrap & mask) as u32)
         }
     };
 
@@ -370,7 +430,8 @@ fn assemble_i1_type(
         instr = instr | imme_val.unwrap();
         Ok(instr)
     }
-}
+} 
+
 
 /// Creates a second kind I-type instruction.  
 ///
@@ -457,7 +518,8 @@ fn assemble_i3_type(
     let cmnd = &cap[1];
     let rt = &cap[2];
     let rs = &cap[4];
-    let offset = (&cap[3]).parse::<u32>();
+    let offset = (&cap[3]).parse::<i32>();
+    let mask = 0x0000FFFF;
 
     let mut instr = *instructions.get(&cmnd).unwrap();
 
@@ -473,7 +535,7 @@ fn assemble_i3_type(
             // Error
             Err("offset is too big")
         } else {
-            Ok(offset_unwrap)
+            Ok((offset_unwrap & mask) as u32)
         }
     };
 
@@ -610,9 +672,12 @@ fn parse_register(
 ///
 fn identify_type<'a>(text: &'a str, regex: &RegexCom) -> Option<(Option<Captures<'a>>, InstructionType)> {
 
-    if regex.r_type.is_match(text) {
-        let cap = regex.r_type.captures(text);
-        return Some((cap, InstructionType::R));
+    if regex.r1_type.is_match(text) {
+        let cap = regex.r1_type.captures(text);
+        return Some((cap, InstructionType::R1));
+    } if regex.r2_type.is_match(text) {
+            let cap = regex.r2_type.captures(text);
+            return Some((cap, InstructionType::R2));
     } else if regex.i1_type.is_match(text) {
         let cap = regex.i1_type.captures(text);
         return Some((cap, InstructionType::I1));
@@ -890,4 +955,5 @@ fn setup_instruction_table(instruction: &mut hash_map::HashMap<&'static str, u32
     instruction.insert("j", 0x02000000 << 2);
     instruction.insert("jr", 0x00000008);
     instruction.insert("nop", 0x00000000);
+    instruction.insert("ori", 0x0d000000<<2);
 }

@@ -121,6 +121,7 @@ impl Simulation {
         
         // Add components to connect with instruction memory
         arc_instr_mem.lock().unwrap().set_aluctrl(arc_alu_control.clone());
+        arc_instr_mem.lock().unwrap().set_alu(arc_alu.clone());
         arc_instr_mem.lock().unwrap().set_concater(arc_concater.clone());
         arc_instr_mem.lock().unwrap().set_control(arc_control.clone());
         arc_instr_mem.lock().unwrap().set_reg(arc_registers.clone());
@@ -211,9 +212,11 @@ impl Simulation {
         gui_data_memory:Arc<Mutex<Vec<i32>>>,
         gui_pc:Arc<Mutex<u32>>,
         gui_lock:Arc<Mutex<bool>>,
+        gui_changed_dm_index:Arc<Mutex<usize>>,
+        gui_changed_reg_index:Arc<Mutex<usize>>,
     ) {
         if *self.number_of_instructions_left.lock().unwrap().deref() != 0 {
-            Self::step_simulation_thread(gui_registers, gui_data_memory, gui_pc, gui_lock, self.arc_pc.clone(), self.arc_registers.clone(), self.arc_data_memory.clone(), self.number_of_instructions_left.clone());
+            Self::step_simulation_thread(gui_registers, gui_data_memory, gui_pc, gui_lock,gui_changed_dm_index, gui_changed_reg_index, self.arc_pc.clone(), self.arc_registers.clone(), self.arc_data_memory.clone(), self.number_of_instructions_left.clone());
         }    
     }
     
@@ -222,6 +225,8 @@ impl Simulation {
         gui_data_memory:Arc<Mutex<Vec<i32>>>,
         gui_pc:Arc<Mutex<u32>>,
         gui_lock:Arc<Mutex<bool>>,
+        gui_changed_dm_index:Arc<Mutex<usize>>,
+        gui_changed_reg_index:Arc<Mutex<usize>>,
         pc: Arc<Mutex<ProgramCounter>>,
         reg_file: Arc<Mutex<Registers>>, 
         data_memory: Arc<Mutex<DataMemory>>,
@@ -238,10 +243,13 @@ impl Simulation {
                     // Update data for GUI
                     // Update changed register
                     let changed_data = reg_file.lock().unwrap().get_changed_register();
+                    *gui_changed_reg_index.lock().unwrap() = changed_data.1;//update gui with changed index
                     gui_registers.lock().unwrap()[changed_data.1] = changed_data.0;
                     // Update changed data memory
                     let changed_data = data_memory.lock().unwrap().get_changed_memory();
+                    *gui_changed_dm_index.lock().unwrap() = changed_data.1;//update gui with changed index
                     gui_data_memory.lock().unwrap()[changed_data.1] = changed_data.0;
+                    
                     // Update PC and adn set bool to false
                     *gui_pc.lock().unwrap() = Self::get_program_count(pc)/4;
                     *gui_lock.lock().unwrap().deref_mut() = true;
@@ -258,9 +266,11 @@ impl Simulation {
         gui_data_memory:Arc<Mutex<Vec<i32>>>,
         gui_pc:Arc<Mutex<u32>>,
         gui_lock:Arc<Mutex<bool>>,
+        gui_changed_dm_index:Arc<Mutex<usize>>,
+        gui_changed_reg_index:Arc<Mutex<usize>>,
     ) {
         if *self.number_of_instructions_left.lock().unwrap().deref() != 0 {  
-            Self::run_simulation_thread(gui_registers, gui_data_memory, gui_pc, gui_lock, self.arc_pc.clone(), self.arc_registers.clone(), self.arc_data_memory.clone(), self.number_of_instructions_left.clone());
+            Self::run_simulation_thread(gui_registers, gui_data_memory, gui_pc, gui_lock,gui_changed_dm_index,gui_changed_reg_index, self.arc_pc.clone(), self.arc_registers.clone(), self.arc_data_memory.clone(), self.number_of_instructions_left.clone());
         }
     }
 
@@ -269,6 +279,8 @@ impl Simulation {
         gui_data_memory:Arc<Mutex<Vec<i32>>>,
         gui_pc:Arc<Mutex<u32>>,
         gui_lock:Arc<Mutex<bool>>,
+        gui_changed_dm_index:Arc<Mutex<usize>>,
+        gui_changed_reg_index:Arc<Mutex<usize>>,
         pc: Arc<Mutex<ProgramCounter>>,
         reg_file: Arc<Mutex<Registers>>, 
         data_memory: Arc<Mutex<DataMemory>>,
@@ -286,9 +298,11 @@ impl Simulation {
                         // Update data for GUI
                         // Update changed register
                         let changed_data = reg_file.lock().unwrap().get_changed_register();
+                        *gui_changed_reg_index.lock().unwrap() = changed_data.1;//update gui with changed index
                         gui_registers.lock().unwrap()[changed_data.1] = changed_data.0;
                         // Update changed data memory
                         let changed_data = data_memory.lock().unwrap().get_changed_memory();
+                        *gui_changed_dm_index.lock().unwrap() = changed_data.1;//update gui with changed index
                         gui_data_memory.lock().unwrap()[changed_data.1] = changed_data.0;
                         // Update PC and adn set bool to true
                         *gui_pc.lock().unwrap() = Self::get_program_count(pc.clone())/4;

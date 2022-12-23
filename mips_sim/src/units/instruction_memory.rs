@@ -12,6 +12,7 @@ pub struct InstructionMemory {
     has_address: bool,
 
     reg : Option<Arc<Mutex<dyn Unit>>>,
+    alu : Option<Arc<Mutex<dyn Unit>>>,
     sign_extend : Option<Arc<Mutex<dyn Unit>>>,
     alu_ctrl : Option<Arc<Mutex<dyn Unit>>>,
     control : Option<Arc<Mutex<dyn Unit>>>,
@@ -28,7 +29,7 @@ impl<'a> InstructionMemory{
             current_instruction: bitvec![u32, Lsb0; 0; 32],
             current_address: 0,
             has_address: false,
-
+            alu:None,
             reg: None,
             sign_extend: None,
             alu_ctrl: None,
@@ -64,6 +65,11 @@ impl<'a> InstructionMemory{
 
     pub fn set_mux_regdst(&'a mut self, mux: Arc<Mutex<dyn Unit>>){
         self.mux_regdst = Some(mux);
+
+    }
+
+    pub fn set_alu(&'a mut self, alu: Arc<Mutex<dyn Unit>>){
+        self.alu = Some(alu);
 
     }
 
@@ -113,6 +119,7 @@ impl Unit for InstructionMemory{
             self.sign_extend.as_mut().unwrap().lock().unwrap().receive(SE_IN_ID,  self.current_instruction[0..=15].to_bitvec());
             self.mux_regdst.as_mut().unwrap().lock().unwrap().receive(MUX_IN_0_ID,  Self::shift_left(self.current_instruction.to_bitvec(),16)[0..=4].to_bitvec());
             self.mux_regdst.as_mut().unwrap().lock().unwrap().receive(MUX_IN_1_ID,  Self::shift_left(self.current_instruction.to_bitvec(),11)[0..=4].to_bitvec());
+            self.alu.as_mut().unwrap().lock().unwrap().receive(ALU_SHAMT_IN_ID,  Self::shift_left(self.current_instruction.to_bitvec(),6)[0..=4].to_bitvec());
             self.has_address = false;
         }
         
