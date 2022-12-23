@@ -48,6 +48,11 @@ impl SimulationController {
     }
 
     pub fn reset_simulation(&mut self, machine_code:&mut Vec<u32>){
+        //Reset simulation if a simulation is running
+        if self.simulation.is_some(){
+            self.simulation.as_mut().unwrap().stop_simulation();
+        }
+        
         // Add vector with machine-code to a vector of Words
         let mut instructions: Vec<Word> = Vec::new();
         for instruction in machine_code{

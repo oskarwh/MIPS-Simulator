@@ -47,6 +47,8 @@ pub struct  Simulation {
 
     threads:Vec<thread::JoinHandle<()>>,
     number_of_instructions_left: Arc<Mutex<u32>>,
+
+    stop_simulation: Arc<Mutex<bool>>,
 }
 
 impl Simulation {
@@ -165,20 +167,22 @@ impl Simulation {
             arc_mux_memtoreg,
             arc_mux_regdst,
             number_of_instructions_left,
+
+            stop_simulation: Arc::new(Mutex::new(false)),
         }
     }
 
     pub fn start_simulation(&mut self) {
         // Start units
-        let instr_mem_thread =Self::run_unit_thread(self.arc_instr_mem.clone());
-        let sign_extend_thread = Self::run_unit_thread(self.arc_sign_extend.clone());
-        let alu_add_thread = Self::run_unit_thread(self.arc_alu_add.clone());
-        let alu_control_thread = Self::run_unit_thread(self.arc_alu_control.clone());
-        let registers_thread  = Self::run_unit_thread(self.arc_registers.clone());
-        let ander_thread  = Self::run_unit_thread(self.arc_ander.clone());
-        let alu_thread = Self::run_unit_thread(self.arc_alu.clone());
-        let dm_thread = Self::run_unit_thread(self.arc_data_memory.clone());
-        let concater_thread = Self::run_unit_thread(self.arc_concater.clone());
+        let instr_mem_thread =Self::run_unit_thread(self.arc_instr_mem.clone(), self.stop_simulation.clone());
+        let sign_extend_thread = Self::run_unit_thread(self.arc_sign_extend.clone(), self.stop_simulation.clone());
+        let alu_add_thread = Self::run_unit_thread(self.arc_alu_add.clone(), self.stop_simulation.clone());
+        let alu_control_thread = Self::run_unit_thread(self.arc_alu_control.clone(), self.stop_simulation.clone());
+        let registers_thread  = Self::run_unit_thread(self.arc_registers.clone(), self.stop_simulation.clone());
+        let ander_thread  = Self::run_unit_thread(self.arc_ander.clone(), self.stop_simulation.clone());
+        let alu_thread = Self::run_unit_thread(self.arc_alu.clone(), self.stop_simulation.clone());
+        let dm_thread = Self::run_unit_thread(self.arc_data_memory.clone(), self.stop_simulation.clone());
+        let concater_thread = Self::run_unit_thread(self.arc_concater.clone(), self.stop_simulation.clone());
         
         //Start muxes from one thread
         let mut muxes = Vec::new();
@@ -188,7 +192,7 @@ impl Simulation {
         muxes.push(self.arc_mux_alusrc.clone());
         muxes.push(self.arc_mux_regdst.clone());
         muxes.push(self.arc_mux_jump.clone());
-        let mux_thread = Self::run_mux_thread(muxes);
+        let mux_thread = Self::run_mux_thread(muxes, self.stop_simulation.clone());
 
         //Save thread-handles
         self.threads.push(instr_mem_thread);
@@ -202,9 +206,7 @@ impl Simulation {
         self.threads.push(concater_thread);
         self.threads.push(mux_thread);
 
-        /*for thread in self.threads{
-            thread.join().unwrap();
-        }*/
+        
     }
     
     pub fn step_simulation(&self, 
@@ -251,9 +253,10 @@ impl Simulation {
                     gui_data_memory.lock().unwrap()[changed_data.1] = changed_data.0;
                     
                     // Update PC and adn set bool to false
+                    println!("UPDATING GUI FROM BACKEND FINISHED, pc count/4 {}", Self::get_program_count(pc.clone())/4);
                     *gui_pc.lock().unwrap() = Self::get_program_count(pc)/4;
                     *gui_lock.lock().unwrap().deref_mut() = true;
-                    println!("UPDATING GUI FROM BACKEND FINISHED");
+                    
                     break;
                 }
             }  
@@ -336,11 +339,11 @@ impl Simulation {
 
    
     
-    fn run_unit_thread(thread: Arc<Mutex<dyn Unit>>)->thread::JoinHandle<()>{
+    fn run_unit_thread(thread: Arc<Mutex<dyn Unit>>, stop: Arc<Mutex<bool>>)->thread::JoinHandle<()>{
     
         let thread_handle = thread::spawn(move||{
         
-            loop {
+            while !*stop.lock().unwrap() {
                 {
                     let mut temp = thread.lock().unwrap();
                     temp.execute();
@@ -351,9 +354,9 @@ impl Simulation {
         thread_handle
     } 
 
-    fn run_mux_thread( muxes:Vec<Arc<Mutex<Mux>>>)->thread::JoinHandle<()>{
+    fn run_mux_thread( muxes:Vec<Arc<Mutex<Mux>>>, stop: Arc<Mutex<bool>>)->thread::JoinHandle<()>{
         let thread_handle = thread::spawn(move||{
-            loop {
+            while !*stop.lock().unwrap() {
                 for mux in &muxes{
                     let mut temp = mux.lock().unwrap();
                     temp.execute();
@@ -362,6 +365,15 @@ impl Simulation {
         });
         thread_handle
     } 
+
+    pub fn stop_simulation(&mut self){
+       *self.stop_simulation.lock().unwrap() = true;
+       /*for thread in &self.threads{
+            
+            thread.join().unwrap();
+            
+        }*/
+    }
 }
 
 
