@@ -1,8 +1,13 @@
-use egui::{Color32, FontFamily, FontId, RichText, TextStyle, Button, Align};
-use egui_extras::{Size, StripBuilder, TableBuilder, Column};
-use std::{collections::hash_map, sync::{Arc, Mutex}};
-
-use crate::{units::unit, simulation_controller::{self, SimulationController}};
+use crate::{
+    simulation_controller::{self, SimulationController},
+    units::unit,
+};
+use egui::{style::Margin, Align, Button, Color32, FontFamily, FontId, RichText, TextStyle};
+use egui_extras::{Column, Size, StripBuilder, TableBuilder};
+use std::{
+    collections::hash_map,
+    sync::{Arc, Mutex},
+};
 
 #[derive(Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -64,15 +69,12 @@ pub struct MipsApp {
     updated_reg: bool,
 }
 
-
-
 impl MipsApp {
     /// Called once before the first frame.
     pub fn new(
-        cc:&eframe::CreationContext<'_>,
-        simulation_controller:SimulationController,
+        cc: &eframe::CreationContext<'_>,
+        simulation_controller: SimulationController,
     ) -> MipsApp {
-        
         configure_text_styles(&cc.egui_ctx);
 
         MipsApp {
@@ -80,8 +82,8 @@ impl MipsApp {
             selected: DataFormat::Hex,
             labels: hash_map::HashMap::new(),
             register_table: Self::setup_registers_table(),
-            registers: Arc::new(Mutex::new(vec![0 ;32])),
-            data_memory:  Arc::new(Mutex::new(vec![0 ; unit::MAX_WORDS])),
+            registers: Arc::new(Mutex::new(vec![0; 32])),
+            data_memory: Arc::new(Mutex::new(vec![0; unit::MAX_WORDS])),
             instructions: Vec::new(),
             mips_instructions: Vec::new(),
             program_counter: Arc::new(Mutex::new(0)),
@@ -141,7 +143,6 @@ impl MipsApp {
         reg_table
     }
 
-
     fn write_i32(number: i32, dformat: &DataFormat) -> String {
         match dformat {
             DataFormat::Dec => String::from(format!("{}", number)),
@@ -159,10 +160,10 @@ impl MipsApp {
     }
 
     fn reset_gui(&mut self) {
-        self.data_memory =  Arc::new(Mutex::new(vec![0 ; unit::MAX_WORDS]));
+        self.data_memory = Arc::new(Mutex::new(vec![0; unit::MAX_WORDS]));
         self.program_counter = Arc::new(Mutex::new(0));
-        self.registers = Arc::new(Mutex::new(vec![0 ;32]));
-        self.data_memory =  Arc::new(Mutex::new(vec![0 ; unit::MAX_WORDS]));
+        self.registers = Arc::new(Mutex::new(vec![0; 32]));
+        self.data_memory = Arc::new(Mutex::new(vec![0; unit::MAX_WORDS]));
         self.enable_buttons = Arc::new(Mutex::new(true));
         self.data_index = Arc::new(Mutex::new(1001));
         self.register_index = Arc::new(Mutex::new(33));
@@ -177,7 +178,7 @@ impl MipsApp {
         data_memory: &mut Arc<Mutex<Vec<i32>>>,
         data_index: &mut Arc<Mutex<usize>>,
         updated: &mut bool,
-    ){
+    ) {
         // Setup table
         let locked_data_index = *data_index.lock().unwrap();
         let locked_data_memory = data_memory.lock().unwrap();
@@ -185,10 +186,11 @@ impl MipsApp {
             // Create table builder
             let mut tbb = TableBuilder::new(ui);
             // Configure settings
-            tbb = tbb.striped(true)
+            tbb = tbb
+                .striped(true)
                 .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
-                .column(Column::remainder().at_least(150.0))
-                .column(Column::remainder().at_least(150.0))
+                .column(Column::auto())
+                .column(Column::remainder().resizable(false))
                 .resizable(true);
             // Scroll to row that was updated.
             if *updated {
@@ -203,29 +205,30 @@ impl MipsApp {
                 header.col(|ui| {
                     ui.label(RichText::new("Data").text_style(heading2()).strong());
                 });
-            }).body(|mut body| {
+            })
+            .body(|mut body| {
                 // Iterate data memory
-                    body.rows(30.0, locked_data_memory.len(), |row_index, mut row| {
-                        let mut text_color = Some(Color32::WHITE);
-                        // Change color of row changed.
-                        if row_index == locked_data_index {
-                            text_color = Some(LIGHT_GREEN);
-                        } 
-                        row.col(|ui| {
-                            ui.visuals_mut().override_text_color = text_color;
-                            ui.label(MipsApp::write_u32(row_index as u32 * 4, data_format));
-                        });
-                        row.col(|ui| {
-                            ui.visuals_mut().override_text_color = text_color;
-                            ui.label(MipsApp::write_i32(locked_data_memory[row_index], data_format));
-                        });
-                    })
+                body.rows(30.0, locked_data_memory.len(), |row_index, mut row| {
+                    let mut text_color = Some(Color32::WHITE);
+                    // Change color of row changed.
+                    if row_index == locked_data_index {
+                        text_color = Some(LIGHT_GREEN);
+                    }
+                    row.col(|ui| {
+                        ui.visuals_mut().override_text_color = text_color;
+                        ui.label(MipsApp::write_u32(row_index as u32 * 4, data_format));
+                    });
+                    row.col(|ui| {
+                        ui.visuals_mut().override_text_color = text_color;
+                        ui.label(MipsApp::write_i32(
+                            locked_data_memory[row_index],
+                            data_format,
+                        ));
+                    });
+                })
             });
-                
         });
-        }
-
-        
+    }
 
     fn instruction_table(
         data_format: &DataFormat,
@@ -239,11 +242,11 @@ impl MipsApp {
             TableBuilder::new(ui)
                 .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
                 .striped(true)
-                .column(Column::exact(25 as f32))
-                .column(Column::remainder().at_least(100.0))
-                .column(Column::remainder().at_least(100.0))
-                .column(Column::remainder().at_least(200.0))
-                .resizable(false)
+                .column(Column::auto().resizable(false))
+                .column(Column::remainder())
+                .column(Column::remainder())
+                .column(Column::remainder())
+                .resizable(true)
                 .header(30.0, |mut header| {
                     header.col(|ui| {
                         ui.label(RichText::new("").text_style(heading2()).strong());
@@ -271,9 +274,7 @@ impl MipsApp {
                                 // Print arrow for keeping track of where in the code the user is.
                                 if machine_index as u32 == locked_program_counter {
                                     ui.visuals_mut().override_text_color = Some(Color32::WHITE);
-                                    ui.label(
-                                        RichText::new("➡").text_style(heading2()).strong(),
-                                    );
+                                    ui.label(RichText::new("➡").text_style(heading2()).strong());
                                 }
                             });
                             row.col(|ui| {
@@ -289,13 +290,11 @@ impl MipsApp {
                             });
                             row.col(|ui| {
                                 ui.visuals_mut().override_text_color = Some(Color32::WHITE);
-                                ui.label(mips_instructions[row_index as usize].0.clone());
+                                ui.label(mips_instructions[row_index as usize].0.trim().clone());
                             });
-                            machine_index += 1;  
+                            machine_index += 1;
                         }
-                        
                     });
-
                 });
         });
     }
@@ -314,17 +313,18 @@ impl MipsApp {
         let locked_registers = registers.lock().unwrap();
         ui.push_id(3, |ui| {
             let mut tbb = TableBuilder::new(ui);
-            tbb = tbb.striped(true)
+            tbb = tbb
+                .striped(true)
                 .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
-                .column(Column::remainder().at_least(75.0))
-                .column(Column::remainder().at_most(75.0))
-                .column(Column::remainder().at_least(100.0))
+                .column(Column::auto())
+                .column(Column::auto())
+                .column(Column::auto())
                 .resizable(false);
             // If data was updated, scroll to row.
-            
+
             if *updated {
                 tbb = tbb.scroll_to_row(locked_reg_index, Some(Align::Center));
-                *updated = false; 
+                *updated = false;
             }
             tbb.header(30.0, |mut header| {
                 header.col(|ui| {
@@ -349,9 +349,8 @@ impl MipsApp {
                         // Change color of row changed.
                         if i == locked_reg_index {
                             text_color = Some(LIGHT_GREEN);
-                        } 
+                        }
                         row.col(|ui| {
-                            
                             ui.visuals_mut().override_text_color = text_color;
                             ui.label(num.to_string());
                         });
@@ -368,7 +367,6 @@ impl MipsApp {
                 }
             });
         });
-        
     }
 
     fn symbol_table(
@@ -380,9 +378,9 @@ impl MipsApp {
         ui.push_id(4, |ui| {
             TableBuilder::new(ui)
                 .striped(true)
-                .column(Column::remainder().at_least(100.0))
-                .column(Column::remainder().at_least(100.0))
-                .resizable(false)
+                .column(Column::remainder())
+                .column(Column::remainder())
+                .resizable(true)
                 .header(30.0, |mut header| {
                     header.col(|ui| {
                         ui.label(RichText::new("Name").text_style(heading2()).strong());
@@ -412,13 +410,13 @@ impl MipsApp {
         ui: &mut egui::Ui,
         mips_instructions: &Vec<(String, bool)>,
         program_counter: &Arc<Mutex<u32>>,
-    ){  
+    ) {
         let locked_program_counter = *program_counter.lock().unwrap();
         ui.push_id(5, |ui| {
             TableBuilder::new(ui)
                 .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
-                .column(Column::exact(25 as f32))
-                .column(Column::remainder().at_least(200.0))
+                .column(Column::auto())
+                .column(Column::remainder())
                 .resizable(false)
                 .striped(true)
                 .header(30.0, |mut header| {
@@ -433,28 +431,23 @@ impl MipsApp {
                     // Iterate over listing file, only add rows containing machine code
                     let mut machine_index = 0;
                     body.rows(30.0, mips_instructions.len(), |row_index, mut row| {
-                        
                         row.col(|ui| {
-                            // Only print arrow if line contains instruction. 
+                            // Only print arrow if line contains instruction.
                             if mips_instructions[row_index].1 {
                                 // Print arrow for keeping track of where in the code the user is.
                                 if machine_index as u32 == locked_program_counter {
                                     ui.visuals_mut().override_text_color = Some(Color32::WHITE);
-                                    ui.label(
-                                        RichText::new("➡").text_style(heading2()).strong(),
-                                    );
+                                    ui.label(RichText::new("➡").text_style(heading2()).strong());
                                 }
-                            machine_index += 1;
+                                machine_index += 1;
                             }
                         });
-                              
+
                         row.col(|ui| {
                             ui.visuals_mut().override_text_color = Some(Color32::WHITE);
                             ui.label(mips_instructions[row_index as usize].0.clone());
                         });
-                                           
                     });
-
                 });
         });
     }
@@ -463,88 +456,47 @@ impl MipsApp {
 impl eframe::App for MipsApp {
     /// Called each time the UI needs repainting, which may be many times per second.
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        // Do not show processor interface until file provided is valid. 
+        // Do not show processor interface until file provided is valid.
         if !self.valid_file {
-            
-            egui::Window::new("Welcome").default_size(egui::Vec2::new(400 as f32, 800 as f32)).show(ctx, |ui| {
-                StripBuilder::new(ui)
-                            .size(Size::exact(50.))
-                            .size(Size::remainder().at_least(600.)) // top cell
-                            .size(Size::remainder())
-                            .vertical(|mut strip| {
-                                // Add the top 'cell'
-                                strip.cell(|ui| {
-                                    ui.heading("Welcome");
-                                });
-                                // Add cell for label table
-                                strip.cell(|ui| {
-                                    ui.visuals_mut().override_text_color = Some(Color32::WHITE);
-                                    ui.add(egui::Label::new("This is a MIPS emulator that emulates a single cycle MIPS processor. It displays intruction memory, data memory, registers, and labels. You may step through each instruction, run the program or reset it. But first, you need to select a valid MIPS assembler file which adhere to the following criteria:"));
-                                    ui.add_space(5.);
-                                    ui.visuals_mut().override_text_color = Some(Color32::WHITE);
-                                    ui.add(egui::Label::new("
-                                    • May contain empty lines
-                                    • May contain a comment lines which are defined with ”#” that denotes the first position of a comment. Comments can be placed after an instruction.
-                                    • May contain a line with only a label, where the label must be at position 1 of the line and end with ”:”.
-                                    • May contain a line with an instruction, with or without a label at the beginning."));
-                                    ui.add_space(5.);
-                                    ui.visuals_mut().override_text_color = Some(Color32::WHITE);
-                                    ui.add(egui::Label::new("An instruction consists of several parts, each separated by one or more white-space characters."));
-                                    ui.add_space(5.);
-                                    ui.visuals_mut().override_text_color = Some(Color32::WHITE);
-                                    ui.add(egui::Label::new("
-                                    • An optional label, at the beginning of the line.
-                                    • A MIPS instruction, which is preceded by a single white-space character (a tab or blankspace).
-                                    • A number of operands, each separated by a comma
-                                    • An optional comment."));
-                                    ui.add_space(5.);
-                                    ui.visuals_mut().override_text_color = Some(Color32::WHITE);
-                                    ui.add(egui::Label::new("The instructions that can be used are a subset of the MIPS instruction set and are the following, add, sub, and, or, nor, slt, lw, sw, beq, addi, sll, j, jr and nop."));
-                                });
-                                // We add a nested strip in the bottom cell:
-                                strip.cell(|ui| {
-                                    StripBuilder::new(ui)
-                                    .size(Size::exact(150.))
-                                    .size(Size::remainder().at_least(50.))
-                                    .size(Size::remainder().at_least(50.))
-                                    .size(Size::exact(150.))
-                                    .horizontal(|mut strip| {
-                                        strip.cell(|_ui| {
-                                            // Empty cell for spacing
-                                        });
-                                        // Cell for opening file. 
-                                        strip.cell(|ui| {
-                                            if ui.button("Open File").clicked() {
-                                                let open_file: String;
-                                                match tinyfiledialogs::open_file_dialog("Open", "", None) {
-                                                    Some(file) => open_file = file,
-                                                    None => open_file = "null".to_string(),
-                                                }
-                                            
-                                                if let Some((machine_code, assembler_code, labels)) = self.simulation_controller.start_simulation(&open_file){
-                                                    self.valid_file = true;
-                                                    self.instructions = machine_code;
-                                                    self.mips_instructions = assembler_code;
-                                                    self.labels = labels;
-                                                }else{
-                                                    //FILE INVALID WADDAFUCK
-                                                }
-                                            }
-                                        });
-                                        strip.cell(|ui| {
-                                            if ui.button("Quit").clicked() {
-                                                _frame.close();
-                                            }
-                                        });  
-                                        
-                                        strip.cell(|_ui| {
-                                            // Empty cell for spacing
-                                        });  
-                                    });
-                                });
-                            });
-            });
+            egui::Window::new("MIPS Simulator")
+                .resizable(false)
+                .show(ctx, |ui| {
+                    //ui.spacing_mut().window_margin = Margin::same(20.0);
+                    ui.visuals_mut().override_text_color = Some(LIGHT_GREEN);
+                    ui.heading("Welcome!");
+                    ui.group(|ui| {
+                        ui.visuals_mut().override_text_color = Some(Color32::WHITE);
+                        ui.label(GREETING_MESSAGE);
+                    });
+                    // Add a bit of spacing.
+                    ui.add_space(10.0);
+                    // Button for selecting assembly file
+                    ui.horizontal_centered(|ui| {
+                        ui.visuals_mut().override_text_color = Some(Color32::WHITE);
+                        if ui.button("Select File").clicked() {
+                            let open_file: String;
+                            match tinyfiledialogs::open_file_dialog("Open", "", None) {
+                                Some(file) => open_file = file,
+                                None => open_file = "null".to_string(),
+                            }
 
+                            if let Some((machine_code, assembler_code, labels)) =
+                                self.simulation_controller.start_simulation(&open_file)
+                            {
+                                self.valid_file = true;
+                                self.instructions = machine_code;
+                                self.mips_instructions = assembler_code;
+                                self.labels = labels;
+                            } else {
+                                //FILE INVALID WADDAFUCK
+                            }
+                        }
+
+                        if ui.button("Quit").clicked() {
+                            _frame.close();
+                        }
+                    });
+                });
         } else {
             #[cfg(not(target_arch = "wasm32"))] // no File->Quit on web pages!
             egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
@@ -558,13 +510,15 @@ impl eframe::App for MipsApp {
                                 Some(file) => open_file = file,
                                 None => open_file = "null".to_string(),
                             }
-                            if let Some((machine_code, assembler_code, labels)) = self.simulation_controller.start_simulation(&open_file){
+                            if let Some((machine_code, assembler_code, labels)) =
+                                self.simulation_controller.start_simulation(&open_file)
+                            {
                                 self.instructions = machine_code;
                                 self.mips_instructions = assembler_code;
                                 self.labels = labels;
                                 // Reset tables
                                 MipsApp::reset_gui(self);
-                            }else{
+                            } else {
                                 //FILE NOT FOUND WADDAFUCK
                             }
                         }
@@ -577,17 +531,26 @@ impl eframe::App for MipsApp {
             // Create left side panel containing data memory
             egui::SidePanel::left("left_side_panel")
                 .resizable(true)
+                .default_width(500.0)
+                .width_range(300.0..=600.0)
                 .show(ctx, |ui| {
                     ui.heading("Data memory panel");
                     ui.vertical(|ui| {
-                        MipsApp::memory_table(&mut self.selected, ui, &mut self.data_memory, &mut self.data_index, &mut self.updated_data);
+                        MipsApp::memory_table(
+                            &mut self.selected,
+                            ui,
+                            &mut self.data_memory,
+                            &mut self.data_index,
+                            &mut self.updated_data,
+                        );
                     });
                 });
 
             // Create right panel*
             egui::SidePanel::right("right_side_panel")
                 .resizable(true)
-                .min_width(400 as f32)
+                .default_width(400.0)
+                .width_range(200.0..=500.0)
                 .show(ctx, |ui| {
                     // The right panel holding information about registers.
                     ui.horizontal(|ui| {
@@ -604,19 +567,22 @@ impl eframe::App for MipsApp {
                     // Create tables for registers and symbols
                     StripBuilder::new(ui)
                         .size(Size::relative(0.5)) // top cell
-                        .size(Size::remainder().at_most(30.))
-                        .size(Size::remainder().at_least(300.)) // bottom cell
+                        .size(Size::remainder()) // bottom cell
                         .vertical(|mut strip| {
                             // Add the top 'cell'
                             strip.cell(|ui| {
-                                MipsApp::register_table(&self.selected, ui, &mut self.register_table, &mut self.registers, &mut self.register_index, &mut self.updated_reg);
-                            });
-                            // Add cell for label table
-                            strip.cell(|ui| {
-                                ui.heading("Label table");
+                                MipsApp::register_table(
+                                    &self.selected,
+                                    ui,
+                                    &mut self.register_table,
+                                    &mut self.registers,
+                                    &mut self.register_index,
+                                    &mut self.updated_reg,
+                                );
                             });
                             // We add a nested strip in the bottom cell:
                             strip.cell(|ui| {
+                                ui.heading("Label table");
                                 MipsApp::symbol_table(&self.selected, ui, &mut self.labels);
                             });
                         });
@@ -632,31 +598,54 @@ impl eframe::App for MipsApp {
                         {
                             let locked_program_counter = *self.program_counter.lock().unwrap();
                             ui.heading(format!("PC: {}", locked_program_counter));
-                        }                        
-                        
+                        }
+
                         // Lock buttons while processor is running.
                         let mut locked_enable_button = *self.enable_buttons.lock().unwrap();
-                        if ui.add_enabled(locked_enable_button, egui::Button::new("Reset")).clicked() {
+                        if ui
+                            .add_enabled(locked_enable_button, egui::Button::new("Reset"))
+                            .clicked()
+                        {
                             // Reset simulation & GUI
-                            self.simulation_controller.reset_simulation(&mut self.instructions);
+                            self.simulation_controller
+                                .reset_simulation(&mut self.instructions);
                             MipsApp::reset_gui(self);
                         }
                         // Add run buton
-                        if ui.add_enabled(locked_enable_button, egui::Button::new("Run")).clicked() {
+                        if ui
+                            .add_enabled(locked_enable_button, egui::Button::new("Run"))
+                            .clicked()
+                        {
                             // Run program
                             locked_enable_button = false;
-                            self.simulation_controller.run_program(self.registers.clone(), self.data_memory.clone(), self.program_counter.clone(), self.enable_buttons.clone(), self.data_index.clone(), self.register_index.clone());
+                            self.simulation_controller.run_program(
+                                self.registers.clone(),
+                                self.data_memory.clone(),
+                                self.program_counter.clone(),
+                                self.enable_buttons.clone(),
+                                self.data_index.clone(),
+                                self.register_index.clone(),
+                            );
                             self.updated_reg = true;
-                            self.updated_data= true;
+                            self.updated_data = true;
                         }
                         // Add step button
-                        if ui.add_enabled(locked_enable_button, egui::Button::new("Step")).clicked() {
+                        if ui
+                            .add_enabled(locked_enable_button, egui::Button::new("Step"))
+                            .clicked()
+                        {
                             locked_enable_button = false;
-                            self.simulation_controller.step_instruction(self.registers.clone(), self.data_memory.clone(), self.program_counter.clone(), self.enable_buttons.clone(), self.data_index.clone(), self.register_index.clone());
+                            self.simulation_controller.step_instruction(
+                                self.registers.clone(),
+                                self.data_memory.clone(),
+                                self.program_counter.clone(),
+                                self.enable_buttons.clone(),
+                                self.data_index.clone(),
+                                self.register_index.clone(),
+                            );
                             self.updated_reg = true;
-                            self.updated_data= true;
+                            self.updated_data = true;
                         }
-                    
                     });
                 });
                 StripBuilder::new(ui)
@@ -684,11 +673,30 @@ impl eframe::App for MipsApp {
                         });
                     });
             });
-
-       }
-       ctx.request_repaint();
+        }
+        ctx.request_repaint();
     }
-
-
-
 }
+
+const GREETING_MESSAGE: &str = r#"
+This is a MIPS emulator that emulates a single cycle MIPS processor. 
+It displays intruction memory, data memory, registers, and labels.
+You may step through each instruction, run the program or reset it. 
+But first, you need to select a valid MIPS assembler file which adhere
+to the following criteria:
+    • May contain empty lines
+    • May contain a comment lines which are defined with ”#” that denotes 
+      the first position of a comment. Comments can be placed after an instruction.
+    • May contain a line with only a label, where the label must be at position 1 of
+      the line and end with ”:”.
+    • May contain a line with an instruction, with or without a label at the beginning."));
+
+An instruction consists of several parts, each separated by one or more white-space characters.
+• An optional label, at the beginning of the line.
+• A MIPS instruction, which is preceded by a single white-space character (a tab or blankspace).
+• A number of operands, each separated by a comma
+• An optional comment.
+
+The instructions that can be used are a subset of the MIPS instruction set and are the following:
+add, sub, and, or, nor, slt, lw, sw, beq, addi, sll, j, jr and nop.
+"#;
