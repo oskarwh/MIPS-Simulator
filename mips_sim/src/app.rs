@@ -2,7 +2,9 @@ use crate::{
     simulation_controller::{self, SimulationController},
     units::unit,
 };
-use egui::{style::Margin, Align, Button, Color32, FontFamily, FontId, RichText, TextStyle};
+use egui::{
+    style::Margin, Align, Button, Color32, FontFamily, FontId, RichText, Slider, TextStyle,
+};
 use egui_extras::{Column, Size, StripBuilder, TableBuilder};
 use std::{
     collections::hash_map,
@@ -64,6 +66,7 @@ pub struct MipsApp {
     enable_buttons: Arc<Mutex<bool>>,
     data_index: Arc<Mutex<usize>>,
     register_index: Arc<Mutex<usize>>,
+    simulation_speed: Arc<Mutex<f32>>,
     valid_file: bool,
     updated_data: bool,
     updated_reg: bool,
@@ -90,6 +93,7 @@ impl MipsApp {
             enable_buttons: Arc::new(Mutex::new(true)),
             data_index: Arc::new(Mutex::new(1001)),
             register_index: Arc::new(Mutex::new(33)),
+            simulation_speed: Arc::new(Mutex::new(10.0)),
             valid_file: false,
             updated_data: false,
             updated_reg: false,
@@ -603,7 +607,7 @@ impl eframe::App for MipsApp {
                         // Lock buttons while processor is running.
                         let mut locked_enable_button = *self.enable_buttons.lock().unwrap();
                         if ui
-                            .add_enabled(locked_enable_button, egui::Button::new("Reset"))
+                            .add_enabled(locked_enable_button, Button::new("Reset"))
                             .clicked()
                         {
                             // Reset simulation & GUI
@@ -613,7 +617,7 @@ impl eframe::App for MipsApp {
                         }
                         // Add run buton
                         if ui
-                            .add_enabled(locked_enable_button, egui::Button::new("Run"))
+                            .add_enabled(locked_enable_button, Button::new("Run"))
                             .clicked()
                         {
                             // Run program
@@ -625,13 +629,14 @@ impl eframe::App for MipsApp {
                                 self.enable_buttons.clone(),
                                 self.data_index.clone(),
                                 self.register_index.clone(),
+                                self.simulation_speed.clone(),
                             );
                             self.updated_reg = true;
                             self.updated_data = true;
                         }
                         // Add step button
                         if ui
-                            .add_enabled(locked_enable_button, egui::Button::new("Step"))
+                            .add_enabled(locked_enable_button, Button::new("Step"))
                             .clicked()
                         {
                             locked_enable_button = false;
@@ -646,6 +651,11 @@ impl eframe::App for MipsApp {
                             self.updated_reg = true;
                             self.updated_data = true;
                         }
+
+                        ui.add(
+                            Slider::new(&mut self.simulation_speed, 0.1..=100.0)
+                                .text("Instructions/Sec"),
+                        );
                     });
                 });
                 StripBuilder::new(ui)
