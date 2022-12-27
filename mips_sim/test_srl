@@ -1,0 +1,6 @@
+	addi $t1, $zero, 10
+	addi $t2, $zero, 42
+	addi $t3, $zero, -20
+	srl $s1, $t1, 1 #Expected: 5 in s1
+	srl $s1, $t2, 2 #Expected: 10 in s2
+	srl $s1, $t3, 2 #Expected: -5 in s3
