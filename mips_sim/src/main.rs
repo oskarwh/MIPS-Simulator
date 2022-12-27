@@ -39,8 +39,9 @@ use crate::units::{
     registers::Registers,
     sign_extend::{self, SignExtend},
 };
-const DEFAULT_WIDTH: f32 = 1500.0;
-const DEFAULT_HEIGHT: f32 = 1200.0;
+
+const DEFAULT_WIDTH: f32 = 1000.0;
+const DEFAULT_HEIGHT: f32 = 600.0;
 const MIN_WIDTH: f32 = 800.0;
 const MIN_HEIGHT: f32 = 600.0;
 // When compiling natively:
@@ -53,7 +54,7 @@ fn main() {
         drag_and_drop_support: true,
         icon_data: None,
         initial_window_pos: None,
-        initial_window_size: Option::from(Vec2::new(DEFAULT_WIDTH, DEFAULT_HEIGHT)),
+        initial_window_size: Option::from(None),
         min_window_size: Option::from(Vec2::new(MIN_WIDTH, MIN_HEIGHT)),
         max_window_size: None,
         resizable: true,
