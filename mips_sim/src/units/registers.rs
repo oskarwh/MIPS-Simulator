@@ -90,6 +90,9 @@ impl Registers {
     pub fn instruction_completed(&mut self) -> bool {
         if self.instruction_complete {
             self.instruction_complete = false;
+           
+            println!("Reg indicates instruction done");
+            
             true
         }else {
             false
@@ -162,7 +165,6 @@ impl Unit for Registers {
                 
             }
             //register have received write data (indicates that instruction is done)
-            println!("\t reg indicates instructions finished!");
             self.has_write_reg = false;
             self.has_write_data = false;
             self.instruction_complete = true;  
