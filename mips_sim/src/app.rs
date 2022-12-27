@@ -316,10 +316,10 @@ impl MipsApp {
             tbb = tbb
                 .striped(true)
                 .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
-                .column(Column::auto())
-                .column(Column::auto())
-                .column(Column::auto())
-                .resizable(false);
+                .column(Column::remainder())
+                .column(Column::remainder())
+                .column(Column::remainder())
+                .resizable(true);
             // If data was updated, scroll to row.
 
             if *updated {
