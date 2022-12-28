@@ -16,6 +16,7 @@ use crate::assembler::parse_file;
 
 pub struct SimulationController {
     simulation:Option<Simulation>,
+    default_speed: f32,
 }
 
 impl SimulationController {
@@ -24,12 +25,13 @@ impl SimulationController {
     ) -> SimulationController {
         SimulationController{
             simulation:None,
+            default_speed:100 as f32
         }
     }
 
-    pub fn start_simulation(&mut self, file_path:&str)->Option<(Vec<u32>, Vec<(String,bool)>, HashMap<String, u32>)>{
+    pub fn setup_simulation(&mut self, file_path:&str)->Option<(Vec<u32>, Vec<(String,bool)>, HashMap<String, u32>, bool)>{
 
-        if let Some((machine_code, assembler_code, labels)) = parse_file(file_path){
+        if let Some((machine_code, assembler_code, labels, contains_error)) = parse_file(file_path){
 
             // Add vector with machine-code to a vector of Words
             let mut instructions: Vec<Word> = Vec::new();
@@ -38,10 +40,8 @@ impl SimulationController {
             }
 
             self.simulation = Some(Simulation::set_up_simulation(instructions));
-            self.simulation.as_mut().unwrap().start_simulation();
-
-            return Some((machine_code, assembler_code, labels));
-
+            self.simulation.as_mut().unwrap().start_simulation(self.default_speed);
+            return Some((machine_code, assembler_code, labels, contains_error));
         }else{
             return None;
         }
@@ -50,7 +50,7 @@ impl SimulationController {
     pub fn reset_simulation(&mut self, machine_code:&mut Vec<u32>){
         //Reset simulation if a simulation is running
         if self.simulation.is_some(){
-            self.simulation.as_mut().unwrap().stop_simulation();
+            self.simulation.as_mut().unwrap().pause_simulation();
         }
         
         // Add vector with machine-code to a vector of Words
@@ -59,7 +59,7 @@ impl SimulationController {
             instructions.push(instruction.view_bits::<Lsb0>().to_bitvec());
         }
         self.simulation = Some(Simulation::set_up_simulation(instructions));
-        self.simulation.as_mut().unwrap().start_simulation();
+        self.simulation.as_mut().unwrap().start_simulation(self.default_speed);
     }
 
     //Will be runned from GUI when it wants to step, will update GUI's registers and dm in background
@@ -67,13 +67,17 @@ impl SimulationController {
         gui_registers:Arc<Mutex<Vec<i32>>>, 
         gui_data_memory:Arc<Mutex<Vec<i32>>>,
         gui_pc:Arc<Mutex<u32>>,
-        gui_lock:Arc<Mutex<bool>>,
+        gui_enable:Arc<Mutex<bool>>,
         gui_changed_dm_index:Arc<Mutex<usize>>,
         gui_changed_reg_index:Arc<Mutex<usize>>,
+        reg_updated_bool:Arc<Mutex<bool>>,
+        data_updated_bool:Arc<Mutex<bool>>,
     ) {
-        
-        self.simulation.as_mut().unwrap().step_simulation(gui_registers, gui_data_memory, gui_pc, gui_lock,gui_changed_dm_index,gui_changed_reg_index);
-    
+        if !self.simulation.as_mut().unwrap().all_instructions_finished(){
+            println!("Step");
+            self.simulation.as_mut().unwrap().step_simulation(gui_registers, gui_data_memory, gui_pc, gui_enable,gui_changed_dm_index,gui_changed_reg_index
+                , reg_updated_bool, data_updated_bool);  
+        }
     }
 
 
@@ -81,13 +85,25 @@ impl SimulationController {
         gui_registers:Arc<Mutex<Vec<i32>>>, 
         gui_data_memory:Arc<Mutex<Vec<i32>>>,
         gui_pc:Arc<Mutex<u32>>,
-        gui_lock:Arc<Mutex<bool>>,
+        gui_enable:Arc<Mutex<bool>>,
         gui_changed_dm_index:Arc<Mutex<usize>>,
         gui_changed_reg_index:Arc<Mutex<usize>>,
+        reg_updated_bool:Arc<Mutex<bool>>,
+        data_updated_bool:Arc<Mutex<bool>>,
     ){
-        self.simulation.as_mut().unwrap().run_simulation(gui_registers, gui_data_memory, gui_pc, gui_lock,gui_changed_dm_index,gui_changed_reg_index);
-     
+        if !self.simulation.as_mut().unwrap().all_instructions_finished(){
+            println!("Run");
+            //self.simulation.as_mut().unwrap().stop_unit_threads();
+            //self.simulation.as_mut().unwrap().start_simulation(gui_simulation_speed);
+            self.simulation.as_mut().unwrap().run_simulation(gui_registers, gui_data_memory, gui_pc, gui_enable,gui_changed_dm_index,gui_changed_reg_index
+                , reg_updated_bool, data_updated_bool);
+        }
     }
+
+    pub fn pause_simulation(&mut self){
+        self.simulation.as_mut().unwrap().pause_simulation();
+    }
+
 
 
     

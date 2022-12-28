@@ -3,4 +3,4 @@
 	addi $t3, $zero, -20
 	srl $s1, $t1, 1 #Expected: 5 in s1
 	srl $s1, $t2, 2 #Expected: 10 in s2
-	srl $s1, $t3, 2 #Expected: -5 in s3
+	srl $s1, $t3, 2 #Expected: 107772 nånting in s3

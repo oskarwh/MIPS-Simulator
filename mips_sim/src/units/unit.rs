@@ -42,7 +42,7 @@ impl<'a> Unit for EmptyUnit<'a>{
 pub const PC_IN_ID :u32 = 0;
 
 pub const OP_CONTROL: u32 = 0;
-pub const FUNCT_CONTROL: u32 = 0;
+pub const FUNCT_CONTROL: u32 = 1;
 
 pub const IM_READ_ADDRESS_ID:u32  = 0;
 

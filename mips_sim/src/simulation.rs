@@ -48,7 +48,8 @@ pub struct  Simulation {
     threads:Vec<thread::JoinHandle<()>>,
     number_of_instructions: u32,
 
-    stop_simulation: Arc<Mutex<bool>>,
+    stop_unit_threads: Arc<Mutex<bool>>,
+    stop_run_simulation: Arc<Mutex<bool>>,
 }
 
 impl Simulation {
@@ -168,21 +169,26 @@ impl Simulation {
             arc_mux_regdst,
             number_of_instructions,
 
-            stop_simulation: Arc::new(Mutex::new(false)),
+            stop_unit_threads: Arc::new(Mutex::new(false)),
+            stop_run_simulation: Arc::new(Mutex::new(false)),
+
         }
     }
 
-    pub fn start_simulation(&mut self) {
+    pub fn start_simulation(&mut self, gui_simulation_speed: f32) {
+        //Start simulation
+        *self.stop_unit_threads.lock().unwrap() = false;
+        *self.stop_run_simulation.lock().unwrap() = false;
         // Start units
-        let instr_mem_thread =Self::run_unit_thread(self.arc_instr_mem.clone(), self.stop_simulation.clone());
-        let sign_extend_thread = Self::run_unit_thread(self.arc_sign_extend.clone(), self.stop_simulation.clone());
-        let alu_add_thread = Self::run_unit_thread(self.arc_alu_add.clone(), self.stop_simulation.clone());
-        let alu_control_thread = Self::run_unit_thread(self.arc_alu_control.clone(), self.stop_simulation.clone());
-        let registers_thread  = Self::run_unit_thread(self.arc_registers.clone(), self.stop_simulation.clone());
-        let ander_thread  = Self::run_unit_thread(self.arc_ander.clone(), self.stop_simulation.clone());
-        let alu_thread = Self::run_unit_thread(self.arc_alu.clone(), self.stop_simulation.clone());
-        let dm_thread = Self::run_unit_thread(self.arc_data_memory.clone(), self.stop_simulation.clone());
-        let concater_thread = Self::run_unit_thread(self.arc_concater.clone(), self.stop_simulation.clone());
+        let instr_mem_thread =Self::run_unit_thread(self.arc_instr_mem.clone(), self.stop_unit_threads.clone(), gui_simulation_speed);
+        let sign_extend_thread = Self::run_unit_thread(self.arc_sign_extend.clone(), self.stop_unit_threads.clone(), gui_simulation_speed);
+        let alu_add_thread = Self::run_unit_thread(self.arc_alu_add.clone(), self.stop_unit_threads.clone(), gui_simulation_speed);
+        let alu_control_thread = Self::run_unit_thread(self.arc_alu_control.clone(), self.stop_unit_threads.clone(), gui_simulation_speed);
+        let registers_thread  = Self::run_unit_thread(self.arc_registers.clone(), self.stop_unit_threads.clone(), gui_simulation_speed);
+        let ander_thread  = Self::run_unit_thread(self.arc_ander.clone(), self.stop_unit_threads.clone(), gui_simulation_speed);
+        let alu_thread = Self::run_unit_thread(self.arc_alu.clone(), self.stop_unit_threads.clone(), gui_simulation_speed);
+        let dm_thread = Self::run_unit_thread(self.arc_data_memory.clone(), self.stop_unit_threads.clone(), gui_simulation_speed);
+        let concater_thread = Self::run_unit_thread(self.arc_concater.clone(), self.stop_unit_threads.clone(), gui_simulation_speed);
         
         //Start muxes from one thread
         let mut muxes = Vec::new();
@@ -192,7 +198,7 @@ impl Simulation {
         muxes.push(self.arc_mux_alusrc.clone());
         muxes.push(self.arc_mux_regdst.clone());
         muxes.push(self.arc_mux_jump.clone());
-        let mux_thread = Self::run_mux_thread(muxes, self.stop_simulation.clone());
+        let mux_thread = Self::run_mux_thread(muxes, self.stop_unit_threads.clone());
 
         //Save thread-handles
         self.threads.push(instr_mem_thread);
@@ -209,29 +215,33 @@ impl Simulation {
         
     }
     
-    pub fn step_simulation(&self, 
+    pub fn step_simulation(&mut self, 
         gui_registers:Arc<Mutex<Vec<i32>>>, 
         gui_data_memory:Arc<Mutex<Vec<i32>>>,
         gui_pc:Arc<Mutex<u32>>,
-        gui_lock:Arc<Mutex<bool>>,
+        gui_enable:Arc<Mutex<bool>>,
         gui_changed_dm_index:Arc<Mutex<usize>>,
         gui_changed_reg_index:Arc<Mutex<usize>>,
+        reg_updated_bool:Arc<Mutex<bool>>,
+        data_updated_bool:Arc<Mutex<bool>>,
     ) {
-        if Self::get_program_count_index(self.arc_pc.clone()) < self.number_of_instructions  {
-            Self::step_simulation_thread(gui_registers, gui_data_memory, gui_pc, gui_lock,gui_changed_dm_index, gui_changed_reg_index, self.arc_pc.clone(), self.arc_registers.clone(), self.arc_data_memory.clone());
-        }    
+
+        Self::step_simulation_thread(gui_registers, gui_data_memory, gui_pc, gui_enable,gui_changed_dm_index, gui_changed_reg_index, 
+            self.arc_pc.clone(), self.arc_registers.clone(), self.arc_data_memory.clone(), reg_updated_bool, data_updated_bool);
     }
     
     fn step_simulation_thread(
         gui_registers:Arc<Mutex<Vec<i32>>>, 
         gui_data_memory:Arc<Mutex<Vec<i32>>>,
         gui_pc:Arc<Mutex<u32>>,
-        gui_lock:Arc<Mutex<bool>>,
+        gui_enable:Arc<Mutex<bool>>,
         gui_changed_dm_index:Arc<Mutex<usize>>,
         gui_changed_reg_index:Arc<Mutex<usize>>,
         pc: Arc<Mutex<ProgramCounter>>,
         reg_file: Arc<Mutex<Registers>>, 
         data_memory: Arc<Mutex<DataMemory>>,
+        reg_updated_bool:Arc<Mutex<bool>>,
+        data_updated_bool:Arc<Mutex<bool>>,
         ){
         let mut reg_chain_completed  = false;
         let mut pc_chain_completed = false;
@@ -249,21 +259,19 @@ impl Simulation {
                     pc_chain_completed = true;
                 }
                 if pc_chain_completed && reg_chain_completed {
-                    // Update data for GUI
-                    // Update changed register
-                    let changed_data = reg_file.lock().unwrap().get_changed_register();
-                    *gui_changed_reg_index.lock().unwrap() = changed_data.1;//update gui with changed index
-                    gui_registers.lock().unwrap()[changed_data.1] = changed_data.0;
-                    // Update changed data memory
-                    let changed_data = data_memory.lock().unwrap().get_changed_memory();
-                    *gui_changed_dm_index.lock().unwrap() = changed_data.1;//update gui with changed index
-                    gui_data_memory.lock().unwrap()[changed_data.1] = changed_data.0;
+                    Self::update_gui(
+                        gui_registers, 
+                        gui_data_memory,
+                        gui_pc,
+                        gui_changed_dm_index,
+                        gui_changed_reg_index,
+                        pc,
+                        reg_file, 
+                        data_memory,
+                        reg_updated_bool,
+                        data_updated_bool);
                     
-                    // Update PC and adn set bool to false
-                    
-                    *gui_pc.lock().unwrap() = pc.lock().unwrap().get_program_count()/4;
-                    *gui_lock.lock().unwrap().deref_mut() = true;
-                    println!("UPDATING GUI FROM BACKEND FINISHED");
+                    *gui_enable.lock().unwrap().deref_mut() = true;
                     break;
                 }
             }  
@@ -271,30 +279,79 @@ impl Simulation {
     }
 
 
-    pub fn run_simulation(&self, 
+    fn update_gui( 
         gui_registers:Arc<Mutex<Vec<i32>>>, 
         gui_data_memory:Arc<Mutex<Vec<i32>>>,
         gui_pc:Arc<Mutex<u32>>,
-        gui_lock:Arc<Mutex<bool>>,
         gui_changed_dm_index:Arc<Mutex<usize>>,
         gui_changed_reg_index:Arc<Mutex<usize>>,
-    ) {
-        if Self::get_program_count_index(self.arc_pc.clone()) < self.number_of_instructions   {  
-            Self::run_simulation_thread(gui_registers, gui_data_memory, gui_pc, gui_lock,gui_changed_dm_index,gui_changed_reg_index, self.arc_pc.clone(), self.arc_registers.clone(), self.arc_data_memory.clone(), self.number_of_instructions);
+        pc: Arc<Mutex<ProgramCounter>>,
+        reg_file: Arc<Mutex<Registers>>, 
+        data_memory: Arc<Mutex<DataMemory>>,
+        reg_updated_bool:Arc<Mutex<bool>>,
+        data_updated_bool:Arc<Mutex<bool>>,
+    ){
+        // Update data for GUI
+        // Update changed register
+        let changed_data = reg_file.lock().unwrap().get_changed_register();
+        *gui_changed_reg_index.lock().unwrap() = changed_data.1;//update gui with changed index
+        println!("Backend jump to row {}", *gui_changed_reg_index.lock().unwrap());
+        gui_registers.lock().unwrap()[changed_data.1] = changed_data.0;
+
+        // Update bool for reg if they have been updated 
+        if changed_data.2 { 
+            *reg_updated_bool.lock().unwrap() = true;
         }
+
+        // Update changed data memory
+        let changed_data = data_memory.lock().unwrap().get_changed_memory();
+        *gui_changed_dm_index.lock().unwrap() = changed_data.1;//update gui with changed index
+        gui_data_memory.lock().unwrap()[changed_data.1] = changed_data.0;
+        
+        // Update bool for data if they have been updated 
+        if changed_data.2 {
+            *data_updated_bool.lock().unwrap() = true;
+        }
+
+        // Update PC and adn set bool to false
+        *gui_pc.lock().unwrap() = pc.lock().unwrap().get_program_count()/4;
+        
+        println!("---------UPDATING GUI FROM BACKEND FINISHED---------");
+    }
+
+
+    pub fn run_simulation(&mut self, 
+        gui_registers:Arc<Mutex<Vec<i32>>>, 
+        gui_data_memory:Arc<Mutex<Vec<i32>>>,
+        gui_pc:Arc<Mutex<u32>>,
+        gui_enable:Arc<Mutex<bool>>,
+        gui_changed_dm_index:Arc<Mutex<usize>>,
+        gui_changed_reg_index:Arc<Mutex<usize>>,
+        reg_updated_bool:Arc<Mutex<bool>>,
+        data_updated_bool:Arc<Mutex<bool>>,
+    ) {
+        *self.stop_run_simulation.lock().unwrap() = false;
+        Self::run_simulation_thread(gui_registers, gui_data_memory, gui_pc, gui_enable,gui_changed_dm_index,gui_changed_reg_index, 
+            self.arc_pc.clone(), self.arc_registers.clone(), self.arc_data_memory.clone(), self.number_of_instructions, 
+            self.stop_unit_threads.clone(), self.stop_run_simulation.clone(), reg_updated_bool, data_updated_bool);
     }
 
     fn run_simulation_thread(
         gui_registers:Arc<Mutex<Vec<i32>>>, 
         gui_data_memory:Arc<Mutex<Vec<i32>>>,
         gui_pc:Arc<Mutex<u32>>,
-        gui_lock:Arc<Mutex<bool>>,
+        gui_enable:Arc<Mutex<bool>>,
         gui_changed_dm_index:Arc<Mutex<usize>>,
         gui_changed_reg_index:Arc<Mutex<usize>>,
         pc: Arc<Mutex<ProgramCounter>>,
         reg_file: Arc<Mutex<Registers>>, 
         data_memory: Arc<Mutex<DataMemory>>,
-        n_instructions: u32){
+        n_instructions: u32,
+        stop_units:Arc<Mutex<bool>>,
+        stop_run:Arc<Mutex<bool>>,
+        reg_updated_bool:Arc<Mutex<bool>>,
+        data_updated_bool:Arc<Mutex<bool>>,
+    ){
         
         let mut reg_chain_completed  = false;
         let mut pc_chain_completed = false;
@@ -313,26 +370,31 @@ impl Simulation {
                         pc_chain_completed = true;
                     }
                     if pc_chain_completed && reg_chain_completed   {
-                        // Update data for GUI
-                        // Update changed register
-                        let changed_data = reg_file.lock().unwrap().get_changed_register();
-                        *gui_changed_reg_index.lock().unwrap() = changed_data.1;//update gui with changed index
-                        gui_registers.lock().unwrap()[changed_data.1] = changed_data.0;
-                        // Update changed data memory
-                        let changed_data = data_memory.lock().unwrap().get_changed_memory();
-                        *gui_changed_dm_index.lock().unwrap() = changed_data.1;//update gui with changed index
-                        gui_data_memory.lock().unwrap()[changed_data.1] = changed_data.0;
-                        // Update PC and and set bool to true
-                        *gui_pc.lock().unwrap() = Self::get_program_count_index(pc.clone());
-                        
-                        *gui_lock.lock().unwrap().deref_mut() = true;
-                        println!("UPDATING GUI FROM BACKEND FINISHED");
+                        Self::update_gui(
+                            gui_registers.clone(), 
+                            gui_data_memory.clone(),
+                            gui_pc.clone(),
+                            gui_changed_dm_index.clone(),
+                            gui_changed_reg_index.clone(),
+                            pc.clone(),
+                            reg_file.clone(), 
+                            data_memory.clone(),
+                            reg_updated_bool.clone(),
+                            data_updated_bool.clone());
+                            
+                        pc_chain_completed = false;
+                        reg_chain_completed = false;
                         break;
                     }
                 }
-                // Check if all instructions is done
-                if Self::get_program_count_index(pc.clone()) >= n_instructions   {
+                // Check if all instructions is done or simulation is paused
+                if Self::get_program_count_index(pc.clone()) >= n_instructions {
                     println!("All instructions finished, ending simulation");
+                    //*stop_units.lock().unwrap() = true;
+                    *gui_enable.lock().unwrap().deref_mut() = true;
+                    break;
+                }else if *stop_run.lock().unwrap(){
+                    *gui_enable.lock().unwrap().deref_mut() = true;
                     break;
                 }
             }
@@ -340,7 +402,7 @@ impl Simulation {
     }
 
     
-    fn run_unit_thread(thread: Arc<Mutex<dyn Unit>>, stop: Arc<Mutex<bool>>)->thread::JoinHandle<()>{
+    fn run_unit_thread(thread: Arc<Mutex<dyn Unit>>, stop: Arc<Mutex<bool>>, simulation_speed: f32)->thread::JoinHandle<()>{
     
         let thread_handle = thread::spawn(move||{
         
@@ -349,7 +411,7 @@ impl Simulation {
                     let mut temp = thread.lock().unwrap();
                     temp.execute();
                 }
-                sleep(Duration::from_millis(10));
+                sleep(Duration::from_millis(((1000 as f32)/simulation_speed)  as u64));
             }
         });
         thread_handle
@@ -367,18 +429,28 @@ impl Simulation {
         thread_handle
     } 
 
-    pub fn stop_simulation(&mut self){
-       *self.stop_simulation.lock().unwrap() = true;
-       /*for thread in &self.threads{
-            
+    pub fn pause_simulation(&mut self){
+       *self.stop_run_simulation.lock().unwrap() = true;
+       /**/
+    }
+    
+
+    pub fn stop_unit_threads(&mut self){
+        *self.stop_unit_threads.lock().unwrap() = true;
+       /*  for thread in &self.threads{
             thread.join().unwrap();
-            
         }*/
     }
+
 
     fn get_program_count_index(pc: Arc<Mutex<ProgramCounter>>)->u32{
         pc.lock().unwrap().get_program_count()/4
     }
+
+    pub fn all_instructions_finished(&self)->bool{
+        Self::get_program_count_index(self.arc_pc.clone()) > self.number_of_instructions
+    }
+
 }
 
 

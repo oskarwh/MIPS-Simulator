@@ -107,7 +107,6 @@ impl Unit for InstructionMemory{
             //Send to concater, word will be shifted left (shift_right because of the way BitVec is designed)
             let mut borrow = self.current_instruction[0..26].to_bitvec();
             borrow.shift_right(2);
-
             self.concater.as_mut().unwrap().lock().unwrap().receive(CONC_IN_1_ID, borrow.to_bitvec() );
 
             //Send instruction to other units
@@ -115,6 +114,7 @@ impl Unit for InstructionMemory{
             self.reg.as_mut().unwrap().lock().unwrap().receive(REG_READ_1_ID, Self::shift_left(self.current_instruction.to_bitvec(),21)[0..=4].to_bitvec());
             self.reg.as_mut().unwrap().lock().unwrap().receive(REG_READ_2_ID, Self::shift_left(self.current_instruction.to_bitvec(),16)[0..=4].to_bitvec());
             self.control.as_mut().unwrap().lock().unwrap().receive(CTRL_IN_ID,  Self::shift_left(self.current_instruction.to_bitvec(), 26)[0..=5].to_bitvec());
+            self.control.as_mut().unwrap().lock().unwrap().receive(FUNCT_CONTROL,self.current_instruction[0..=5].to_bitvec());
             self.alu_ctrl.as_mut().unwrap().lock().unwrap().receive(ALU_CTRL_IN_ID,  self.current_instruction[0..=5].to_bitvec());
             self.sign_extend.as_mut().unwrap().lock().unwrap().receive(SE_IN_ID,  self.current_instruction[0..=15].to_bitvec());
             self.mux_regdst.as_mut().unwrap().lock().unwrap().receive(MUX_IN_0_ID,  Self::shift_left(self.current_instruction.to_bitvec(),16)[0..=4].to_bitvec());

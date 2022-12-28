@@ -18,6 +18,7 @@ pub struct DataMemory {
     has_write_data : bool,
     has_mem_read_signal:bool,
     has_mem_write_signal:bool,
+    data_updated: bool,
 
     mux_mem_to_reg : Option<Arc<Mutex<dyn Unit>>>,
 
@@ -48,6 +49,7 @@ impl DataMemory{
             has_write_data:false,
             has_mem_read_signal:false,
             has_mem_write_signal:false,
+            data_updated: false,
 
             mem_read_signal:false,
             mem_write_signal:false,
@@ -60,8 +62,13 @@ impl DataMemory{
     }
 
     //Get last changed register
-    pub fn get_changed_memory(&self) -> (i32,usize) {
-        (self.prev_data, self.prev_memory_index)
+    pub fn get_changed_memory(&mut self) -> (i32,usize, bool) {
+        let temp = (self.prev_data, self.prev_memory_index, self.data_updated);
+
+        // Reset bool when GUI has gotten data.
+        self.data_updated = false;
+
+        return temp;
     }
 
 
@@ -119,6 +126,9 @@ impl Unit for DataMemory{
                 self.prev_memory_index = self.address as usize;
                 self.prev_data = self.write_data.to_bitvec().into_vec()[0] as i32;
                 println!("\t DM WRITING DATA, {} on index {}", self.prev_data, self.address);
+
+                // Set bool to let GUI know memory has been updated
+                self.data_updated = true;
               
             }else if self.mem_read_signal{
                 let data = self.data[self.address as usize].to_bitvec();

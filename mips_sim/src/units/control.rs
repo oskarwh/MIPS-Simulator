@@ -70,7 +70,7 @@ impl<'a> Control {
         self.mux_jump.lock().unwrap().receive_signal(DEFAULT_SIGNAL, false);
         self.alu_ctrl.lock().unwrap().receive_signal(ALU_OP0_SIGNAL, false);
         self.alu_ctrl.lock().unwrap().receive_signal(ALU_OP2_SIGNAL, false);
-        self.mux_jr.lock().unwrap().receive_signal(DEFAULT_SIGNAL, false);
+        //self.mux_jr.lock().unwrap().receive_signal(DEFAULT_SIGNAL, false);
     }
 
     pub fn set_lw_signals(&mut self) {
@@ -93,7 +93,7 @@ impl<'a> Control {
          self.alu_ctrl.lock().unwrap().receive_signal(ALU_OP0_SIGNAL, false);
          self.alu_ctrl.lock().unwrap().receive_signal(ALU_OP1_SIGNAL, false);
          self.alu_ctrl.lock().unwrap().receive_signal(ALU_OP2_SIGNAL, false);
-         self.mux_jr.lock().unwrap().receive_signal(DEFAULT_SIGNAL, false);
+         //self.mux_jr.lock().unwrap().receive_signal(DEFAULT_SIGNAL, false);
     }
 
     pub fn set_sw_signals(&mut self) {
@@ -114,7 +114,7 @@ impl<'a> Control {
         self.alu_ctrl.lock().unwrap().receive_signal(ALU_OP0_SIGNAL, false);
         self.alu_ctrl.lock().unwrap().receive_signal(ALU_OP1_SIGNAL, false);
         self.alu_ctrl.lock().unwrap().receive_signal(ALU_OP2_SIGNAL, false);
-        self.mux_jr.lock().unwrap().receive_signal(DEFAULT_SIGNAL, false);
+        //self.mux_jr.lock().unwrap().receive_signal(DEFAULT_SIGNAL, false);
     }
 
     pub fn set_beq_signals(&mut self) {
@@ -134,7 +134,7 @@ impl<'a> Control {
         self.reg_file.lock().unwrap().receive_signal(DEFAULT_SIGNAL, false);
         self.alu_ctrl.lock().unwrap().receive_signal(ALU_OP1_SIGNAL, false);
         self.alu_ctrl.lock().unwrap().receive_signal(ALU_OP2_SIGNAL, false);
-        self.mux_jr.lock().unwrap().receive_signal(DEFAULT_SIGNAL, false);
+        //self.mux_jr.lock().unwrap().receive_signal(DEFAULT_SIGNAL, false);
     }
 
     pub fn set_j_signals(&mut self) {
@@ -153,7 +153,7 @@ impl<'a> Control {
         self.alu_ctrl.lock().unwrap().receive_signal(ALU_OP0_SIGNAL, false);
         self.alu_ctrl.lock().unwrap().receive_signal(ALU_OP1_SIGNAL, false);
         self.alu_ctrl.lock().unwrap().receive_signal(ALU_OP2_SIGNAL, false);
-        self.mux_jr.lock().unwrap().receive_signal(DEFAULT_SIGNAL, false);
+        //self.mux_jr.lock().unwrap().receive_signal(DEFAULT_SIGNAL, false);
     }
 
 
@@ -183,7 +183,7 @@ impl<'a> Control {
         self.alu_ctrl.lock().unwrap().receive_signal(ALU_OP0_SIGNAL, false);
         self.alu_ctrl.lock().unwrap().receive_signal(ALU_OP1_SIGNAL, false);
         self.alu_ctrl.lock().unwrap().receive_signal(ALU_OP2_SIGNAL, false);
-        self.mux_jr.lock().unwrap().receive_signal(DEFAULT_SIGNAL, false);
+        //self.mux_jr.lock().unwrap().receive_signal(DEFAULT_SIGNAL, false);
     }
 
     pub fn set_ori_signals(&mut self) {
@@ -212,16 +212,16 @@ impl<'a> Control {
         self.alu_ctrl.lock().unwrap().receive_signal(ALU_OP0_SIGNAL, false);
         self.alu_ctrl.lock().unwrap().receive_signal(ALU_OP1_SIGNAL, false);
         self.alu_ctrl.lock().unwrap().receive_signal(ALU_OP2_SIGNAL, true);
-        self.mux_jr.lock().unwrap().receive_signal(DEFAULT_SIGNAL, false);
+        //self.mux_jr.lock().unwrap().receive_signal(DEFAULT_SIGNAL, false);
     }
 
-    pub fn set_jr_signals(&mut self) {
+    /*pub fn set_jr_signals(&mut self) {
         println!("\t Controller sending jr signals");
         // Signals that will be high
         self.mux_reg_dst.lock().unwrap().receive_signal(DEFAULT_SIGNAL, true);
 
         // Set jr mux to high to jump to value in register
-        self.mux_jr.lock().unwrap().receive_signal(DEFAULT_SIGNAL, true);
+        //self.mux_jr.lock().unwrap().receive_signal(DEFAULT_SIGNAL, true);
 
         // Since alu ctrl has two signals we have to define which signal to assert.
         self.alu_ctrl.lock().unwrap().receive_signal(ALU_OP1_SIGNAL, true);
@@ -236,6 +236,11 @@ impl<'a> Control {
         self.mux_jump.lock().unwrap().receive_signal(DEFAULT_SIGNAL, false);
         self.alu_ctrl.lock().unwrap().receive_signal(ALU_OP0_SIGNAL, false);
         self.alu_ctrl.lock().unwrap().receive_signal(ALU_OP2_SIGNAL, false);
+    }*/
+
+    pub fn set_jr_signal(&mut self, b: bool) {
+        // Set jr mux to high to jump to value in register
+        self.mux_jr.lock().unwrap().receive_signal(DEFAULT_SIGNAL, b);
     }
 }
 
@@ -253,7 +258,17 @@ impl Unit for Control{
         addi_bitvec:  bitvec![u32, Lsb0; 0,0,1,0,0,0],
         ori_bitvec: bitvec![u32, Lsb0; 0,0,1,1,0,1],*/
 
-        if input_id == OP_CONTROL {
+         // Check if the data is funct code, if it is we a JR instruction is coming   
+        if input_id == FUNCT_CONTROL {
+            // JR instruction
+            match data.to_bitvec().into_vec()[0] {
+                0x08=>
+                    self.set_jr_signal(true),
+                _=>
+                    self.set_jr_signal(false),
+            }
+            
+        }else if input_id == OP_CONTROL {
             println!("\t Control received: {}",data);
             println!("\t as u32: {:#032b}", data.to_bitvec().into_vec()[0]);
             
@@ -296,10 +311,6 @@ impl Unit for Control{
                 _ =>(),
                  //DO NOTHING
             }
-        // Check if the data is funct code, if it is we a JR instruction is coming   
-        } else if input_id == FUNCT_CONTROL {
-            // JR instruction
-
         }
     }
 

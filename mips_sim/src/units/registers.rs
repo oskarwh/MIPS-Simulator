@@ -20,6 +20,7 @@ pub struct Registers {
     has_read2 : bool,
     has_write_reg : bool,
     has_write_data : bool,
+    reg_updated: bool,
 
 
     alu : Option<Arc<Mutex<dyn Unit>>>,
@@ -50,6 +51,7 @@ impl Registers {
             has_write_reg:false,
             has_write_data:false,
             reg_write_signal:false,
+            reg_updated:false,
 
             read1_reg: 0,
             read2_reg: 0,
@@ -83,16 +85,18 @@ impl Registers {
         self.mux_jr = Some(mux);
     }
 
-    pub fn get_changed_register(&self) -> (i32, usize) {
-        return (self.registers[self.prev_register_index].clone().into_vec()[0] as i32, self.prev_register_index);
+    pub fn get_changed_register(&mut self) -> (i32, usize, bool) {
+        let temp = (self.registers[self.prev_register_index].clone().into_vec()[0] as i32, self.prev_register_index, self.reg_updated);
+
+         // Reset bool when GUI has gotten data.
+         self.reg_updated = false;
+
+         return temp;
     }
 
     pub fn instruction_completed(&mut self) -> bool {
         if self.instruction_complete {
-            self.instruction_complete = false;
-           
-            println!("Reg indicates instruction done");
-            
+            self.instruction_complete = false;          
             true
         }else {
             false
@@ -137,10 +141,12 @@ impl Unit for Registers {
 
         if self.has_read1{
             //Received reg1! Find corresponding data and send to ALU
-            let data = self.registers[self.read1_reg as usize].to_bitvec();
+            let mut data = self.registers[self.read1_reg as usize].to_bitvec();
 
             self.alu.as_mut().unwrap().lock().unwrap().receive(ALU_IN_1_ID, data.to_bitvec());
-            // Send to Jump Register mux
+
+            // Send multiplied by 4 to Jump Register mux
+            data.shift_right(2);
             self.mux_jr.as_mut().unwrap().lock().unwrap().receive(MUX_IN_1_ID, data.to_bitvec());
             self.has_read1 = false;
         }
@@ -162,7 +168,8 @@ impl Unit for Registers {
                 //Got data to write and is signaled to write! Insert into registers on index write_reg
                 self.registers[self.write_reg as usize] = self.write_data.to_bitvec();
                 
-                
+                // Set bool to true to let GUI know register has been updated
+                self.reg_updated = true;
             }
             //register have received write data (indicates that instruction is done)
             self.has_write_reg = false;

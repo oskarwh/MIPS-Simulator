@@ -1,0 +1,26 @@
+#Test with R-format instructions	
+	addi $t1, $zero, 10
+	addi $t2, $zero, 20
+	addi $t3, $zero, -32
+	addi $t4, $zero, -14
+	addi $t5, $zero, -4
+	add $s1, $t1, $t2 #Expected: 30 in s1
+	add $s2, $t1, $t3 #Expected: -22 in s2
+	add $s3, $t4, $t3 #Expected: -46 in s3
+	sub $s1, $t2, $t1 #Expected: 10 in s1
+	sub $s2, $t1, $t3 #Expected: 42 in s2
+	sub $s3, $t4, $t3 #Expected: 18 in s3
+	and $s1, $t2, $t1 #Expected: 0 in s1
+	and $s2, $t1, $t4 #Expected: 2 in s2
+	and $s3, $t2, $t5 #Expected: 20 in s3
+	or $s1, $t2, $t1 #Expected: 30 in s1
+	or $s2, $t1, $t4 #Expected: -6 in s2
+	or $s3, $t2, $t5 #Expected: -4 in s3
+	nor $s1, $t2, $t1 #Expected: 1 in s1
+	nor $s2, $t1, $t4 #Expected: -773826 in s2
+	nor $s3, $t2, $t5 #Expected: 3008 in s3
+	slt $s1, $t2, $t1 #Expected: 0 in s1
+	slt $s2, $t1, $t2 #Expected: 1 in s1
+	slt $s3, $t1, $t4 #Expected: 0 in s2
+	slt $s4, $t3, $t5 #Expected: 1 in s3
+	slt $s4, $t3, $t5 #Expected: 1 in s3

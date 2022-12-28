@@ -117,6 +117,16 @@ impl<'a> AluControl {
         lock.receive_signal(ALU_CTRL4_SIGNAL, true);
     }
 
+    pub fn set_signals_false(&mut self) {
+         // Send 00000 to ALU
+         let mut lock = self.alu_unit.as_mut().unwrap().lock().unwrap();
+         lock.receive_signal(ALU_CTRL0_SIGNAL, false);
+         lock.receive_signal(ALU_CTRL1_SIGNAL, false);
+         lock.receive_signal(ALU_CTRL2_SIGNAL, false);
+         lock.receive_signal(ALU_CTRL3_SIGNAL, false);
+         lock.receive_signal(ALU_CTRL4_SIGNAL, false);
+    }
+
     pub fn set_alu(&mut self, alu: Arc<Mutex<dyn Unit>>) {
         self.alu_unit = Some(alu);
     }
@@ -192,9 +202,8 @@ impl Unit for AluControl {
                         self.set_slt_signals(),
 
                     // Jr instruction
-                    0b001000 =>(),
-                        // What should i send to the alu?
-                        // I do not need to du anything in the alu here i think?
+                    0b001000 =>
+                        self.set_signals_false(),
                     
                     // Nor instruction
                     0b100111 =>

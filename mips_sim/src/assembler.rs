@@ -89,12 +89,13 @@ pub fn parse_file(
     Vec<u32>,
     Vec<(String, bool)>,
     hash_map::HashMap<String, u32>,
+    bool,
 )> {
    // Set up all Regexes 
    let regex_coms = RegexCom {
     r1_type: Regex::new(r"^\s(add|sub|nor|or|and|slt)\s+\$(\S+),\s*\$(\S+),\s*\$(\S+)\s*$").unwrap(),
-    r2_type: Regex::new(r"^\s(sll)\s+\$(\S+),\s*\$(\S+),\s*(\S+)\s*$").unwrap(),
-    i1_type: Regex::new(r"^\s(addi)\s+\$(\S+),\s*\$(\S+),\s*(\S+)\s*$").unwrap(),
+    r2_type: Regex::new(r"^\s(sll|srl|sra)\s+\$(\S+),\s*\$(\S+),\s*(\S+)\s*$").unwrap(),
+    i1_type: Regex::new(r"^\s(addi|ori)\s+\$(\S+),\s*\$(\S+),\s*(\S+)\s*$").unwrap(),
     i2_type: Regex::new(r"^\s(beq)\s+\$(\S+),\s*\$(\S+),\s*(\w+)\s*$" ).unwrap(),
     i3_type: Regex::new(r"^\s(lw|sw)\s+\$(\S+),\s*(\S*)\(\$(\S+)\)\s*$").unwrap(), 
     j1_type: Regex::new(r"^\s(j)\s+(\w+)\s*$").unwrap(),
@@ -102,116 +103,121 @@ pub fn parse_file(
     nop_type: Regex::new(r"^\s(nop)\s*$").unwrap(),
     com_type: Regex::new("#").unwrap(),
     label_type: Regex::new("([a-z]|[A-z]|[0-9])+[:]").unwrap(),
-};
+    };
 
-let mut registers = hash_map::HashMap::new();
-let mut instructions = hash_map::HashMap::new();
+    let mut registers = hash_map::HashMap::new();
+    let mut instructions = hash_map::HashMap::new();
 
-setup_registers_table(&mut registers);
-setup_instruction_table(&mut instructions);
-// Init table for labels, key to table is a label-string which leads to the address-index (the row) of that label
-let mut labels = hash_map::HashMap::new();
+    setup_registers_table(&mut registers);
+    setup_instruction_table(&mut instructions);
+    // Init table for labels, key to table is a label-string which leads to the address-index (the row) of that label
+    let mut labels = hash_map::HashMap::new();
 
-// Init vector for rows with undefined labels
-let mut undefined_labels: Vec<UndefinedLabel> = Vec::new();
-// Init vector for storing generated machine code & assembler code
-let mut machine_code = Vec::new();
-let mut assembler_code = Vec::new();
+    // Init vector for rows with undefined labels
+    let mut undefined_labels: Vec<UndefinedLabel> = Vec::new();
+    // Init vector for storing generated machine code & assembler code
+    let mut machine_code = Vec::new();
+    let mut assembler_code = Vec::new();
 
-// Index of machine code address (the row of the machine code innstruction)
-let mut addr_index: u32 = 0;
+    // Index of machine code address (the row of the machine code innstruction)
+    let mut addr_index: u32 = 0;
 
-// Index of line in file
-let mut file_row: u32 = 0;
+    // Index of line in file
+    let mut file_row: u32 = 0;
 
-// File must exist in current path
-if let Ok(lines) = read_lines(file_path) {
+    //Bool to remember if file contains errors
+    let mut contains_errors : bool = false;
 
-    // Consumes the iterator, returns an (Optional) String
-    for line in lines {
-        if let Ok(mut line) = line {
-            // Bool to check if line contains valid code
-            let mut contain_code = false;
-            if line.len() > 0 {
+    // File must exist in current path
+    if let Ok(lines) = read_lines(file_path) {
 
-                //Check for comments
-                let comment_index = if let Some(index) = locate_comment(&line, &regex_coms) {
-                    //Comment found, set comment index to where comment was found
-                    index
-                } else {
-                    //no comment found, set index to end of line
-                    let index = line.len();
-                    index
-                };
+        // Consumes the iterator, returns an (Optional) String
+        for line in lines {
+            if let Ok(mut line) = line {
+                // Bool to check if line contains valid code
+                let mut contain_code = false;
+                if line.len() > 0 {
 
-                // Locate label on line if it exists.
-                let (label_index, label_found) = if let Some((label, index)) = locate_labels(&line, &regex_coms)
-                {   
-                    //Label found, insert current address-index into label-table
-                    labels.insert(label, addr_index);
-                    //set label index to where comment was found
-                    (index, true)
-                } else {
-                    //No label found, set label index to beginning of line
-                    (0, false)
-                };
-
-                //Take a slice of the line from end of found label to where a comment was found
-                let line_slice = &line[label_index..comment_index];
-
-                // If the line contains an identifyable command, assemble the line to machine code and push it to vector
-
-                if let Some((cap, inst_type)) = identify_type(line_slice, &regex_coms) {
-
-                    if cap.is_some() {
-                        let cap = cap.unwrap();
-
-                        //Assemble the line and collect the code in a Result<>
-                        let line_code = assemble_line(inst_type, file_row, addr_index, cap, &labels, 
-                                &mut undefined_labels, &registers, &instructions);
-
-                        if let Err(error) = line_code {
-                            //ERROR: Something went wrong trying to assemble the line
-                            line.push_str("     <-- Error: ");
-                            line.push_str(error);
-                        } else {
-                            contain_code = true;
-                            machine_code.push(line_code.unwrap());
-                        }
+                    //Check for comments
+                    let comment_index = if let Some(index) = locate_comment(&line, &regex_coms) {
+                        //Comment found, set comment index to where comment was found
+                        index
                     } else {
-                        //ERROR: No instruction could be captured on the line
-                        //Should not be able to get here
+                        //no comment found, set index to end of line
+                        let index = line.len();
+                        index
+                    };
+
+                    // Locate label on line if it exists.
+                    let (label_index, label_found) = if let Some((label, index)) = locate_labels(&line, &regex_coms)
+                    {   
+                        //Label found, insert current address-index into label-table
+                        labels.insert(label, addr_index);
+                        //set label index to where comment was found
+                        (index, true)
+                    } else {
+                        //No label found, set label index to beginning of line
+                        (0, false)
+                    };
+
+                    //Take a slice of the line from end of found label to where a comment was found
+                    let line_slice = &line[label_index..comment_index];
+
+                    // If the line contains an identifyable command, assemble the line to machine code and push it to vector
+
+                    if let Some((cap, inst_type)) = identify_type(line_slice, &regex_coms) {
+
+                        if cap.is_some() {
+                            let cap = cap.unwrap();
+
+                            //Assemble the line and collect the code in a Result<>
+                            let line_code = assemble_line(inst_type, file_row, addr_index, cap, &labels, 
+                                    &mut undefined_labels, &registers, &instructions);
+
+                            if let Err(error) = line_code {
+                                //ERROR: Something went wrong trying to assemble the line
+                                line.push_str("     <-- Error: ");
+                                line.push_str(error);
+                                contains_errors = true;
+                            } else {
+                                contain_code = true;
+                                machine_code.push(line_code.unwrap());
+                            }
+                        } else {
+                            //ERROR: No instruction could be captured on the line
+                            //Should not be able to get here
+                        }
+
+                        addr_index += 1;
+                    } else if !label_found && line_slice.len() > 1 {
+                        //No label was found and the line is longer than 1 + no instruction was recognized
+                        // => Error
+                        line.push_str("     <-- Error: instruction not recognized or wrong format on instruction");
+                        contains_errors = true;
                     }
 
-                    addr_index += 1;
-                } else if !label_found && line_slice.len() > 1 {
-                    //No label was found and the line is longer than 1 + no instruction was recognized
-                    // => Error
-                    line.push_str("     <-- Error: instruction not recognized or wrong format on instruction");
+                    
                 }
-
-                
+                file_row += 1;
+                assembler_code.push((line, contain_code));
             }
-            file_row += 1;
-            assembler_code.push((line, contain_code));
+        }
+    } else {
+        return None;
+    }
+
+    //update commands that referred to previously undefined labels that are now defined
+    for undef_label in undefined_labels {
+        if let Err(error_row) = fix_undef_label(undef_label, &mut machine_code, &labels) {
+            //Something wrong with the called labels!
+            let (line, _) = &mut assembler_code[error_row as usize];
+            line.push_str("     <-- Error: Label undefined!");
+            assembler_code[error_row as usize] = (line.to_string(), true);
+            contains_errors = true;
         }
     }
-} else {
-    panic!("Cannot open file");
-}
 
-//update commands that referred to previously undefined labels that are now defined
-for undef_label in undefined_labels {
-    if let Err(error_row) = fix_undef_label(undef_label, &mut machine_code, &labels) {
-        //Something wrong with the called labels!
-        let (line, _) = &mut assembler_code[error_row as usize];
-        line.push_str("     <-- Error: Label undefined!");
-        assembler_code[error_row as usize] = (line.to_string(), true);
-        
-    }
-}
-
-    Some((machine_code, assembler_code, labels))
+    Some((machine_code, assembler_code, labels, contains_errors))
 }
 
 /// Assembles a line using strings for each individual part of the command contained in a regex::Captures
@@ -310,7 +316,7 @@ fn assemble_r1_type(
     Ok(instr)
 }
 
-/// Creates a R-type instruction.  
+/// Creates a R-type instruction for shifting.  
 ///
 /// # Arguments
 ///
@@ -862,5 +868,4 @@ fn setup_instruction_table(instruction: &mut hash_map::HashMap<&str, u32>) {
     instruction.insert("ori", 0x0d000000<<2);
     instruction.insert("srl", 0x00000002);
     instruction.insert("sra", 0x00000003);
-
 }
