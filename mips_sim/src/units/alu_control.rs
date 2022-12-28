@@ -14,7 +14,7 @@ use crate::units::unit::*;
 /// Version information:
 ///    v1.0 2022-12-28: First complete version.
 
-
+/// AluControl Struct
 pub struct AluControl{
     alu_op0: bool,
     alu_op1: bool,
@@ -29,8 +29,14 @@ pub struct AluControl{
     has_funct: bool,
 }
 
-
+/// AluControl Implementation
 impl<'a> AluControl {
+    /// Returns a new AluControl.
+    ///
+    /// # Returns
+    ///
+    /// * AluControl
+    ///
     pub fn new () -> AluControl{
         AluControl { 
             alu_op0: false,
@@ -45,7 +51,7 @@ impl<'a> AluControl {
         }
     }
 
-
+    /// Sets ALU Control signals to inform ALU to perform an addition on incoming data.
     pub fn set_add_signals(&mut self) {
         // Send 0010 to ALU
         let mut lock = self.alu_unit.as_mut().unwrap().lock().unwrap();
@@ -56,6 +62,7 @@ impl<'a> AluControl {
         lock.receive_signal(ALU_CTRL4_SIGNAL, false);
     }
 
+    /// Sets ALU Control signals to inform ALU to perform an subtraction on incoming data.
     pub fn set_sub_signals(&mut self) {
         // Send 0110 to ALU
         let mut lock = self.alu_unit.as_mut().unwrap().lock().unwrap();
@@ -66,6 +73,7 @@ impl<'a> AluControl {
         lock.receive_signal(ALU_CTRL4_SIGNAL, false);
     }
 
+    /// Sets ALU Control signals to inform ALU to perform an Bitwise And on incoming data.
     pub fn set_and_signals(&mut self) {
         // Send 0000 to ALU
         let mut lock = self.alu_unit.as_mut().unwrap().lock().unwrap();
@@ -76,6 +84,7 @@ impl<'a> AluControl {
         lock.receive_signal(ALU_CTRL4_SIGNAL, false);
     }
 
+    /// Sets ALU Control signals to inform ALU to perform an Bitwise Or on incoming data.
     pub fn set_or_signals(&mut self) {
         // Send 0001 to ALU
         let mut lock = self.alu_unit.as_mut().unwrap().lock().unwrap();
@@ -86,6 +95,7 @@ impl<'a> AluControl {
         lock.receive_signal(ALU_CTRL4_SIGNAL, false);
     }
 
+    /// Sets ALU Control signals to inform ALU to perform an Set on Less Than on incoming data.
     pub fn set_slt_signals(&mut self) {
         // Send 0111 to ALU
         let mut lock = self.alu_unit.as_mut().unwrap().lock().unwrap();
@@ -96,6 +106,7 @@ impl<'a> AluControl {
         lock.receive_signal(ALU_CTRL4_SIGNAL, false);
     }
 
+    /// Sets ALU Control signals to inform ALU to perform an Bitwise Nor on incoming data.
     pub fn set_nor_signals(&mut self) {
         // Send 1100 to ALU
         let mut lock = self.alu_unit.as_mut().unwrap().lock().unwrap();
@@ -106,6 +117,7 @@ impl<'a> AluControl {
         lock.receive_signal(ALU_CTRL4_SIGNAL, false);
     }
 
+    /// Sets ALU Control signals to inform ALU to perform an Shiftleft Logical on incoming data.
     pub fn set_srl_signals(&mut self) {
         // Send 1101 to ALU
         let mut lock = self.alu_unit.as_mut().unwrap().lock().unwrap();
@@ -116,6 +128,7 @@ impl<'a> AluControl {
         lock.receive_signal(ALU_CTRL4_SIGNAL, true);
     }
 
+    /// Sets ALU Control signals to inform ALU to perform an Shiftleft Arithmetic on incoming data.
     pub fn set_sra_signals(&mut self) {
         // Send 1011 to ALU
         let mut lock = self.alu_unit.as_mut().unwrap().lock().unwrap();
@@ -126,6 +139,8 @@ impl<'a> AluControl {
         lock.receive_signal(ALU_CTRL4_SIGNAL, true);
     }
 
+    /// Set ALU Control signals to a "Default State", only used when ALU is not needed.
+    /// However ALU need to send data for "data chain" to be completed.
     pub fn set_signals_false(&mut self) {
          // Send 00000 to ALU
          let mut lock = self.alu_unit.as_mut().unwrap().lock().unwrap();
@@ -136,10 +151,17 @@ impl<'a> AluControl {
          lock.receive_signal(ALU_CTRL4_SIGNAL, false);
     }
 
+    /// Set a ALU that the 'AluControl' which is called on, should send signals to.
+    /// 
+    /// # Arguments
+    ///
+    /// * `alu` - The ALU that should be set
+    ///
     pub fn set_alu(&mut self, alu: Arc<Mutex<dyn Unit>>) {
         self.alu_unit = Some(alu);
     }
 
+    /// Resets bools that holds wether or not incoming signals and function code has been recived.
     fn reset_bools(&mut self) {
         self.has_funct = false;
         self.has_op0 = false;
@@ -148,7 +170,17 @@ impl<'a> AluControl {
     }
 }
 
+/// AluControl implementing Unit trait.
 impl Unit for AluControl {
+
+    /// Receives signal from a Control, comes with ID to 
+    /// specify which signal.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `signal_id` - Id to know what type of signal is comming
+    /// * `signal` - Bool which holds state of signal (high/low)
+    /// 
     fn receive_signal(&mut self ,signal_id:u32, signal: bool) {
         if signal_id == ALU_OP0_SIGNAL {
             self.alu_op0 = signal;
@@ -162,7 +194,15 @@ impl Unit for AluControl {
         }
     }
     
-    fn receive (&mut self, input_id : u32, data :BitVec::<u32, LocalBits>) {
+    /// Receives data from a Unit, comes with ID to 
+    /// specify which type of data.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `input_id` - Id to know what type of data is comming
+    /// * `data` - The data
+    /// 
+    fn receive (&mut self, input_id : u32, data : Word) {
         if input_id == ALU_CTRL_IN_ID {
             //println!("\t Alu Control received: {}",data);
             self.funct = data;
@@ -173,20 +213,13 @@ impl Unit for AluControl {
         
     }
 
+    /// Checks if all data and signals needed has been received.
+    /// If that is the case the ALU Control will check which signals 
+    /// to send to the ALU.
     fn execute(&mut self) {
         if self.has_op0 && self.has_op1 && self.has_op2 && self.has_funct{
             // Check if instuction is r type
            if !self.alu_op2 && self.alu_op1 && !self.alu_op0 {
-
-           /* add_bitvec: bitvec![u32, Lsb0; 1,0,0,0,0,0],
-            sub_bitvec: bitvec![u32, Lsb0; 1,0,0,0,1,0],
-            and_bitvec: bitvec![u32, Lsb0; 1,0,0,1,0,0],
-            or_bitvec: bitvec![u32, Lsb0; 1,0,0,1,0,1],
-            slt_bitvec: bitvec![u32, Lsb0; 1,0,1,0,1,0],
-            jr_bitvec: bitvec![u32, Lsb0; 0,0,1,0,0,0],
-            nor_bitvec: bitvec![u32, Lsb0; 1,0,0,1,1,1],
-            srl_bitvec: bitvec![u32, Lsb0; 0,0,0,0,1,0],
-            sra_bitvec: bitvec![u32, Lsb0; 0,0,0,0,1,1],*/
 
                 // Check which r type alu should do
                 match self.funct.to_bitvec().into_vec()[0] {
@@ -227,7 +260,6 @@ impl Unit for AluControl {
                         self.set_sra_signals(),
                     //DO NOTHING
                     _ =>(),
-                    //DO NOTHING
                 }
             // Check for ori
             } else if self.alu_op2 && !self.alu_op1 && !self.alu_op0 {

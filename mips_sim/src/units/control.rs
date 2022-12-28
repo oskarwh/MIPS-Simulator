@@ -1,15 +1,17 @@
-// When doing sinlge instruction the contoler can sen out the signlas when it receives 
-// the fucntion bits to all components in the data path. When a new instruction is loaded
-// in we reset all signals and send the new ones. However when doing pipelining this needs 
-// to be changed, the controler then needs to change specific singals depending on where 
-// in the datapath a specific instruction is. How is this done?
-
-// The booleans here can be removed but they are left if they maybe are need in the future
 use crate::units::unit::*;
-use bitvec::prelude::*;
 use std::sync::{Mutex, Arc};
 
+/// A MIPS simulator unit. Sets High or Low signals to different Units
+/// in the simulator based on the incoming Instruction Word from Instruction Memory.
+///
+/// Authors: Jakob Lindehag (c20jlg@cs.umu.se)
+///          Oskar Westerlund Holmgren (c20own@cs.umu.se)
+///          Max Thorén (c20mtn@cs.umu.se)
+///
+/// Version information:
+///    v1.0 2022-12-28: First complete version.
 
+/// Control Struct
 pub struct Control {
     mux_reg_dst: Arc<Mutex<dyn Unit>>,
     mux_jump: Arc<Mutex<dyn Unit>>,
@@ -23,11 +25,27 @@ pub struct Control {
 }
 
 
-
+/// Control Implementation
 impl<'a> Control {
 
-
-
+    /// Returns a new Control, which will be able to set signals to Units given in arugments.
+    ///
+    ///  # Arguments
+    /// 
+    /// * `mux_reg_dst` - Mux to set
+    /// * `mux_jump` - Mux to set
+    /// * `ander_branch` - Ander to set
+    /// * `mux_alu_src` - Mux to set
+    /// * `mux_mem_to_reg` - Mux to set
+    /// * `mux_jr` - Mux to set
+    /// * `alu_ctrl` - ALU to set
+    /// * `reg_file` - Register File to set
+    /// * `data_memory` - Data Memory to set
+    /// 
+    /// # Returns
+    ///
+    /// * Control
+    ///
     pub fn new(
         mux_reg_dst: Arc<Mutex<dyn Unit>>,
         mux_jump: Arc<Mutex<dyn Unit>>,
@@ -52,6 +70,7 @@ impl<'a> Control {
         }
     }
 
+    /// Sets all signals in the given Units to perform a R-type Instruction.
     pub fn set_r_signals(&mut self) {
         //println!("\t Controller sending r signals");
         // Signals that will be high
@@ -73,6 +92,7 @@ impl<'a> Control {
         //self.mux_jr.lock().unwrap().receive_signal(DEFAULT_SIGNAL, false);
     }
 
+    /// Sets all signals in the given Units to perform a Load Word Instruction.
     pub fn set_lw_signals(&mut self) {
         //println!("\t Controller sending lw signals");
         // Set alu src to high to change input to immediate value
@@ -96,6 +116,7 @@ impl<'a> Control {
          //self.mux_jr.lock().unwrap().receive_signal(DEFAULT_SIGNAL, false);
     }
 
+    /// Sets all signals in the given Units to perform a Store Word Instruction.
     pub fn set_sw_signals(&mut self) {
         //println!("\t Controller sending sw signals");
         // Set alu src to high to change input to immediate value
@@ -117,6 +138,7 @@ impl<'a> Control {
         //self.mux_jr.lock().unwrap().receive_signal(DEFAULT_SIGNAL, false);
     }
 
+    /// Sets all signals in the given Units to perform a Branch Equal Instruction.
     pub fn set_beq_signals(&mut self) {
         //println!("\t Controller sending beq signals");
         // Set singal to branch high
@@ -137,6 +159,7 @@ impl<'a> Control {
         //self.mux_jr.lock().unwrap().receive_signal(DEFAULT_SIGNAL, false);
     }
 
+    /// Sets all signals in the given Units to perform an Jump Instruction.
     pub fn set_j_signals(&mut self) {
         //println!("\t Controller sending j signals");
         // Set jump mux to high
@@ -156,7 +179,7 @@ impl<'a> Control {
         //self.mux_jr.lock().unwrap().receive_signal(DEFAULT_SIGNAL, false);
     }
 
-
+    /// Sets all signals in the given Units to perform an Add immediate Instruction.
     pub fn set_addi_signals(&mut self) {
         //println!("\t Controller sending addi signals");
         // Set alu input to immidiete
@@ -186,6 +209,7 @@ impl<'a> Control {
         //self.mux_jr.lock().unwrap().receive_signal(DEFAULT_SIGNAL, false);
     }
 
+    /// Sets all signals in the given Units to perform an Or immediate Instruction.
     pub fn set_ori_signals(&mut self) {
         //println!("\t Controller sending ori signals");
         // Set alu input to immidiete
@@ -215,48 +239,31 @@ impl<'a> Control {
         //self.mux_jr.lock().unwrap().receive_signal(DEFAULT_SIGNAL, false);
     }
 
-    /*pub fn set_jr_signals(&mut self) {
-        //println!("\t Controller sending jr signals");
-        // Signals that will be high
-        self.mux_reg_dst.lock().unwrap().receive_signal(DEFAULT_SIGNAL, true);
-
-        // Set jr mux to high to jump to value in register
-        //self.mux_jr.lock().unwrap().receive_signal(DEFAULT_SIGNAL, true);
-
-        // Since alu ctrl has two signals we have to define which signal to assert.
-        self.alu_ctrl.lock().unwrap().receive_signal(ALU_OP1_SIGNAL, true);
-
-        //Signals to be low
-        self.mux_alu_src.lock().unwrap().receive_signal(DEFAULT_SIGNAL, false);
-        self.mux_mem_to_reg.lock().unwrap().receive_signal(DEFAULT_SIGNAL, false);
-        self.data_memory.lock().unwrap().receive_signal(MEM_READ_SIGNAL, false);
-        self.data_memory.lock().unwrap().receive_signal(MEM_WRITE_SIGNAL, false);
-        self.ander_branch.lock().unwrap().receive_signal(BRANCH_SIGNAL, false);
-        self.reg_file.lock().unwrap().receive_signal(DEFAULT_SIGNAL, false);
-        self.mux_jump.lock().unwrap().receive_signal(DEFAULT_SIGNAL, false);
-        self.alu_ctrl.lock().unwrap().receive_signal(ALU_OP0_SIGNAL, false);
-        self.alu_ctrl.lock().unwrap().receive_signal(ALU_OP2_SIGNAL, false);
-    }*/
-
+    /// Set signal to chose address from register or using current address +4.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `b` - Boolean to set the signal to
     pub fn set_jr_signal(&mut self, b: bool) {
         // Set jr mux to high to jump to value in register
         self.mux_jr.lock().unwrap().receive_signal(DEFAULT_SIGNAL, b);
     }
 }
 
+/// Control implementing Unit trait.
 impl Unit for Control{
 
+    /// Receives OP Code or Function code from a Unit, decides which signls to 
+    /// set High or Low based on these.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `input_id` - Id to know what type of data is comming
+    /// * `data` - The data
+    /// 
     fn receive (&mut self, input_id : u32, data : Word) {
         // Check what type of data is comming 
-        // If a new op_code check what type of instruction
-
-/*r_bitvec: bitvec![u32, Lsb0; 0,0,0,0,0,0],
-        lw_bitvec: bitvec![u32, Lsb0; 1,0,0,0,1,1],
-        sw_bitvec: bitvec![u32, Lsb0; 1,0,1,0,1,1],
-        beq_bitvec: bitvec![u32, Lsb0; 0,0,0,1,0,0],
-        j_bitvec: bitvec![u32, Lsb0; 0,0,0,0,1,0],
-        addi_bitvec:  bitvec![u32, Lsb0; 0,0,1,0,0,0],
-        ori_bitvec: bitvec![u32, Lsb0; 0,0,1,1,0,1],*/
+       
 
          // Check if the data is funct code, if it is we a JR instruction is coming   
         if input_id == FUNCT_CONTROL {
@@ -267,7 +274,8 @@ impl Unit for Control{
                 _=>
                     self.set_jr_signal(false),
             }
-            
+        
+        // If a OP code check what type of instruction
         }else if input_id == OP_CONTROL {
             //println!("\t Control received: {}",data);
             //println!("\t as u32: {:#032b}", data.to_bitvec().into_vec()[0]);
@@ -314,12 +322,14 @@ impl Unit for Control{
         }
     }
 
+    /// Does nothing as the controller can not send signls to it self.
     fn receive_signal(&mut self ,signal_id:u32, signal: bool) {
         // Does nothing
     }
 
+    /// Does nothing, however need to be implemented as it exist in the Unit trait.
     fn execute(&mut self) {
-        
+        // Does Nothing
     }
 
 }

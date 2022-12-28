@@ -1,9 +1,19 @@
-
 use std::sync::{Arc, Mutex};
-
 use crate::units::unit::*;
 use bitvec::prelude::*;
 
+/// A MIPS simulator unit. Recives two Bit Vectors and will choose one 
+/// to forward to choosen Unit by looking at incoming signal.
+///
+/// Authors: Jakob Lindehag (c20jlg@cs.umu.se)
+///          Oskar Westerlund Holmgren (c20own@cs.umu.se)
+///          Max Thorén (c20mtn@cs.umu.se)
+///
+/// Version information:
+///    v1.0 2022-12-28: First complete version.
+/// 
+
+/// Mux Struct
 pub struct Mux {
     data0 : Word,
     data1 : Word,
@@ -18,11 +28,23 @@ pub struct Mux {
     name: String,
 }
 
+/// Mux Implementation
 impl Mux {
 
-
+    /// Returns a new Mux.
+    ///
+    /// # Arguments
+    /// 
+    /// * `out` - Unit to forward data to
+    /// * `out_id` - ID to send use when forwarding to choosen Unit
+    /// * `name` - Name of Mux
+    /// 
+    /// # Returns
+    ///
+    /// * Mux
+    ///
     pub fn new(out: Arc<Mutex<dyn Unit>>, out_id : u32, name:String) -> Mux{
-        
+       // todo!("Behövs name?");
         Mux{
             output_unit: out,
             output_id: out_id,
@@ -36,6 +58,7 @@ impl Mux {
         }
     }
 
+    /// Resets bools that holds wether or not incoming signals and function code has been recived.
     fn reset_bools(&mut self) {
         self.has_val0 = false;
         self.has_val1 = false;
@@ -45,7 +68,17 @@ impl Mux {
 
 }
 
+/// Mux implementing Unit trait.
 impl Unit for Mux{
+
+    /// Receives data from a Unit, comes with ID to 
+    /// specify which type of data.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `input_id` - Id to know what type of data is comming
+    /// * `data` - The data
+    /// 
     fn receive(&mut self, input_id: u32, data : Word ){
         //println!("\t mux {} received data {} from {}",self.name, data, input_id);
         if input_id == MUX_IN_0_ID{
@@ -59,13 +92,22 @@ impl Unit for Mux{
         }
     }
 
-
+    /// Receives signal from a Control, comes with ID to 
+    /// specify which signal.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `signal_id` - Id to know what type of signal is comming
+    /// * `signal` - Bool which holds state of signal (high/low)
+    /// 
     fn receive_signal(&mut self ,signal_id:u32, signal: bool){
         //println!("\t mux {} received signal {} with id {}",self.name, signal, signal_id);
         self.signal = signal;
         self.has_signal = true;
     }
 
+    /// Checks if all data and signals needed has been received.
+    /// If that is the case check which data should be forwarded to next Unit.
     fn execute(&mut self){
         // Some type of loop so the signal doesnt go unnoticed
         if self.has_val0 && self.has_val1 && self.has_signal{
@@ -74,10 +116,8 @@ impl Unit for Mux{
             }else{
                 self.output_unit.lock().unwrap().receive(self.output_id, self.data0.to_bitvec());
             }
-            self.reset_bools();
-            
+            self.reset_bools();    
         }
-
     }
 }
 

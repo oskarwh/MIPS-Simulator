@@ -1,0 +1,5 @@
+When doing sinlge instruction the contoler can sen out the signlas when it receives 
+the fucntion bits to all components in the data path. When a new instruction is loaded
+in we reset all signals and send the new ones. However when doing pipelining this needs 
+to be changed, the controler then needs to change specific singals depending on where 
+in the datapath a specific instruction is. How is this done?

@@ -12,7 +12,7 @@ use crate::units::unit::*;
 /// Version information:
 ///    v1.0 2022-12-28: First complete version.
 
-/// AddUnit 
+/// AddUnit Struct
 pub struct AddUnit {
 
     addr : Word,
@@ -23,12 +23,14 @@ pub struct AddUnit {
     mux_branch :Option<Arc<Mutex<dyn Unit>>>,
 }
 
+/// AddUnit Implementation
 impl AddUnit{
+
     /// Returns a new AddUnit.
     ///
     /// # Returns
     ///
-    /// *  AddUnit
+    /// * AddUnit
     ///
     pub fn new() -> AddUnit{
         AddUnit{
@@ -140,7 +142,7 @@ impl AddUnit{
 
 /// AddUnit implementing Unit trait.
 impl<'a> Unit for AddUnit {
-    /// Receives data from some Unit, comes with ID to 
+    /// Receives data from a Unit, comes with ID to 
     /// specify which type of data.
     /// 
     /// # Arguments
@@ -159,7 +161,7 @@ impl<'a> Unit for AddUnit {
         }
     }
 
-    /// Receives signal from some Control, comes with ID to 
+    /// Receives signal from a Control, comes with ID to 
     /// specify which signal.
     /// 
     /// # Arguments
@@ -171,10 +173,9 @@ impl<'a> Unit for AddUnit {
         // DO NOTHING
     }
 
-    /// Checks if all data and signals needed has be recived.
+    /// Checks if all data and signals needed has been received.
     /// If that is the case add the incoming Bit Vectors together and 
     /// send the result to given Mux.
-    /// 
     fn execute(&mut self){
 
         if self.has_addr && self.has_instr{
