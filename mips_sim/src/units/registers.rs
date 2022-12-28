@@ -109,7 +109,7 @@ impl Registers {
 impl Unit for Registers {
 
     fn receive(&mut self, input_id: u32, data : Word){
-        println!("\t registers received {} from {}", data, input_id);
+        //println!("\t registers received {} from {}", data, input_id);
         if input_id ==  REG_READ_1_ID{
             self.read1_reg = data.to_bitvec().into_vec()[0];
             self.has_read1 = true;
@@ -160,8 +160,9 @@ impl Unit for Registers {
         }
 
         if self.has_write_reg && self.has_write_data {
-            if self.reg_write_signal{
-                println!("\t register writing to reg {} with data {}", self.write_reg ,  self.write_data);
+            //Write if signal is on and the register isnt the $zero reg
+            if self.reg_write_signal && self.write_reg != 0{
+                //println!("\t register writing to reg {} with data {}", self.write_reg ,  self.write_data);
                 // Reset register bool
                 self.prev_register_index = self.write_reg as usize;
     

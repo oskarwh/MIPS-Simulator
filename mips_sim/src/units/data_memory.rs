@@ -92,9 +92,9 @@ impl DataMemory{
 impl Unit for DataMemory{
 
     fn receive(&mut self, input_id: u32, data : Word){
-        println!("\t DM received {} from {}", data, input_id);
+        //println!("\t DM received {} from {}", data, input_id);
         if input_id ==  DM_ADDR_ID{
-            self.address = data.into_vec()[0];
+            self.address = data.into_vec()[0]/4;
             self.has_address = true;
         }else if input_id ==  REG_READ_2_ID{
             self.write_data = data;
@@ -106,7 +106,7 @@ impl Unit for DataMemory{
     }
 
     fn receive_signal(&mut self ,signal_id:u32, signal: bool){
-        println!("\t DM received signal {} as {}", signal_id, signal);
+        //println!("\t DM received signal {} as {}", signal_id, signal);
         if signal_id == MEM_READ_SIGNAL{
             self.mem_read_signal = signal;
             self.has_mem_read_signal = true;
@@ -125,7 +125,7 @@ impl Unit for DataMemory{
                 self.data[self.address as usize] = self.write_data.to_bitvec();
                 self.prev_memory_index = self.address as usize;
                 self.prev_data = self.write_data.to_bitvec().into_vec()[0] as i32;
-                println!("\t DM WRITING DATA, {} on index {}", self.prev_data, self.address);
+                //println!("\t DM WRITING DATA, {} on index {}", self.prev_data, self.address);
 
                 // Set bool to let GUI know memory has been updated
                 self.data_updated = true;

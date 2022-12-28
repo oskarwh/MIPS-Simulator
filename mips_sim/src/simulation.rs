@@ -295,7 +295,7 @@ impl Simulation {
         // Update changed register
         let changed_data = reg_file.lock().unwrap().get_changed_register();
         *gui_changed_reg_index.lock().unwrap() = changed_data.1;//update gui with changed index
-        println!("Backend jump to row {}", *gui_changed_reg_index.lock().unwrap());
+        //println!("Backend jump to row {}", *gui_changed_reg_index.lock().unwrap());
         gui_registers.lock().unwrap()[changed_data.1] = changed_data.0;
 
         // Update bool for reg if they have been updated 
@@ -316,7 +316,7 @@ impl Simulation {
         // Update PC and adn set bool to false
         *gui_pc.lock().unwrap() = pc.lock().unwrap().get_program_count()/4;
         
-        println!("---------UPDATING GUI FROM BACKEND FINISHED---------");
+        //println!("---------UPDATING GUI FROM BACKEND FINISHED---------");
     }
 
 
@@ -389,7 +389,7 @@ impl Simulation {
                 }
                 // Check if all instructions is done or simulation is paused
                 if Self::get_program_count_index(pc.clone()) >= n_instructions {
-                    println!("All instructions finished, ending simulation");
+                    //println!("All instructions finished, ending simulation");
                     //*stop_units.lock().unwrap() = true;
                     *gui_enable.lock().unwrap().deref_mut() = true;
                     break;
@@ -411,7 +411,8 @@ impl Simulation {
                     let mut temp = thread.lock().unwrap();
                     temp.execute();
                 }
-                sleep(Duration::from_millis(((1000 as f32)/simulation_speed)  as u64));
+                let sleep_time = 371.25760622*simulation_speed.powf(-1.42121824);
+                sleep(Duration::from_millis(sleep_time as u64));
             }
         });
         thread_handle
@@ -437,9 +438,9 @@ impl Simulation {
 
     pub fn stop_unit_threads(&mut self){
         *self.stop_unit_threads.lock().unwrap() = true;
-       /*  for thread in &self.threads{
+        while let Some(thread) = self.threads.pop(){
             thread.join().unwrap();
-        }*/
+        }
     }
 
 

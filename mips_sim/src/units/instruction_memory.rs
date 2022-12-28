@@ -84,7 +84,7 @@ impl Unit for InstructionMemory{
     fn receive(&mut self, input_id: u32, address : Word){
 
         if input_id ==  IM_READ_ADDRESS_ID{
-            println!("\t Instruction-mem: recevied {}", address);
+            //println!("\t Instruction-mem: recevied {}", address);
             self.current_address = address.to_bitvec().into_vec()[0];
             self.has_address = true;
         } else {
@@ -103,7 +103,7 @@ impl Unit for InstructionMemory{
             //Received address on read_address! Find corresponding instruction. Need to right shift 2 steps (divide by 4)
             self.current_address = self.current_address / 4;
             self.current_instruction = self.instructions[self.current_address as usize].to_bitvec();
-            println!("\t Instruction-mem: i have instruction  {}", self.current_instruction);
+            //println!("\t Instruction-mem: i have instruction  {}", self.current_instruction);
             //Send to concater, word will be shifted left (shift_right because of the way BitVec is designed)
             let mut borrow = self.current_instruction[0..26].to_bitvec();
             borrow.shift_right(2);

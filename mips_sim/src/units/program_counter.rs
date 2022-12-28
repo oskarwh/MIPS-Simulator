@@ -68,7 +68,7 @@ impl Unit for ProgramCounter {
     fn receive(&mut self, input_id: u32, address : Word){
         
         if input_id == PC_IN_ID{
-            println!("\t Program-counter: received new address {}", address);
+            //println!("\t Program-counter: received new address {}", address);
             self.current_address = address;
             self.has_address = true;
         }else{
@@ -83,7 +83,7 @@ impl Unit for ProgramCounter {
 
     fn execute(&mut self){
         if self.has_address {
-            println!("\t Program-counter: Im sending address {}", self.current_address);
+            //println!("\t Program-counter: Im sending address {}", self.current_address);
             //Send address to instruction memory
             self.instruction_memory.as_mut().unwrap().lock().unwrap().receive(IM_READ_ADDRESS_ID, self.current_address.to_bitvec());
 

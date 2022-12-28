@@ -2,9 +2,17 @@ use bitvec::prelude::*;
 use std::sync::{Mutex, Arc};
 use crate::units::unit::*;
 
+/// A MIPS simulator unit. Will add the current PC adress and the offset
+/// given with a BEQ instruction and compute the adress to jump to.
+///
+/// Authors: Jakob Lindehag (c20jlg@cs.umu.se)
+///          Oskar Westerlund Holmgren (c20own@cs.umu.se)
+///          Max Thorén (c20mtn@cs.umu.se)
+///
+/// Version information:
+///    v1.0 2022-12-28: First complete version.
 
-// Liftime paramters
-
+/// AddUnit 
 pub struct AddUnit {
 
     addr : Word,
@@ -15,9 +23,13 @@ pub struct AddUnit {
     mux_branch :Option<Arc<Mutex<dyn Unit>>>,
 }
 
-
-impl<'a> AddUnit{
-    //Define MUX id's
+impl AddUnit{
+    /// Returns a new AddUnit.
+    ///
+    /// # Returns
+    ///
+    /// *  AddUnit
+    ///
     pub fn new() -> AddUnit{
         AddUnit{
             has_instr:false,
@@ -32,12 +44,27 @@ impl<'a> AddUnit{
 
 
 
-        /// Set Functions
-    pub fn set_mux_branch(&'a mut self, mux: Arc<Mutex<dyn Unit>>){
+    /// Set which Mux that the 'AddUnit' which is called on, should send next address to.
+    /// 
+    /// # Arguments
+    ///
+    /// * `mux` - The Mux that should be set
+    ///
+    pub fn set_mux_branch(&mut self, mux: Arc<Mutex<dyn Unit>>){
         self.mux_branch = Some(mux);
     }
 
-
+    /// Adds two Bit Vectors together and returns the new Bit Vector
+    /// and a boolean signaling if there were any overflow.
+    /// 
+    /// # Arguments
+    ///
+    /// * `data1` - First Bit Vector
+    /// * `data2` - Second Bit Vector
+    /// 
+    /// # Returns
+    ///
+    /// *  (Word, bool) - Word holds the new Bit Vector and the bool if there were overflow.
     fn add(data1:Word, data2:Word)->(Word,bool){
         let mut res:Word = bitvec![u32, Lsb0; 0; 32];
         let mut overflow:bool = false;
@@ -60,9 +87,19 @@ impl<'a> AddUnit{
     
     }
 
+ 
+    /// Adds two bits together using a carry in from previous add and 
+    /// returning a the sum and carry out.
+    /// 
+    /// # Arguments
     ///
-    /// Adds bit a with bit b using carry_in
-    /// Returns sum and carry out as tuple (sum, carry_out)
+    /// * `carry_in` - Overflow from previous bit add
+    /// * `a` - First bit
+    /// * `b` - Second bit
+    /// 
+    /// # Returns
+    ///
+    /// *  (bool, bool) - First bool holds sum from add, second holds any overflow.
     /// 
     fn add_bits(carry_in:bool, a:bool, b:bool)->(bool, bool){
         let temp_carry1 = carry_in && a;
@@ -81,8 +118,17 @@ impl<'a> AddUnit{
         (sum, carry_out)
     }
 
-    ///Detects overflow during addition on two words
-    /// Takes msb for both words (a,b) current carry, the current sum and b_invert (to know if we are doing subtraction)
+    /// Detects overflow during addition on two Bit Vectors.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `sum` - Carry in
+    /// * `a`- Most significant bit from first word
+    /// * `b`- Most significant bit from second word
+    /// 
+    ///  # Result
+    /// 
+    /// * bool - True if overflow was detected otherwise false.
     fn detect_overflow(sum:bool , a:bool, b:bool)->bool{
         //Check for overflow, follows fig 3.2 in the course book
         (!a && !b && sum || a && b && !sum)
@@ -92,10 +138,18 @@ impl<'a> AddUnit{
     
 }
 
+/// AddUnit implementing Unit trait.
 impl<'a> Unit for AddUnit {
-    
+    /// Receives data from some Unit, comes with ID to 
+    /// specify which type of data.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `input_id` - Id to know what type of data is comming
+    /// * `data` - The data
+    /// 
     fn receive(&mut self, input_id: u32, data : Word){
-        println!("\t Add unit: received {} from {}", data, input_id);
+       // println!("\t Add unit: received {} from {}", data, input_id);
         if input_id == ADD_IN_1_ID{
             self.addr = data;
             self.has_addr = true;
@@ -105,11 +159,22 @@ impl<'a> Unit for AddUnit {
         }
     }
 
+    /// Receives signal from some Control, comes with ID to 
+    /// specify which signal.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `signal_id` - Id to know what type of signal is comming
+    /// * `signal` - Bool which holds state of signal (high/low)
+    /// 
     fn receive_signal(&mut self ,signal_id:u32, signal: bool) {
         // DO NOTHING
     }
 
-    //Execute unit with thread
+    /// Checks if all data and signals needed has be recived.
+    /// If that is the case add the incoming Bit Vectors together and 
+    /// send the result to given Mux.
+    /// 
     fn execute(&mut self){
 
         if self.has_addr && self.has_instr{

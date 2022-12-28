@@ -120,7 +120,7 @@ impl ALU {
     
                     if i == 31{
                         overflow = Self::detect_overflow(res_bit, word_a[i], word_b[i]);
-                        res.set(0, res_bit || carry_out);
+                        res.set(0, res_bit);
                     }else{
                         res.set(i, false);
                     }   
@@ -165,8 +165,8 @@ impl ALU {
         //Check if result is zero with same method as in hardware
         
         let zero = Self::is_zero(res.to_bitvec());
-        println!("\t Alu zero: {}", zero);
-        println!("\t Res: {}", res);
+        ////println!("\t Alu zero: {}", zero);
+        ////println!("\t Res: {}", res);
         (res, overflow,zero)
     }  
 
@@ -235,7 +235,7 @@ impl ALU {
 
 impl Unit for ALU  {
     fn receive(&mut self, input_id: u32, data : Word){
-        println!("\t Alu: I received data {} from {}", data, input_id);
+        ////println!("\t Alu: I received data {} from {}", data, input_id);
         if input_id == ALU_IN_1_ID{
             self.data1 = data;
             self.has_data1 = true;
@@ -251,7 +251,7 @@ impl Unit for ALU  {
     }
 
     fn receive_signal(&mut self ,signal_id:u32, signal: bool) {
-        println!("\t Alu: I received signal {}", signal_id);
+        ////println!("\t Alu: I received signal {}", signal_id);
         if signal_id == ALU_CTRL0_SIGNAL{
             self.alu_signal0 = signal;
             self.has_alu_signal0 =true;
@@ -280,8 +280,8 @@ impl Unit for ALU  {
             //Need to set carry_in here because alu_signal2 choses if its true or false
             let mut carry_in:bool = false;
             //Check if input should be inverted (bit 3 in control signal => a-invert, bit 2 => b-invert)
-            println!("\tAlu: i have \n\t data1 {} \n\t data2 {}", self.data1, self.data2);
-            println!("\tcontrol bits: {} {} {} {}", self.alu_signal3,self.alu_signal2,self.alu_signal1,self.alu_signal0);
+            ////println!("\tAlu: i have \n\t data1 {} \n\t data2 {}", self.data1, self.data2);
+            ////println!("\tcontrol bits: {} {} {} {}", self.alu_signal3,self.alu_signal2,self.alu_signal1,self.alu_signal0);
             if self.alu_signal3{
                 self.data1= self.data1.to_bitvec().not();
             }
@@ -296,20 +296,20 @@ impl Unit for ALU  {
                     match self.alu_signal1{
                         true =>{
                             if self.alu_signal0{
-                                println!("SLT");
+                                ////println!("SLT");
                                 Operand::Slt
                             }else{
-                                println!("ADD");
+                                ////println!("ADD");
                                 Operand::Add
                             }
         
                         }
                         false =>{
                             if self.alu_signal0{
-                                println!("OR");
+                                ////println!("OR");
                                 Operand::Or
                             }else{
-                                println!("AND");
+                                ////println!("AND");
                                 Operand::And
                             }
                         }
@@ -318,10 +318,10 @@ impl Unit for ALU  {
                 }
                 true=>{
                     if self.alu_signal0{
-                        println!("SRA");
+                        ////println!("SRA");
                         Operand::Sra
                     }else{
-                        println!("Srl");
+                        ////println!("Srl");
                         Operand::Srl
                     }
                 }

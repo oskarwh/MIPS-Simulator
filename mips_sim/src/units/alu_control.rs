@@ -3,7 +3,16 @@ use std::sync::{Mutex, Arc};
 use bitvec::prelude::*;
 use crate::units::unit::*;
 
-
+/// A MIPS simulator unit. A controller for the ALU, will give the ALU
+/// different instruction depending on signals from the Controll and 
+/// the different function codes for the R-type instruction.
+///
+/// Authors: Jakob Lindehag (c20jlg@cs.umu.se)
+///          Oskar Westerlund Holmgren (c20own@cs.umu.se)
+///          Max Thorén (c20mtn@cs.umu.se)
+///
+/// Version information:
+///    v1.0 2022-12-28: First complete version.
 
 
 pub struct AluControl{
@@ -155,7 +164,7 @@ impl Unit for AluControl {
     
     fn receive (&mut self, input_id : u32, data :BitVec::<u32, LocalBits>) {
         if input_id == ALU_CTRL_IN_ID {
-            println!("\t Alu Control received: {}",data);
+            //println!("\t Alu Control received: {}",data);
             self.funct = data;
             self.has_funct = true;
         }else {

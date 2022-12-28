@@ -53,7 +53,7 @@ impl<'a> Control {
     }
 
     pub fn set_r_signals(&mut self) {
-        println!("\t Controller sending r signals");
+        //println!("\t Controller sending r signals");
         // Signals that will be high
         self.mux_reg_dst.lock().unwrap().receive_signal(DEFAULT_SIGNAL, true);
         self.reg_file.lock().unwrap().receive_signal(DEFAULT_SIGNAL, true);
@@ -74,7 +74,7 @@ impl<'a> Control {
     }
 
     pub fn set_lw_signals(&mut self) {
-        println!("\t Controller sending lw signals");
+        //println!("\t Controller sending lw signals");
         // Set alu src to high to change input to immediate value
         self.mux_alu_src.lock().unwrap().receive_signal(DEFAULT_SIGNAL, true);
         // Set high to save data memory in register
@@ -97,7 +97,7 @@ impl<'a> Control {
     }
 
     pub fn set_sw_signals(&mut self) {
-        println!("\t Controller sending sw signals");
+        //println!("\t Controller sending sw signals");
         // Set alu src to high to change input to immediate value
         self.mux_alu_src.lock().unwrap().receive_signal(DEFAULT_SIGNAL, true);
         // Since data mem has two signals we to define which signal to assert,
@@ -118,7 +118,7 @@ impl<'a> Control {
     }
 
     pub fn set_beq_signals(&mut self) {
-        println!("\t Controller sending beq signals");
+        //println!("\t Controller sending beq signals");
         // Set singal to branch high
         self.ander_branch.lock().unwrap().receive_signal(BRANCH_SIGNAL, true);
         // Since alu ctrl has two signals we have to define which signal to assert.
@@ -138,7 +138,7 @@ impl<'a> Control {
     }
 
     pub fn set_j_signals(&mut self) {
-        println!("\t Controller sending j signals");
+        //println!("\t Controller sending j signals");
         // Set jump mux to high
         self.mux_jump.lock().unwrap().receive_signal(DEFAULT_SIGNAL, true);
 
@@ -158,7 +158,7 @@ impl<'a> Control {
 
 
     pub fn set_addi_signals(&mut self) {
-        println!("\t Controller sending addi signals");
+        //println!("\t Controller sending addi signals");
         // Set alu input to immidiete
         self.mux_alu_src.lock().unwrap().receive_signal(DEFAULT_SIGNAL, true);
 
@@ -187,7 +187,7 @@ impl<'a> Control {
     }
 
     pub fn set_ori_signals(&mut self) {
-        println!("\t Controller sending ori signals");
+        //println!("\t Controller sending ori signals");
         // Set alu input to immidiete
         self.mux_alu_src.lock().unwrap().receive_signal(DEFAULT_SIGNAL, true);
 
@@ -216,7 +216,7 @@ impl<'a> Control {
     }
 
     /*pub fn set_jr_signals(&mut self) {
-        println!("\t Controller sending jr signals");
+        //println!("\t Controller sending jr signals");
         // Signals that will be high
         self.mux_reg_dst.lock().unwrap().receive_signal(DEFAULT_SIGNAL, true);
 
@@ -269,8 +269,8 @@ impl Unit for Control{
             }
             
         }else if input_id == OP_CONTROL {
-            println!("\t Control received: {}",data);
-            println!("\t as u32: {:#032b}", data.to_bitvec().into_vec()[0]);
+            //println!("\t Control received: {}",data);
+            //println!("\t as u32: {:#032b}", data.to_bitvec().into_vec()[0]);
             
             match data.to_bitvec().into_vec()[0] {
                 // R-format instructions 
