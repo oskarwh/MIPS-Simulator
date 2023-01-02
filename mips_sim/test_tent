@@ -1,0 +1,9 @@
+	sll $s1, $s1, 8 
+	sra $s2, $s3, 12 
+loop: sub $s2, $s0, $s2 
+	addi $s2, $s2, 45 
+	beq $s2, $s4, jump 
+	nop 
+	j loop 
+jump: addi $s2, $s4, 35 
+	nop

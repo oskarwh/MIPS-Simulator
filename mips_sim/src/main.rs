@@ -78,7 +78,7 @@ fn main() {
     let sim_controller = SimulationController::new();
 
     eframe::run_native(
-        "eframe template",
+        "MIPS Simulator",
         native_options,
         Box::new(|cc| Box::new(MipsApp::new(cc, sim_controller))),
     );

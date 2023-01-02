@@ -572,10 +572,10 @@ impl eframe::App for MipsApp {
                     .resizable(true)
                     .width_range(300.0..=600.0)
                     .show(ctx, |ui| {
-                        ui.heading("Data memory panel");
+                        ui.heading("Data memory");
                         ui.vertical(|ui| {
                             ScrollArea::horizontal()
-                                .id_source("data scorll")
+                                .id_source("data scroll")
                                 .show(ui, |ui| {
                                     MipsApp::memory_table(
                                         &mut self.selected,
