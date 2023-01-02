@@ -1,4 +1,3 @@
-
 use std::ops::BitAnd;
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -8,7 +7,17 @@ use std::ops::BitOr;
 use std::ops::Not;
 use crate::units::unit::*;
 
+/// A MIPS simulator unit. The ALU or Arithmetic and Logic Unit perfroms different operation on the received data based 
+/// on which signals it recives from the ALU Control. 
+///
+/// Authors: Jakob Lindehag (c20jlg@cs.umu.se)
+///          Oskar Westerlund Holmgren (c20own@cs.umu.se)
+///          Max Thorén (c20mtn@cs.umu.se)
+///
+/// Version information:
+///    v1.0 2022-12-28: First complete version.
 
+/// Enum for ALU operations
 enum Operand{
     Add,
     And,
@@ -18,6 +27,7 @@ enum Operand{
     Sra,
 }
 
+/// ALU Struct
 pub struct ALU {
 
     data1 : Word,
@@ -47,9 +57,14 @@ pub struct ALU {
 
 }
 
-
+/// ALU Implementation
 impl ALU {
-    //Define MUX id's
+    /// Returns a new ALU.
+    ///
+    /// # Returns
+    ///
+    /// * ALU
+    ///
     pub fn new() -> ALU {
         ALU { 
             data1: bitvec![u32, Lsb0; 0; 32],
@@ -84,8 +99,21 @@ impl ALU {
     }
 
 
-   
-    /// returns (result, overflow, zero)
+    /// Processes the two incoming Bit Vectors using a operation chosen as a argument.
+    /// Subtraction uses Add operation with a carry in and inverted Bit Vectors.
+    /// 
+    /// # Arguments
+    ///
+    /// * `operation` - The operation to perform
+    /// * `data1` - First Bit Vector
+    /// * `data2` - Second Bit Vector
+    /// * `shamt` - Shift amount
+    /// * `carry_in` - Bool that holds carry_in
+    /// 
+    /// # Returns
+    /// 
+    /// * (Word, bool, bool) - Computed result, Overflow if there is any, Boolean to check if Bit Vectors are equal
+    ///
     fn process_data(operation:Operand, data1:Word, data2:Word, shamt:u32,mut carry_in:bool)->(Word,bool,bool){
         let mut res:Word = bitvec![u32, Lsb0; 0; 32];
         let mut overflow:bool = false;
@@ -120,7 +148,7 @@ impl ALU {
     
                     if i == 31{
                         overflow = Self::detect_overflow(res_bit, word_a[i], word_b[i]);
-                        res.set(0, res_bit || carry_out);
+                        res.set(0, res_bit);
                     }else{
                         res.set(i, false);
                     }   
@@ -165,28 +193,58 @@ impl ALU {
         //Check if result is zero with same method as in hardware
         
         let zero = Self::is_zero(res.to_bitvec());
-        println!("\t Alu zero: {}", zero);
-        println!("\t Res: {}", res);
+        ////println!("\t Alu zero: {}", zero);
+        ////println!("\t Res: {}", res);
         (res, overflow,zero)
     }  
 
-        /// Set Functions
+
+    /// Set which Mux that the 'ALU' which is called on, should send the computed result to.
+    /// Which in turn controls what should be sent back to Register File.
+    /// 
+    /// # Arguments
+    ///
+    /// * `mux` - The Mux that should be set
+    ///
     pub fn set_mux_mem_to_reg(&mut self, mux: Arc<Mutex<dyn Unit>>){
         self.mux_mem_to_reg = Some(mux);
     }
 
+    /// Set a Data Memory that the 'AluControl' which is called on, should send the computed result to.
+    /// 
+    /// # Arguments
+    ///
+    /// * `dm` - The Data Memory that should be set
+    ///
     pub fn set_data_mem_to_reg(&mut self, dm: Arc<Mutex<dyn Unit>>){
         self.data_memory = Some(dm);
     }
 
+    /// Set a "Ander" that the 'AluControl' which is called on, should send zero signal to
+    /// if a BEQ instruction is true.
+    /// 
+    /// # Arguments
+    ///
+    /// * `ander` - The "Ander" that should be set
+    ///
     pub fn set_ander(&mut self, ander: Arc<Mutex<dyn Unit>>){
         self.ander = Some(ander);
     }
 
 
+
+    /// Adds two bits together using a carry in from previous add and 
+    /// returning a the sum and carry out.
+    /// 
+    /// # Arguments
     ///
-    /// Adds bit a with bit b using carry_in
-    /// Returns sum and carry out as tuple (sum, carry_out)
+    /// * `carry_in` - Overflow from previous bit add
+    /// * `a` - First bit
+    /// * `b` - Second bit
+    /// 
+    /// # Returns
+    ///
+    /// *  (bool, bool) - First bool holds sum from add, second holds any overflow.
     /// 
     fn add_bits(carry_in:bool, a:bool, b:bool)->(bool, bool){
         let temp_carry1 = carry_in && a;
@@ -205,14 +263,31 @@ impl ALU {
         (sum, carry_out)
     }
 
-    ///Detects overflow during addition on two words
-    /// Takes msb for both words (a,b) current carry, the current sum and b_invert (to know if we are doing subtraction)
+    /// Detects overflow during addition on two Bit Vectors.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `sum` - Carry in
+    /// * `a`- Most significant bit from first word
+    /// * `b`- Most significant bit from second word
+    /// 
+    ///  # Result
+    /// 
+    /// * bool - True if overflow was detected otherwise false.
     fn detect_overflow(sum:bool , a:bool, b:bool)->bool{
         //Check for overflow, follows fig 3.2 in the course book
         (!a && !b && sum || a && b && !sum)
     }
 
-    ///Check if word is equal to zero
+    /// Check if Bit Vector is equal to zero.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `word` - Bit Vector to check
+    /// 
+    /// # Returns
+    /// 
+    /// * bool - True if Bit Vector is Zero otherwise false.
     fn is_zero(word:Word)->bool{
         let mut zero:bool = false;
         for i in 0..32{
@@ -222,6 +297,7 @@ impl ALU {
         zero
     }
 
+    /// Resets bools that holds wether or not incoming signals and function code has been recived.
     fn reset_bools(&mut self) {
         self.has_data1 = false;
         self.has_data2 = false;
@@ -233,9 +309,19 @@ impl ALU {
 
 }
 
+/// ALU implementing Unit trait.
 impl Unit for ALU  {
+
+    /// Receives data from a Unit, comes with ID to 
+    /// specify which type of data.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `input_id` - Id to know what type of data is comming
+    /// * `data` - The data
+    /// 
     fn receive(&mut self, input_id: u32, data : Word){
-        println!("\t Alu: I received data {} from {}", data, input_id);
+        ////println!("\t Alu: I received data {} from {}", data, input_id);
         if input_id == ALU_IN_1_ID{
             self.data1 = data;
             self.has_data1 = true;
@@ -250,8 +336,16 @@ impl Unit for ALU  {
         }
     }
 
+    /// Receives signal from a Control, comes with ID to 
+    /// specify which signal.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `signal_id` - Id to know what type of signal is comming
+    /// * `signal` - Bool which holds state of signal (high/low)
+    /// 
     fn receive_signal(&mut self ,signal_id:u32, signal: bool) {
-        println!("\t Alu: I received signal {}", signal_id);
+        ////println!("\t Alu: I received signal {}", signal_id);
         if signal_id == ALU_CTRL0_SIGNAL{
             self.alu_signal0 = signal;
             self.has_alu_signal0 =true;
@@ -272,7 +366,9 @@ impl Unit for ALU  {
         }
     }
 
-        //Execute unit with thread
+    /// Checks if all data and signals needed has been received.
+    /// If that is the case checks based on incoming signals which operation to 
+    /// perform on incoming data and perfroms correct operation.
     fn execute(&mut self){
         if self.has_data1 && self.has_data2 && self.has_alu_signal0 &&  self.has_alu_signal1 && self.has_alu_signal2 
                 && self.has_alu_signal3 && self.has_alu_signal4 && self.has_shamt{
@@ -280,8 +376,8 @@ impl Unit for ALU  {
             //Need to set carry_in here because alu_signal2 choses if its true or false
             let mut carry_in:bool = false;
             //Check if input should be inverted (bit 3 in control signal => a-invert, bit 2 => b-invert)
-            println!("\tAlu: i have \n\t data1 {} \n\t data2 {}", self.data1, self.data2);
-            println!("\tcontrol bits: {} {} {} {}", self.alu_signal3,self.alu_signal2,self.alu_signal1,self.alu_signal0);
+            ////println!("\tAlu: i have \n\t data1 {} \n\t data2 {}", self.data1, self.data2);
+            ////println!("\tcontrol bits: {} {} {} {}", self.alu_signal3,self.alu_signal2,self.alu_signal1,self.alu_signal0);
             if self.alu_signal3{
                 self.data1= self.data1.to_bitvec().not();
             }
@@ -296,20 +392,20 @@ impl Unit for ALU  {
                     match self.alu_signal1{
                         true =>{
                             if self.alu_signal0{
-                                println!("SLT");
+                                ////println!("SLT");
                                 Operand::Slt
                             }else{
-                                println!("ADD");
+                                ////println!("ADD");
                                 Operand::Add
                             }
         
                         }
                         false =>{
                             if self.alu_signal0{
-                                println!("OR");
+                                ////println!("OR");
                                 Operand::Or
                             }else{
-                                println!("AND");
+                                ////println!("AND");
                                 Operand::And
                             }
                         }
@@ -318,10 +414,10 @@ impl Unit for ALU  {
                 }
                 true=>{
                     if self.alu_signal0{
-                        println!("SRA");
+                        ////println!("SRA");
                         Operand::Sra
                     }else{
-                        println!("Srl");
+                        ////println!("Srl");
                         Operand::Srl
                     }
                 }

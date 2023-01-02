@@ -25,7 +25,7 @@ impl SimulationController {
     ) -> SimulationController {
         SimulationController{
             simulation:None,
-            default_speed:100 as f32
+            default_speed: 1000 as f32
         }
     }
 
@@ -74,7 +74,7 @@ impl SimulationController {
         data_updated_bool:Arc<Mutex<bool>>,
     ) {
         if !self.simulation.as_mut().unwrap().all_instructions_finished(){
-            println!("Step");
+            //println!("Step");
             self.simulation.as_mut().unwrap().step_simulation(gui_registers, gui_data_memory, gui_pc, gui_enable,gui_changed_dm_index,gui_changed_reg_index
                 , reg_updated_bool, data_updated_bool);  
         }
@@ -86,15 +86,16 @@ impl SimulationController {
         gui_data_memory:Arc<Mutex<Vec<i32>>>,
         gui_pc:Arc<Mutex<u32>>,
         gui_enable:Arc<Mutex<bool>>,
+        gui_simulation_speed: f32,
         gui_changed_dm_index:Arc<Mutex<usize>>,
         gui_changed_reg_index:Arc<Mutex<usize>>,
         reg_updated_bool:Arc<Mutex<bool>>,
         data_updated_bool:Arc<Mutex<bool>>,
     ){
         if !self.simulation.as_mut().unwrap().all_instructions_finished(){
-            println!("Run");
-            //self.simulation.as_mut().unwrap().stop_unit_threads();
-            //self.simulation.as_mut().unwrap().start_simulation(gui_simulation_speed);
+            //println!("Run");
+            self.simulation.as_mut().unwrap().stop_unit_threads();
+            self.simulation.as_mut().unwrap().start_simulation(gui_simulation_speed);
             self.simulation.as_mut().unwrap().run_simulation(gui_registers, gui_data_memory, gui_pc, gui_enable,gui_changed_dm_index,gui_changed_reg_index
                 , reg_updated_bool, data_updated_bool);
         }

@@ -1,0 +1,9 @@
+# Test program for beq
+	addi $t1, $zero, 10 #Init iterate count for loop
+	add $t0, $zero, $zero #init iterate counter
+	addi $t2, $zero, 1 #Init 1
+loop: 
+	addi $t0, $t0, 1
+	sra $s1, $t0, 1 #Do something
+	slt $s0, $t0, $t1
+	beq $s0, $t2,  loop

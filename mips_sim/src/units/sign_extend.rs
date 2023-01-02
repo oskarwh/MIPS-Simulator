@@ -41,7 +41,7 @@ impl SignExtend{
 impl Unit for SignExtend{
 
     fn receive(&mut self, input_id: u32, data : Word){
-        println!("\t Sign extend received {}", data);
+        //println!("\t Sign extend received {}", data);
         if input_id == SE_IN_ID{
             self.data = data;
             self.has_data = true;

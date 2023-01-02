@@ -63,6 +63,7 @@ pub struct MipsApp {
     mips_instructions: Vec<(String, bool)>,
     program_counter: Arc<Mutex<u32>>,
     simulation_paused: Arc<Mutex<bool>>,
+    simulation_speed: f32,
     data_index: Arc<Mutex<usize>>,
     register_index: Arc<Mutex<usize>>,
     valid_file: bool,
@@ -91,6 +92,7 @@ impl MipsApp {
             mips_instructions: Vec::new(),
             program_counter: Arc::new(Mutex::new(0)),
             simulation_paused: Arc::new(Mutex::new(true)),
+            simulation_speed: 8.0,
             data_index: Arc::new(Mutex::new(1001)),
             register_index: Arc::new(Mutex::new(33)),
             valid_file: true,
@@ -661,6 +663,7 @@ impl eframe::App for MipsApp {
                                         self.data_memory.clone(),
                                         self.program_counter.clone(),
                                         self.simulation_paused.clone(),
+                                        self.simulation_speed.clone(),
                                         self.data_index.clone(),
                                         self.register_index.clone(),
                                         self.updated_reg.clone(),
@@ -698,6 +701,12 @@ impl eframe::App for MipsApp {
                                 );
                                 self.stepped = true;
                             }
+                            // Add slider for simulation speed
+                            ui.add_enabled(
+                                *self.simulation_paused.lock().unwrap(),
+                                Slider::new(&mut self.simulation_speed, 0.5..=12.5)
+                                    .text("Instructions/Sec"),
+                            );
                         });
                     });
                     // Add tables

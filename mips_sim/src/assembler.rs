@@ -32,11 +32,11 @@ enum InstructionType {
     R1,
     /// First I-Type instruction.
     R2,
-    /// Second I-Type instruction.
+    /// First I-Type instruction.
     I1,
-    /// Third I-Type instruction.
+    /// Second I-Type instruction.
     I2,
-    /// Fourth I-Type instruction.
+    /// Third I-Type instruction.
     I3,
     /// First J-Type instruction.
     J1,
