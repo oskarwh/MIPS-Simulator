@@ -1,6 +1,7 @@
 # Test program for beq
 	addi $t1, $zero, 10 #Init iterate count for loop
 	add $t0, $zero, $zero #init iterate counter
+	exit
 	addi $t2, $zero, 1 #Init 1
 loop: 
 	addi $t0, $t0, 1

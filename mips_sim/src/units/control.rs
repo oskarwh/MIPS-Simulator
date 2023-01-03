@@ -72,7 +72,6 @@ impl<'a> Control {
 
     /// Sets all signals in the given Units to perform a R-type Instruction.
     pub fn set_r_signals(&mut self) {
-        //println!("\t Controller sending r signals");
         // Signals that will be high
         self.mux_reg_dst.lock().unwrap().receive_signal(DEFAULT_SIGNAL, true);
         self.reg_file.lock().unwrap().receive_signal(DEFAULT_SIGNAL, true);
@@ -89,12 +88,10 @@ impl<'a> Control {
         self.mux_jump.lock().unwrap().receive_signal(DEFAULT_SIGNAL, false);
         self.alu_ctrl.lock().unwrap().receive_signal(ALU_OP0_SIGNAL, false);
         self.alu_ctrl.lock().unwrap().receive_signal(ALU_OP2_SIGNAL, false);
-        //self.mux_jr.lock().unwrap().receive_signal(DEFAULT_SIGNAL, false);
     }
 
     /// Sets all signals in the given Units to perform a Load Word Instruction.
     pub fn set_lw_signals(&mut self) {
-        //println!("\t Controller sending lw signals");
         // Set alu src to high to change input to immediate value
         self.mux_alu_src.lock().unwrap().receive_signal(DEFAULT_SIGNAL, true);
         // Set high to save data memory in register
@@ -113,12 +110,10 @@ impl<'a> Control {
          self.alu_ctrl.lock().unwrap().receive_signal(ALU_OP0_SIGNAL, false);
          self.alu_ctrl.lock().unwrap().receive_signal(ALU_OP1_SIGNAL, false);
          self.alu_ctrl.lock().unwrap().receive_signal(ALU_OP2_SIGNAL, false);
-         //self.mux_jr.lock().unwrap().receive_signal(DEFAULT_SIGNAL, false);
     }
 
     /// Sets all signals in the given Units to perform a Store Word Instruction.
     pub fn set_sw_signals(&mut self) {
-        //println!("\t Controller sending sw signals");
         // Set alu src to high to change input to immediate value
         self.mux_alu_src.lock().unwrap().receive_signal(DEFAULT_SIGNAL, true);
         // Since data mem has two signals we to define which signal to assert,
@@ -135,12 +130,10 @@ impl<'a> Control {
         self.alu_ctrl.lock().unwrap().receive_signal(ALU_OP0_SIGNAL, false);
         self.alu_ctrl.lock().unwrap().receive_signal(ALU_OP1_SIGNAL, false);
         self.alu_ctrl.lock().unwrap().receive_signal(ALU_OP2_SIGNAL, false);
-        //self.mux_jr.lock().unwrap().receive_signal(DEFAULT_SIGNAL, false);
     }
 
     /// Sets all signals in the given Units to perform a Branch Equal Instruction.
     pub fn set_beq_signals(&mut self) {
-        //println!("\t Controller sending beq signals");
         // Set singal to branch high
         self.ander_branch.lock().unwrap().receive_signal(BRANCH_SIGNAL, true);
         // Since alu ctrl has two signals we have to define which signal to assert.
@@ -156,12 +149,10 @@ impl<'a> Control {
         self.reg_file.lock().unwrap().receive_signal(DEFAULT_SIGNAL, false);
         self.alu_ctrl.lock().unwrap().receive_signal(ALU_OP1_SIGNAL, false);
         self.alu_ctrl.lock().unwrap().receive_signal(ALU_OP2_SIGNAL, false);
-        //self.mux_jr.lock().unwrap().receive_signal(DEFAULT_SIGNAL, false);
     }
 
     /// Sets all signals in the given Units to perform an Jump Instruction.
     pub fn set_j_signals(&mut self) {
-        //println!("\t Controller sending j signals");
         // Set jump mux to high
         self.mux_jump.lock().unwrap().receive_signal(DEFAULT_SIGNAL, true);
 
@@ -176,12 +167,10 @@ impl<'a> Control {
         self.alu_ctrl.lock().unwrap().receive_signal(ALU_OP0_SIGNAL, false);
         self.alu_ctrl.lock().unwrap().receive_signal(ALU_OP1_SIGNAL, false);
         self.alu_ctrl.lock().unwrap().receive_signal(ALU_OP2_SIGNAL, false);
-        //self.mux_jr.lock().unwrap().receive_signal(DEFAULT_SIGNAL, false);
     }
 
     /// Sets all signals in the given Units to perform an Add immediate Instruction.
     pub fn set_addi_signals(&mut self) {
-        //println!("\t Controller sending addi signals");
         // Set alu input to immidiete
         self.mux_alu_src.lock().unwrap().receive_signal(DEFAULT_SIGNAL, true);
 
@@ -206,12 +195,10 @@ impl<'a> Control {
         self.alu_ctrl.lock().unwrap().receive_signal(ALU_OP0_SIGNAL, false);
         self.alu_ctrl.lock().unwrap().receive_signal(ALU_OP1_SIGNAL, false);
         self.alu_ctrl.lock().unwrap().receive_signal(ALU_OP2_SIGNAL, false);
-        //self.mux_jr.lock().unwrap().receive_signal(DEFAULT_SIGNAL, false);
     }
 
     /// Sets all signals in the given Units to perform an Or immediate Instruction.
     pub fn set_ori_signals(&mut self) {
-        //println!("\t Controller sending ori signals");
         // Set alu input to immidiete
         self.mux_alu_src.lock().unwrap().receive_signal(DEFAULT_SIGNAL, true);
 
@@ -236,7 +223,6 @@ impl<'a> Control {
         self.alu_ctrl.lock().unwrap().receive_signal(ALU_OP0_SIGNAL, false);
         self.alu_ctrl.lock().unwrap().receive_signal(ALU_OP1_SIGNAL, false);
         self.alu_ctrl.lock().unwrap().receive_signal(ALU_OP2_SIGNAL, true);
-        //self.mux_jr.lock().unwrap().receive_signal(DEFAULT_SIGNAL, false);
     }
 
     /// Set signal to chose address from register or using current address +4.
@@ -277,8 +263,6 @@ impl Unit for Control{
         
         // If a OP code check what type of instruction
         }else if input_id == OP_CONTROL {
-            //println!("\t Control received: {}",data);
-            //println!("\t as u32: {:#032b}", data.to_bitvec().into_vec()[0]);
             
             match data.to_bitvec().into_vec()[0] {
                 // R-format instructions 

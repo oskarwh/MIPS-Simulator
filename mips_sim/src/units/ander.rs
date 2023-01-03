@@ -83,7 +83,6 @@ impl Unit for Ander{
     /// * `signal` - Bool which holds state of signal (high/low)
     /// 
     fn receive_signal(&mut self ,signal_id:u32, signal: bool) {
-        //println!("\t Ander received signal {} from {}", signal, signal_id);
         if signal_id == ZERO_SIGNAL{
             self.zero_signal = signal;
             self.has_zero_signal = true;

@@ -19,6 +19,7 @@ use crate::units::data_memory::*;
 use crate::units::concater::*;
 
 use bitvec::prelude::*;
+use bitvec::ptr::Mut;
 
 
 use crate::units::registers::*;
@@ -224,10 +225,13 @@ impl Simulation {
         gui_changed_reg_index:Arc<Mutex<usize>>,
         reg_updated_bool:Arc<Mutex<bool>>,
         data_updated_bool:Arc<Mutex<bool>>,
+        exit_locations: &Vec<u32>,
+        exit_found: Arc<Mutex<bool>>
     ) {
 
         Self::step_simulation_thread(gui_registers, gui_data_memory, gui_pc, gui_enable,gui_changed_dm_index, gui_changed_reg_index, 
-            self.arc_pc.clone(), self.arc_registers.clone(), self.arc_data_memory.clone(), reg_updated_bool, data_updated_bool);
+            self.arc_pc.clone(), self.arc_registers.clone(), self.arc_data_memory.clone(), reg_updated_bool, data_updated_bool,
+            exit_locations, exit_found);
     }
     
     fn step_simulation_thread(
@@ -242,12 +246,15 @@ impl Simulation {
         data_memory: Arc<Mutex<DataMemory>>,
         reg_updated_bool:Arc<Mutex<bool>>,
         data_updated_bool:Arc<Mutex<bool>>,
+        exit_locations: &Vec<u32>,
+        exit_found: Arc<Mutex<bool>>
         ){
         let mut reg_chain_completed  = false;
         let mut pc_chain_completed = false;
-        let simulation_handle = thread::spawn(move||{
+
+            let simulation_handle = thread::spawn(move||{
             {
-                pc.lock().unwrap().execute(); 
+            pc.lock().unwrap().execute(); 
             } 
             
             loop {
@@ -329,11 +336,14 @@ impl Simulation {
         gui_changed_reg_index:Arc<Mutex<usize>>,
         reg_updated_bool:Arc<Mutex<bool>>,
         data_updated_bool:Arc<Mutex<bool>>,
+        exit_locations: &Vec<u32>,
+        exit_found: Arc<Mutex<bool>>
     ) {
         *self.stop_run_simulation.lock().unwrap() = false;
         Self::run_simulation_thread(gui_registers, gui_data_memory, gui_pc, gui_enable,gui_changed_dm_index,gui_changed_reg_index, 
             self.arc_pc.clone(), self.arc_registers.clone(), self.arc_data_memory.clone(), self.number_of_instructions, 
-            self.stop_unit_threads.clone(), self.stop_run_simulation.clone(), reg_updated_bool, data_updated_bool);
+            self.stop_unit_threads.clone(), self.stop_run_simulation.clone(), reg_updated_bool, data_updated_bool,
+            exit_locations, exit_found);
     }
 
     fn run_simulation_thread(
@@ -351,11 +361,13 @@ impl Simulation {
         stop_run:Arc<Mutex<bool>>,
         reg_updated_bool:Arc<Mutex<bool>>,
         data_updated_bool:Arc<Mutex<bool>>,
+        exit_locations: &Vec<u32>,
+        exit_found: Arc<Mutex<bool>>
     ){
         
         let mut reg_chain_completed  = false;
         let mut pc_chain_completed = false;
-        let simulation_handle = thread::spawn(move||{
+            let simulation_handle = thread::spawn(move||{
             loop {
                 {
                     pc.lock().unwrap().execute(); 

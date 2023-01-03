@@ -71,6 +71,7 @@ pub struct MipsApp {
     updated_data: Arc<Mutex<bool>>,
     updated_reg: Arc<Mutex<bool>>,
     stepped: bool,
+    exit_found: Arc<Mutex<bool>>,
 }
 
 impl MipsApp {
@@ -100,6 +101,7 @@ impl MipsApp {
             updated_data: Arc::new(Mutex::new(false)),
             updated_reg: Arc::new(Mutex::new(false)),
             stepped: false,
+            exit_found: Arc::new(Mutex::new(false)),
         }
     }
 
@@ -668,6 +670,7 @@ impl eframe::App for MipsApp {
                                         self.register_index.clone(),
                                         self.updated_reg.clone(),
                                         self.updated_data.clone(),
+                                        self.exit_found.clone()
                                     );
                                 }
                             } else {
@@ -698,8 +701,10 @@ impl eframe::App for MipsApp {
                                     self.register_index.clone(),
                                     self.updated_reg.clone(),
                                     self.updated_data.clone(),
+                                    self.exit_found.clone()
                                 );
                                 self.stepped = true;
+                                
                             }
                             // Add slider for simulation speed
                             ui.add_enabled(

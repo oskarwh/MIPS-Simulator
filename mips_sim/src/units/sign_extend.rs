@@ -2,11 +2,21 @@ use bitvec::prelude::*;
 use crate::units::unit::*;
 use std::sync::Mutex;
 use std::sync::Arc;
-
 use super::mux::Mux;
 
-pub struct SignExtend {
+/// A MIPS simulator unit. SignExtend will take 16 bit integer and extend it to 32 bits,
+///
+/// Authors: Jakob Lindehag (c20jlg@cs.umu.se)
+///          Oskar Westerlund Holmgren (c20own@cs.umu.se)
+///          Max Thorén (c20mtn@cs.umu.se)
+///
+/// Version information:
+///    v1.0 2022-01-03: First complete version.
+/// 
 
+
+/// SignExtend Struct
+pub struct SignExtend {
     data : Word,
     has_data: bool,
 
@@ -14,9 +24,15 @@ pub struct SignExtend {
     mux_alusrc : Option<Arc<Mutex<Mux>>>,
 }
 
-
+/// SignExtend Implementation
 impl SignExtend{
 
+    /// Returns a new SignExtend.
+    /// 
+    /// # Returns
+    ///
+    /// * SignExtend
+    ///
     pub fn new() -> SignExtend{
         SignExtend{
             has_data:false,
@@ -27,21 +43,40 @@ impl SignExtend{
     }
 
 
-    /// Set Functions
+    /// Set a AddUnit that the 'SignExtend' which is called on, should send data to.
+    /// 
+    /// # Arguments
+    ///
+    /// * `add` - The AddUnit that should be set
+    ///
     pub fn set_add(&mut self, add: Arc<Mutex<dyn Unit>>){
         self.add_unit = Some(add);
     }
 
+    /// Set which Mux that the 'SignExtend' which is called on, should send data to.
+    /// 
+    /// # Arguments
+    ///
+    /// * `mux` - The Mux that should be set
+    ///
     pub fn set_mux_alu_src(&mut self, mux: Arc<Mutex<Mux>>){
         self.mux_alusrc = Some(mux);
     }
 
 }
 
+/// SignExtend implementing Unit trait.
 impl Unit for SignExtend{
 
+    /// Receives data from a Unit, comes with ID to 
+    /// specify which type of data.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `input_id` - Id to know what type of data is comming
+    /// * `data` - The data
+    /// 
     fn receive(&mut self, input_id: u32, data : Word){
-        //println!("\t Sign extend received {}", data);
         if input_id == SE_IN_ID{
             self.data = data;
             self.has_data = true;
@@ -50,11 +85,20 @@ impl Unit for SignExtend{
         }
     }
 
+    /// Receives signal from a Control, comes with ID to 
+    /// specify which signal.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `signal_id` - Id to know what type of signal is comming
+    /// * `signal` - Bool which holds state of signal (high/low)
+    /// 
     fn receive_signal(&mut self ,signal_id:u32, signal:bool) {
-        todo!()
+        // Do Nothing
     }
 
-    ///Execute unit with thread
+    /// Checks if data has been received.
+    /// If that is the case extend the 16 bit data to 32 bits and forward.
     fn execute(&mut self){
 
         if self.has_data{
@@ -73,8 +117,6 @@ impl Unit for SignExtend{
             self.has_data = false;
         }
     }
-
-
 }
 
 

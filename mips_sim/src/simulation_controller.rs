@@ -17,6 +17,7 @@ use crate::assembler::parse_file;
 pub struct SimulationController {
     simulation:Option<Simulation>,
     default_speed: f32,
+    exit_locations: Vec<u32>
 }
 
 impl SimulationController {
@@ -25,13 +26,17 @@ impl SimulationController {
     ) -> SimulationController {
         SimulationController{
             simulation:None,
-            default_speed: 1000 as f32
+            default_speed: 1000 as f32,
+            exit_locations: Vec::new(),
         }
     }
 
     pub fn setup_simulation(&mut self, file_path:&str)->Option<(Vec<u32>, Vec<(String,bool)>, HashMap<String, u32>, bool)>{
 
-        if let Some((machine_code, assembler_code, labels, contains_error)) = parse_file(file_path){
+        if let Some((machine_code, assembler_code, labels, contains_error, exit_locations)) = parse_file(file_path){
+
+            // Save exit_locations
+            self.exit_locations = exit_locations;
 
             // Add vector with machine-code to a vector of Words
             let mut instructions: Vec<Word> = Vec::new();
@@ -72,11 +77,11 @@ impl SimulationController {
         gui_changed_reg_index:Arc<Mutex<usize>>,
         reg_updated_bool:Arc<Mutex<bool>>,
         data_updated_bool:Arc<Mutex<bool>>,
+        exit_found: Arc<Mutex<bool>>
     ) {
         if !self.simulation.as_mut().unwrap().all_instructions_finished(){
-            //println!("Step");
             self.simulation.as_mut().unwrap().step_simulation(gui_registers, gui_data_memory, gui_pc, gui_enable,gui_changed_dm_index,gui_changed_reg_index
-                , reg_updated_bool, data_updated_bool);  
+                , reg_updated_bool, data_updated_bool, &self.exit_locations, exit_found);  
         }
     }
 
@@ -91,13 +96,14 @@ impl SimulationController {
         gui_changed_reg_index:Arc<Mutex<usize>>,
         reg_updated_bool:Arc<Mutex<bool>>,
         data_updated_bool:Arc<Mutex<bool>>,
+        exit_found: Arc<Mutex<bool>>
     ){
         if !self.simulation.as_mut().unwrap().all_instructions_finished(){
             //println!("Run");
             self.simulation.as_mut().unwrap().stop_unit_threads();
             self.simulation.as_mut().unwrap().start_simulation(gui_simulation_speed);
             self.simulation.as_mut().unwrap().run_simulation(gui_registers, gui_data_memory, gui_pc, gui_enable,gui_changed_dm_index,gui_changed_reg_index
-                , reg_updated_bool, data_updated_bool);
+                , reg_updated_bool, data_updated_bool, &self.exit_locations, exit_found);
         }
     }
 

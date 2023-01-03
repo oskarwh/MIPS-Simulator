@@ -1,9 +1,11 @@
 use regex::Captures;
 use regex::Regex;
+use serde::ser::Error;
 use std::collections::hash_map;
 use std::fs::File;
 use std::io::{self, BufRead};
 use std::path::Path;
+use std::process::exit;
 
 /// An assembler for converting instructions written in the assembly programming language into machine code instructions.
 /// The assembler produces a file containing machinecode instructions and a listing file containing additional
@@ -40,10 +42,12 @@ enum InstructionType {
     I3,
     /// First J-Type instruction.
     J1,
-    /// Second J-Type instruiction
+    /// Second J-Type instruction
     J2,
     /// No opertion instruction.
     N,
+    /// Exit Commamd.
+    E,
 }
 
 /// A struct used keep information about undefined labels.
@@ -67,6 +71,7 @@ struct RegexCom {
     j1_type: Regex,
     j2_type: Regex,
     nop_type: Regex,
+    exit_type: Regex,
     com_type: Regex,
     label_type: Regex,
 }
@@ -90,6 +95,7 @@ pub fn parse_file(
     Vec<(String, bool)>,
     hash_map::HashMap<String, u32>,
     bool,
+    Vec<u32>
 )> {
    // Set up all Regexes 
    let regex_coms = RegexCom {
@@ -101,6 +107,7 @@ pub fn parse_file(
     j1_type: Regex::new(r"^\s(j)\s+(\w+)\s*$").unwrap(),
     j2_type: Regex::new(r"^\s(jr)\s+\$(\S+)\s*$").unwrap(),
     nop_type: Regex::new(r"^\s(nop)\s*$").unwrap(),
+    exit_type: Regex::new(r"^\s(exit)\s*$").unwrap(),
     com_type: Regex::new("#").unwrap(),
     label_type: Regex::new("([a-z]|[A-z]|[0-9])+[:]").unwrap(),
     };
@@ -118,6 +125,8 @@ pub fn parse_file(
     // Init vector for storing generated machine code & assembler code
     let mut machine_code = Vec::new();
     let mut assembler_code = Vec::new();
+
+    let mut exit_locations: Vec<u32> = Vec::new();
 
     // Index of machine code address (the row of the machine code innstruction)
     let mut addr_index: u32 = 0;
@@ -175,10 +184,16 @@ pub fn parse_file(
                                     &mut undefined_labels, &registers, &instructions);
 
                             if let Err(error) = line_code {
-                                //ERROR: Something went wrong trying to assemble the line
-                                line.push_str("     <-- Error: ");
-                                line.push_str(error);
-                                contains_errors = true;
+                                // If true no need to give error
+                                if(error.eq("Exit")) {
+                                    println!("Found exit");
+                                    exit_locations.push(file_row);
+                                } else {
+                                    //ERROR: Something went wrong trying to assemble the line
+                                    line.push_str("     <-- Error: ");
+                                    line.push_str(error);
+                                    contains_errors = true;
+                                }
                             } else {
                                 contain_code = true;
                                 machine_code.push(line_code.unwrap());
@@ -217,7 +232,7 @@ pub fn parse_file(
         }
     }
 
-    Some((machine_code, assembler_code, labels, contains_errors))
+    Some((machine_code, assembler_code, labels, contains_errors, exit_locations))
 }
 
 /// Assembles a line using strings for each individual part of the command contained in a regex::Captures
@@ -281,6 +296,7 @@ fn assemble_line(
             assemble_j2_type(cap, registers, instructions)
         }
         InstructionType::N => Ok(0),
+        InstructionType::E => handle_exit()
     };
 
     line_code
@@ -605,6 +621,12 @@ fn assemble_j2_type(
     Ok(instr)
 }
 
+fn handle_exit(
+) -> Result<u32, &'static str> {
+    println!("Exit!!!!");
+    Err("Exit")
+}
+
 /// Returns code for register as u32, if register is invalid, returns Err.
 ///
 /// # Arguments
@@ -678,8 +700,11 @@ fn identify_type<'a>(text: &'a str, regex: &RegexCom) -> Option<(Option<Captures
         let cap = regex.j2_type.captures(text);
         return Some((cap, InstructionType::J2));
     } else if regex.nop_type.is_match(text) {
-         let cap = regex.nop_type.captures(text);
+        let cap = regex.nop_type.captures(text);
         return Some((cap, InstructionType::N));
+    } else if regex.exit_type.is_match(text) {
+        let cap = regex.exit_type.captures(text);
+        return Some((cap, InstructionType::E));
     } else {
         return None;
     }

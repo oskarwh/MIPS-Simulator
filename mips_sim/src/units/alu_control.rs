@@ -204,7 +204,6 @@ impl Unit for AluControl {
     /// 
     fn receive (&mut self, input_id : u32, data : Word) {
         if input_id == ALU_CTRL_IN_ID {
-            //println!("\t Alu Control received: {}",data);
             self.funct = data;
             self.has_funct = true;
         }else {

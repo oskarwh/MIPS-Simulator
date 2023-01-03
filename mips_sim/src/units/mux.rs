@@ -80,7 +80,6 @@ impl Unit for Mux{
     /// * `data` - The data
     /// 
     fn receive(&mut self, input_id: u32, data : Word ){
-        //println!("\t mux {} received data {} from {}",self.name, data, input_id);
         if input_id == MUX_IN_0_ID{
             self.data0 = data;
             self.has_val0 = true;
@@ -101,7 +100,6 @@ impl Unit for Mux{
     /// * `signal` - Bool which holds state of signal (high/low)
     /// 
     fn receive_signal(&mut self ,signal_id:u32, signal: bool){
-        //println!("\t mux {} received signal {} with id {}",self.name, signal, signal_id);
         self.signal = signal;
         self.has_signal = true;
     }
