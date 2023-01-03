@@ -1,44 +1,39 @@
 use bitvec::prelude::*;
-use std::{sync::Mutex, ops::Deref};
 
+/// Max words in data memory
 pub const MAX_WORDS: usize = 250;
 
+/// Alias for BitVec of size 32.
 pub type Word = BitVec<u32, Lsb0>;
+
+/// Unit Trait
 pub trait Unit: Send + Sync {
+    
+    /// Receives data from a Unit, comes with ID to 
+    /// specify which type of data.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `input_id` - Id to know what type of data is comming
+    /// * `data` - The data
+    /// 
     fn receive(&mut self, input_id : u32, data :Word);
+
+    /// Receives signal from a Control, comes with ID to 
+    /// specify which signal.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `signal_id` - Id to know what type of signal is comming
+    /// * `signal` - Bool which holds state of signal (high/low)
+    /// 
     fn receive_signal(&mut self ,signal_id:u32, signal: bool);
+
+    /// Executes specific Unit behvaiour.
     fn execute(&mut self);
 }
-
-pub struct EmptyUnit<'a>{
-    name:&'a str,
-}
-
-
-
-impl<'a> EmptyUnit<'a>{
-    pub fn new(name:&'a str)->EmptyUnit<'a>{
-        EmptyUnit{
-            name
-        }
-    }
-}
-
-impl<'a> Unit for EmptyUnit<'a>{
-    fn receive(&mut self, input_id : u32, data :Word){
-        println!("Empty {} received at port {}: {}",self.name, input_id, data);
-    }
-
-    fn receive_signal(&mut self ,signal_id:u32, signal: bool) {
-       
-    }
-
-    fn execute(&mut self) {
-       
-    }
-}
-    
-
+ 
+/// Constans for data types.
 pub const PC_IN_ID :u32 = 0;
 
 pub const OP_CONTROL: u32 = 0;
@@ -75,6 +70,8 @@ pub const CONC_IN_2_ID:u32  = 1;
 pub const ADD_IN_1_ID :u32 = 0;
 pub const ADD_IN_2_ID:u32  = 1;
 
+
+/// Constans for signal types.
 //Signals for branching
 pub const ZERO_SIGNAL:u32 = 0;
 pub const BRANCH_SIGNAL:u32 = 1;
