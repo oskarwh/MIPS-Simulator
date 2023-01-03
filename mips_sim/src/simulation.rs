@@ -14,17 +14,29 @@ use crate::units::sign_extend::SignExtend;
 use crate::units::unit::*;
 use crate::units::control::*;
 use super::units::alu::*;
-use crate::units::sign_extend::*;
-use crate::units::data_memory::*;
 use crate::units::concater::*;
-
-use bitvec::prelude::*;
-
 
 use crate::units::registers::*;
 use crate::units::alu_control::*;
 
-
+/// A single-cycle MIPS simulation. Has one unit-object for each mayor unit in the single-cycle MIPS processor
+/// including PC, register-file, instruction-memory, data-memory, ALU, controller, add-unit and alu-controller. 
+/// Also has some minor units: ander (used to AND branch-signal from controller with zero-signal from ALU), concater 
+/// (used to concat most significant 4 bits from PC+4 with least significant 28 bits from instruction-memory ), 
+/// sign-extend (sign extends from 16->32 bits) aswell as branch-mux, jump-mux, jr-mux, regdest-mux, alu-source-mux and 
+/// mem-to-reg-mux. 
+/// 
+/// Units run on their own individual thread. Muxes run on a shared thread. The simulation itself 
+/// (run or step instruction) is run on its own thread. Can step one instruction aswell as run 
+/// instructions until paused. 
+///
+/// Authors: Jakob Lindehag (c20jlg@cs.umu.se)
+///          Oskar Westerlund Holmgren (c20own@cs.umu.se)
+///          Max Thorén (c20mtn@cs.umu.se)
+///
+/// Version information:
+///    v1.0 2022-12-28: First complete version.
+/// 
 pub struct  Simulation {
     arc_pc: Arc<Mutex<ProgramCounter>>,
     arc_instr_mem: Arc<Mutex<InstructionMemory>>,
@@ -54,6 +66,15 @@ pub struct  Simulation {
 
 impl Simulation {
 
+    /// Sets up and returns a new Simulation
+    ///
+    /// # Arguments
+    /// * `instructions` - vector of machine-code instructions
+    /// 
+    /// # Returns
+    ///
+    /// * Simulation
+    ///
     pub fn set_up_simulation(instructions: Vec<Word>)->Simulation {
     
         // Save numer of instructions
@@ -90,7 +111,7 @@ impl Simulation {
         let arc_mux_branch: Arc<Mutex<Mux>> = Arc::new(Mutex::new(mux_branch));
 
 
-        // Assemble Controller
+        // Setup Controller
         let arc_control = Arc::new(Mutex::new(Control::new(
             arc_mux_regdst.clone(),
             arc_mux_jump.clone(), 
@@ -175,10 +196,21 @@ impl Simulation {
         }
     }
 
+
+    /// Starts threads for each individual unit and one shared thread for all muxes. Threads will run until manually
+    /// stopped.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `gui_simulation_speed` - Speed of the simulation
+    /// 
+    ///   
+    /// 
     pub fn start_simulation(&mut self, gui_simulation_speed: f32) {
         //Start simulation
         *self.stop_unit_threads.lock().unwrap() = false;
         *self.stop_run_simulation.lock().unwrap() = false;
+
         // Start units
         let instr_mem_thread =Self::run_unit_thread(self.arc_instr_mem.clone(), self.stop_unit_threads.clone(), gui_simulation_speed);
         let sign_extend_thread = Self::run_unit_thread(self.arc_sign_extend.clone(), self.stop_unit_threads.clone(), gui_simulation_speed);
@@ -215,6 +247,24 @@ impl Simulation {
         
     }
     
+
+
+    /// Step one instruction in the simulation by sending the current address of PC to instruction-memory
+    /// and thereby starting one cycle of the processor. The stepping is run on its own thread to make the 
+    /// simulation asynchrone of the GUI.
+    /// 
+    ///  # Arguments
+    /// 
+    /// * `gui_registers` - Registers from GUI that should be updated
+    /// * `gui_data_memory` - Data-memory from GUI that should be updated
+    /// * `gui_pc` - Program-count from GUI that should be updated
+    /// * `gui_enable` - GUI-enable bool that is set true when the gui should be unlocked
+    /// * `gui_changed_dm_index` - The last changed data-memory index that is updated to GUI
+    /// * `gui_changed_reg_index` -The last changed register index that is updated to GUI
+    /// * `reg_updated_bool` - Bool that is set to GUI if the register was updated after this function was run
+    /// * `data_updated_bool` - Bool that is set to GUI if data-memory was updated after this function was run
+    /// 
+    ///
     pub fn step_simulation(&mut self, 
         gui_registers:Arc<Mutex<Vec<i32>>>, 
         gui_data_memory:Arc<Mutex<Vec<i32>>>,
@@ -230,6 +280,26 @@ impl Simulation {
             self.arc_pc.clone(), self.arc_registers.clone(), self.arc_data_memory.clone(), reg_updated_bool, data_updated_bool);
     }
     
+
+    /// Step one instruction in the simulation by sending the current address of PC to instruction-memory
+    /// and thereby starting one cycle of the processor. This is the thread function that is run from 
+    /// step_simulation. When PC-unit have been executed, waits for instruction to be finished and then updates GUI.
+    /// 
+    ///  # Arguments
+    /// 
+    /// * `gui_registers` - Registers from GUI that should be updated
+    /// * `gui_data_memory` - Data-memory from GUI that should be updated
+    /// * `gui_pc` - Program-count from GUI that should be updated
+    /// * `gui_enable` - GUI-enable bool that is set true when the gui should be unlocked
+    /// * `gui_changed_dm_index` - The last changed data-memory index that is updated to GUI
+    /// * `gui_changed_reg_index` -The last changed register index that is updated to GUI
+    /// * `pc` - Reference to PC-unit
+    /// * `reg_file` - Reference to register-unit
+    /// * `data_memory` - Reference to data-memory unit
+    /// * `reg_updated_bool` - Bool that is set to GUI if the register was updated after this function was run
+    /// * `data_updated_bool` - Bool that is set to GUI if data-memory was updated after this function was run
+    /// 
+    ///
     fn step_simulation_thread(
         gui_registers:Arc<Mutex<Vec<i32>>>, 
         gui_data_memory:Arc<Mutex<Vec<i32>>>,
@@ -242,16 +312,16 @@ impl Simulation {
         data_memory: Arc<Mutex<DataMemory>>,
         reg_updated_bool:Arc<Mutex<bool>>,
         data_updated_bool:Arc<Mutex<bool>>,
-        ){
+    ){
         let mut reg_chain_completed  = false;
         let mut pc_chain_completed = false;
-        let simulation_handle = thread::spawn(move||{
-            {
-                pc.lock().unwrap().execute(); 
-            } 
+        let _simulation_handle = thread::spawn(move||{
+            
+            pc.lock().unwrap().execute(); 
             
             loop {
-                // Check when instruction is done
+                // Check when instruction is done (both the PC has received ne address and register-file has
+                // received write-data)
                 if reg_file.lock().unwrap().instruction_completed(){
                     reg_chain_completed = true;
                 }
@@ -278,7 +348,20 @@ impl Simulation {
         });
     }
 
-
+    /// Updates the GUI.
+    /// 
+    ///  # Arguments
+    /// 
+    /// * `gui_registers` - Registers from GUI that should be updated
+    /// * `gui_data_memory` - Data-memory from GUI that should be updated
+    /// * `gui_pc` - Program-count from GUI that should be updated
+    /// * `gui_enable` - GUI-enable bool that is set true when the gui should be unlocked
+    /// * `gui_changed_dm_index` - The last changed data-memory index that is updated to GUI
+    /// * `gui_changed_reg_index` -The last changed register index that is updated to GUI
+    /// * `reg_updated_bool` - Bool that is set to GUI if the register was updated after this function was run
+    /// * `data_updated_bool` - Bool that is set to GUI if data-memory was updated after this function was run
+    /// 
+    ///
     fn update_gui( 
         gui_registers:Arc<Mutex<Vec<i32>>>, 
         gui_data_memory:Arc<Mutex<Vec<i32>>>,
@@ -295,7 +378,6 @@ impl Simulation {
         // Update changed register
         let changed_data = reg_file.lock().unwrap().get_changed_register();
         *gui_changed_reg_index.lock().unwrap() = changed_data.1;//update gui with changed index
-        //println!("Backend jump to row {}", *gui_changed_reg_index.lock().unwrap());
         gui_registers.lock().unwrap()[changed_data.1] = changed_data.0;
 
         // Update bool for reg if they have been updated 
@@ -313,13 +395,28 @@ impl Simulation {
             *data_updated_bool.lock().unwrap() = true;
         }
 
-        // Update PC and adn set bool to false
+        // Update PC 
         *gui_pc.lock().unwrap() = pc.lock().unwrap().get_program_count()/4;
         
-        //println!("---------UPDATING GUI FROM BACKEND FINISHED---------");
     }
 
 
+    /// Execute instructions until finished or paused by sending the current address of PC to instruction-memory
+    /// and thereby starting one cycle of the processor. Runs on its own thread to make the 
+    /// simulation asynchrone of the GUI.
+    /// 
+    ///  # Arguments
+    /// 
+    /// * `gui_registers` - Registers from GUI that should be updated
+    /// * `gui_data_memory` - Data-memory from GUI that should be updated
+    /// * `gui_pc` - Program-count from GUI that should be updated
+    /// * `gui_enable` - GUI-enable bool that is set true when the gui should be unlocked
+    /// * `gui_changed_dm_index` - The last changed data-memory index that is updated to GUI
+    /// * `gui_changed_reg_index` -The last changed register index that is updated to GUI
+    /// * `reg_updated_bool` - Bool that is set to GUI if the register was updated after this function was run
+    /// * `data_updated_bool` - Bool that is set to GUI if data-memory was updated after this function was run
+    /// 
+    ///
     pub fn run_simulation(&mut self, 
         gui_registers:Arc<Mutex<Vec<i32>>>, 
         gui_data_memory:Arc<Mutex<Vec<i32>>>,
@@ -332,10 +429,31 @@ impl Simulation {
     ) {
         *self.stop_run_simulation.lock().unwrap() = false;
         Self::run_simulation_thread(gui_registers, gui_data_memory, gui_pc, gui_enable,gui_changed_dm_index,gui_changed_reg_index, 
-            self.arc_pc.clone(), self.arc_registers.clone(), self.arc_data_memory.clone(), self.number_of_instructions, 
-            self.stop_unit_threads.clone(), self.stop_run_simulation.clone(), reg_updated_bool, data_updated_bool);
+            self.arc_pc.clone(), self.arc_registers.clone(), self.arc_data_memory.clone(), self.number_of_instructions,
+             self.stop_run_simulation.clone(), reg_updated_bool, data_updated_bool);
     }
 
+    /// Execute instructions until finished or paused by sending the current address of PC to instruction-memory
+    /// and thereby starting one cycle of the processor. This is the thread-function that is run from 
+    /// run_simulation. When PC-unit have been executed, waits for instruction to be finished and then updates GUI.
+    /// 
+    ///  # Arguments
+    /// 
+    /// * `gui_registers` - Registers from GUI that should be updated
+    /// * `gui_data_memory` - Data-memory from GUI that should be updated
+    /// * `gui_pc` - Program-count from GUI that should be updated
+    /// * `gui_enable` - GUI-enable bool that is set true when the gui should be unlocked
+    /// * `gui_changed_dm_index` - The last changed data-memory index that is updated to GUI
+    /// * `gui_changed_reg_index` -The last changed register index that is updated to GUI
+    /// * `pc` - Reference to PC-unit
+    /// * `reg_file` - Reference to register-unit
+    /// * `data_memory` - Reference to data-memory
+    /// * `n_instructions` - Total number of instructions currently in the simulation
+    /// * `stop_run` - Bool to stop the running of the simulation (the execution of instructions and not unit threads)
+    /// * `reg_updated_bool` - Bool that is set to GUI if the register was updated after this function was run
+    /// * `data_updated_bool` - Bool that is set to GUI if data-memory was updated after this function was run
+    /// 
+    ///
     fn run_simulation_thread(
         gui_registers:Arc<Mutex<Vec<i32>>>, 
         gui_data_memory:Arc<Mutex<Vec<i32>>>,
@@ -347,7 +465,6 @@ impl Simulation {
         reg_file: Arc<Mutex<Registers>>, 
         data_memory: Arc<Mutex<DataMemory>>,
         n_instructions: u32,
-        stop_units:Arc<Mutex<bool>>,
         stop_run:Arc<Mutex<bool>>,
         reg_updated_bool:Arc<Mutex<bool>>,
         data_updated_bool:Arc<Mutex<bool>>,
@@ -389,8 +506,6 @@ impl Simulation {
                 }
                 // Check if all instructions is done or simulation is paused
                 if Self::get_program_count_index(pc.clone()) >= n_instructions {
-                    //println!("All instructions finished, ending simulation");
-                    //*stop_units.lock().unwrap() = true;
                     *gui_enable.lock().unwrap().deref_mut() = true;
                     break;
                 }else if *stop_run.lock().unwrap(){
@@ -402,15 +517,31 @@ impl Simulation {
     }
 
     
+    /// Runs the execute function for a unit on a separate thread
+    /// 
+    /// # Arguments
+    /// 
+    /// * `thread` - The unit that is run
+    /// * `stop` - Bool to stop the thread
+    /// * `simulation_speed` - Speed of the thread
+    /// 
+    /// 
+    /// # Returns
+    ///
+    /// * JoinHandle - Handle to the unit-thread
+    ///   
     fn run_unit_thread(thread: Arc<Mutex<dyn Unit>>, stop: Arc<Mutex<bool>>, simulation_speed: f32)->thread::JoinHandle<()>{
     
         let thread_handle = thread::spawn(move||{
         
+            //Run unit until stopped
             while !*stop.lock().unwrap() {
                 {
                     let mut temp = thread.lock().unwrap();
                     temp.execute();
                 }
+
+                //Calculates the sleep-time with a functions that converts instructions/second to sleep-time
                 let sleep_time = 371.25760622*simulation_speed.powf(-1.42121824);
                 sleep(Duration::from_millis(sleep_time as u64));
             }
@@ -418,8 +549,22 @@ impl Simulation {
         thread_handle
     } 
 
+    /// Runs the execute function for all muxes on a separate thread
+    /// 
+    /// # Arguments
+    /// 
+    /// * `muxes` - Vector of muxes
+    /// * `stop` - Bool to stop the thread
+    /// 
+    /// 
+    /// # Returns
+    ///
+    /// * JoinHandle - Handle to the thread
+    ///   
     fn run_mux_thread( muxes:Vec<Arc<Mutex<Mux>>>, stop: Arc<Mutex<bool>>)->thread::JoinHandle<()>{
         let thread_handle = thread::spawn(move||{
+
+            //Run unit until stopped
             while !*stop.lock().unwrap() {
                 for mux in &muxes{
                     let mut temp = mux.lock().unwrap();
@@ -430,12 +575,15 @@ impl Simulation {
         thread_handle
     } 
 
+    /// Stops the simulation thread
+    ///  
     pub fn pause_simulation(&mut self){
        *self.stop_run_simulation.lock().unwrap() = true;
-       /**/
+       
     }
     
-
+    /// Stops all unit and mux threads
+    ///  
     pub fn stop_unit_threads(&mut self){
         *self.stop_unit_threads.lock().unwrap() = true;
         while let Some(thread) = self.threads.pop(){
@@ -443,11 +591,27 @@ impl Simulation {
         }
     }
 
-
+    /// Returns current PC-address divided by 4 (word address)
+    /// 
+    /// # Arguments
+    /// 
+    /// * `pc` - PC-unit
+    /// 
+    /// # Returns
+    ///
+    /// * u32 - the current word-address of the PC
+    ///  
     fn get_program_count_index(pc: Arc<Mutex<ProgramCounter>>)->u32{
         pc.lock().unwrap().get_program_count()/4
     }
 
+    /// Returns true if the instructions of the current simulation is finished (have reached last address in instruction
+    /// memory)
+    /// 
+    /// # Returns
+    ///
+    /// * bool - true if PC have reached last address in instruction memory, otherwise false
+    ///  
     pub fn all_instructions_finished(&self)->bool{
         Self::get_program_count_index(self.arc_pc.clone()) > self.number_of_instructions
     }

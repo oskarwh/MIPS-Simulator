@@ -1,26 +1,41 @@
 
 
-use std::{thread::{self, sleep}, sync::{Arc, Mutex}, time::Duration, collections::HashMap};
-use crate::{simulation::*, MipsApp, units::data_memory};
+use std::{thread::{self, sleep}, sync::{Arc, Mutex}, collections::HashMap};
+use crate::{simulation::*};
 
-use crate::units::program_counter::*;
-use crate::units::instruction_memory::*;
-use crate::units::add_unit::*;
+
 use crate::units::unit::*;
-use crate::units::control::*;
-use crate::units::alu::*;
 use bitvec::prelude::*;
-use eframe::AppCreator;
-use egui::Vec2;
 use crate::assembler::parse_file;
 
+
+
+/// Controller for the MIPS simulation. Can start a new simulation, reset the simulation, run program program specified
+/// by current machine code file and step one instruction in the current program
+///
+/// Authors: Jakob Lindehag (c20jlg@cs.umu.se)
+///          Oskar Westerlund Holmgren (c20own@cs.umu.se)
+///          Max Thorén (c20mtn@cs.umu.se)
+///
+/// Version information:
+///    v1.0 2022-12-28: First complete version.
+/// 
 pub struct SimulationController {
     simulation:Option<Simulation>,
     default_speed: f32,
 }
 
 impl SimulationController {
- 
+
+  
+    /// Returns a new Simulation Controller
+    ///
+    /// # Arguments
+    /// 
+    /// # Returns
+    ///
+    /// * SimulationController
+    ///
     pub fn new(
     ) -> SimulationController {
         SimulationController{
@@ -29,6 +44,20 @@ impl SimulationController {
         }
     }
 
+    /// Receives a file-path to an assembly code file. Sets up a new MIPS-simulation that has assembled machine code
+    /// in it's instruction-memory. Returns machine-code, assembler-code, labels, and a bool which tells if the assembler
+    /// code contains errors wrapped in an Option. 
+    /// 
+    /// # Arguments
+    /// 
+    /// * `file_path` - file-path to an assembler-code file
+    /// 
+    /// # Returns
+    ///
+    /// * Option<(Vec<u32>, Vec<(String,bool)>, HashMap<String, u32>, bool)> - machine-code, assembler-code, labels,
+    ///  and a bool which tells if the assembler code contains errors wrapped in an Option.
+    ///   
+    /// 
     pub fn setup_simulation(&mut self, file_path:&str)->Option<(Vec<u32>, Vec<(String,bool)>, HashMap<String, u32>, bool)>{
 
         if let Some((machine_code, assembler_code, labels, contains_error)) = parse_file(file_path){
@@ -47,6 +76,12 @@ impl SimulationController {
         }
     }
 
+    /// Resets and restarts the simulation with a new machine code inserted into instruction-memory
+    /// 
+    /// # Arguments
+    /// 
+    /// * `machine_code` - vector with machine code
+    /// 
     pub fn reset_simulation(&mut self, machine_code:&mut Vec<u32>){
         //Reset simulation if a simulation is running
         if self.simulation.is_some(){
@@ -62,7 +97,21 @@ impl SimulationController {
         self.simulation.as_mut().unwrap().start_simulation(self.default_speed);
     }
 
-    //Will be runned from GUI when it wants to step, will update GUI's registers and dm in background
+    /// Step one instruction in the current simulation. Runs asyncronically from another thread inside simulation
+    /// and thereby needs references to attributes from the caller (the GUI) that should be updated.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `gui_registers` - Registers from GUI that should be updated
+    /// * `gui_data_memory` - Data-memory from GUI that should be updated
+    /// * `gui_pc` - Program-count from GUI that should be updated
+    /// * `gui_enable` - GUI-enable bool that is set true when the gui should be unlocked
+    /// * `gui_changed_dm_index` - The last changed data-memory index that is updated to GUI
+    /// * `gui_changed_reg_index` -The last changed register index that is updated to GUI
+    /// * `reg_updated_bool` - Bool that is set to GUI if the register was updated after this function was run
+    /// * `data_updated_bool` - Bool that is set to GUI if data-memory was updated after this function was run
+    /// 
+    ///
     pub fn step_instruction(&mut self, 
         gui_registers:Arc<Mutex<Vec<i32>>>, 
         gui_data_memory:Arc<Mutex<Vec<i32>>>,
@@ -80,7 +129,22 @@ impl SimulationController {
         }
     }
 
-
+    /// Run the current simulation with a certain speed. Runs asyncronically from another thread inside simulation
+    /// and thereby needs references to attributes from the caller (the GUI) that should be updated.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `gui_registers` - Registers from GUI that should be updated
+    /// * `gui_data_memory` - Data-memory from GUI that should be updated
+    /// * `gui_pc` - Program-count from GUI that should be updated
+    /// * `gui_enable` - GUI-enable bool that is set true when the gui should be unlocked
+    /// * `gui_simulation_speed` - Run-speed for the simulation
+    /// * `gui_changed_dm_index` - The last changed data-memory index that is updated to GUI
+    /// * `gui_changed_reg_index` -The last changed register index that is updated to GUI
+    /// * `reg_updated_bool` - Bool that is set to GUI if the register was updated after this function was run
+    /// * `data_updated_bool` - Bool that is set to GUI if data-memory was updated after this function was run
+    /// 
+    ///
     pub fn run_program(&mut self, 
         gui_registers:Arc<Mutex<Vec<i32>>>, 
         gui_data_memory:Arc<Mutex<Vec<i32>>>,
@@ -101,6 +165,10 @@ impl SimulationController {
         }
     }
 
+    /// 
+    /// Pauses the current running of a simulation
+    /// 
+    ///
     pub fn pause_simulation(&mut self){
         self.simulation.as_mut().unwrap().pause_simulation();
     }

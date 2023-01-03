@@ -7,46 +7,30 @@ mod units;
 pub use app::MipsApp;
 pub mod assembler;
 pub mod simulation_controller;
-
-use crate::simulation::*;
 use crate::simulation_controller::*;
-use mips_sim::*;
-use std::{
-    sync::{Arc, Mutex},
-    thread::{self, sleep},
-    time::Duration,
-};
-use units::unit;
-
-use crate::units::add_unit::*;
-use crate::units::alu::*;
-use crate::units::control::*;
-use crate::units::instruction_memory::*;
-use crate::units::program_counter::*;
-use crate::units::unit::*;
-use assembler::parse_file;
-use bitvec::prelude::*;
 use egui::Vec2;
 
-use bitvec::view::BitView;
-use eframe::AppCreator;
-
-use crate::units::{
-    alu_control::AluControl,
-    ander::Ander,
-    data_memory::DataMemory,
-    mux::Mux,
-    registers::Registers,
-    sign_extend::{self, SignExtend},
-};
-
-const DEFAULT_WIDTH: f32 = 1000.0;
-const DEFAULT_HEIGHT: f32 = 600.0;
 const MIN_WIDTH: f32 = 800.0;
 const MIN_HEIGHT: f32 = 600.0;
+
+/// Main program for a single-cycle MIPS simulation. GUI is run on separate thread and is in charge of the 
+/// whole program. GUI uses a simulation-controller to control the MIPS-simulation.
+/// 
+/// Main starts the GUI.
+///
+/// Authors: Jakob Lindehag (c20jlg@cs.umu.se)
+///          Oskar Westerlund Holmgren (c20own@cs.umu.se)
+///          Max Thorén (c20mtn@cs.umu.se)
+///
+/// Version information:
+///    v1.0 2022-12-28: First complete version.
+/// 
+
 // When compiling natively:
 #[cfg(not(target_arch = "wasm32"))]
 fn main() {
+
+    //options for the GUI
     let native_options = eframe::NativeOptions {
         always_on_top: false,
         maximized: false,
@@ -75,11 +59,9 @@ fn main() {
         centered: true,
     };
 
-    let sim_controller = SimulationController::new();
-
     eframe::run_native(
         "MIPS Simulator",
         native_options,
-        Box::new(|cc| Box::new(MipsApp::new(cc, sim_controller))),
+        Box::new(|cc| Box::new(MipsApp::new(cc, SimulationController::new()))),
     );
 }
