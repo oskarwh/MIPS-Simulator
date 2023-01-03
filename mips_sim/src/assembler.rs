@@ -186,7 +186,6 @@ pub fn parse_file(
                             if let Err(error) = line_code {
                                 // If true no need to give error
                                 if(error.eq("Exit")) {
-                                    println!("Found exit");
                                     exit_locations.push(file_row);
                                 } else {
                                     //ERROR: Something went wrong trying to assemble the line
@@ -623,7 +622,6 @@ fn assemble_j2_type(
 
 fn handle_exit(
 ) -> Result<u32, &'static str> {
-    println!("Exit!!!!");
     Err("Exit")
 }
 
