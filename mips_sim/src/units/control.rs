@@ -22,6 +22,8 @@ pub struct Control {
     alu_ctrl:Arc<Mutex<dyn Unit>>,
     reg_file:Arc<Mutex<dyn Unit>>,
     data_memory:Arc<Mutex<dyn Unit>>,
+
+    jr_opcode_bool: bool
 }
 
 
@@ -67,6 +69,7 @@ impl<'a> Control {
             alu_ctrl,
             reg_file,
             data_memory,
+            jr_opcode_bool: false
         }
     }
 
@@ -232,7 +235,7 @@ impl<'a> Control {
     /// * `b` - Boolean to set the signal to
     pub fn set_jr_signal(&mut self, b: bool) {
         // Set jr mux to high to jump to value in register
-        self.mux_jr.lock().unwrap().receive_signal(DEFAULT_SIGNAL, b);
+        self.mux_jr.lock().unwrap().receive_signal(DEFAULT_SIGNAL, b); 
     }
 }
 
@@ -251,24 +254,36 @@ impl Unit for Control{
         // Check what type of data is comming 
        
 
-         // Check if the data is funct code, if it is we a JR instruction is coming   
+         // Check if the data is funct code, if it is we know JR instruction is coming   
         if input_id == FUNCT_CONTROL {
             // JR instruction
             match data.to_bitvec().into_vec()[0] {
-                0x08=>
-                    self.set_jr_signal(true),
-                _=>
-                    self.set_jr_signal(false),
+                0x08=> {
+                    // Check to see that opcode is correct before activating jr signal
+                    if self.jr_opcode_bool {
+                        self.set_jr_signal(true);
+                    }else {
+                        self.set_jr_signal(false)
+                    }
+                }
+                _=> {
+                    self.set_jr_signal(false)
+                }
             }
-        
+
+            // Rest jr bool
+            self.jr_opcode_bool = false;
+
         // If a OP code check what type of instruction
         }else if input_id == OP_CONTROL {
             
             match data.to_bitvec().into_vec()[0] {
                 // R-format instructions 
-                0b000000=> 
-                    self.set_r_signals(),
+                0b000000 => {
+                    self.jr_opcode_bool = true;
                     // Set reg_dst, reg_wrt, alu_op1
+                    self.set_r_signals()
+                }
                 
                 // LW instruction
                 0b100011 =>
@@ -298,7 +313,7 @@ impl Unit for Control{
                 // Ori instruction
                 0b001101 =>
                     self.set_ori_signals(),
-
+                   
                 //DO NOTHING
                 _ =>(),
                  //DO NOTHING

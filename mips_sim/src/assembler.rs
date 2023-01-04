@@ -185,7 +185,7 @@ pub fn parse_file(
 
                             if let Err(error) = line_code {
                                 // If true no need to give error
-                                if(error.eq("Exit")) {
+                                if error.eq("Exit") {
                                     exit_locations.push(file_row);
                                 } else {
                                     //ERROR: Something went wrong trying to assemble the line

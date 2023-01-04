@@ -277,10 +277,14 @@ impl Simulation {
         exit_locations: &Vec<u32>,
         exit_found: Arc<Mutex<bool>>
     ) {
-
-        Self::step_simulation_thread(gui_registers, gui_data_memory, gui_pc, gui_enable,gui_changed_dm_index, gui_changed_reg_index, 
-            self.arc_pc.clone(), self.arc_registers.clone(), self.arc_data_memory.clone(), reg_updated_bool, data_updated_bool,
-            exit_locations, exit_found);
+        
+        if self.arc_pc.lock().unwrap().get_program_count()/4 < self.number_of_instructions {
+            Self::step_simulation_thread(gui_registers, gui_data_memory, gui_pc, gui_enable,gui_changed_dm_index, gui_changed_reg_index, 
+                self.arc_pc.clone(), self.arc_registers.clone(), self.arc_data_memory.clone(), reg_updated_bool, data_updated_bool,
+                exit_locations, exit_found);
+        }else {
+            *gui_enable.lock().unwrap() = true;
+        }
     }
     
 
@@ -436,10 +440,14 @@ impl Simulation {
         exit_locations: &Vec<u32>,
         exit_found: Arc<Mutex<bool>>
     ) {
-        *self.stop_run_simulation.lock().unwrap() = false;
-        Self::run_simulation_thread(gui_registers, gui_data_memory, gui_pc, gui_enable,gui_changed_dm_index,gui_changed_reg_index, 
-            self.arc_pc.clone(), self.arc_registers.clone(), self.arc_data_memory.clone(), self.number_of_instructions, 
-  self.stop_run_simulation.clone(), reg_updated_bool, data_updated_bool, exit_locations, exit_found);
+        if self.arc_pc.lock().unwrap().get_program_count()/4 < self.number_of_instructions {
+            *self.stop_run_simulation.lock().unwrap() = false;
+            Self::run_simulation_thread(gui_registers, gui_data_memory, gui_pc, gui_enable,gui_changed_dm_index,gui_changed_reg_index, 
+                self.arc_pc.clone(), self.arc_registers.clone(), self.arc_data_memory.clone(), self.number_of_instructions, 
+    self.stop_run_simulation.clone(), reg_updated_bool, data_updated_bool, exit_locations, exit_found);
+        }else {
+            *gui_enable.lock().unwrap() = true;
+        }
     }
 
     /// Execute instructions until finished or paused by sending the current address of PC to instruction-memory

@@ -2,7 +2,7 @@
 	addi $t1, $zero, 10
 	addi $t2, $zero, 20
 	addi $t3, $zero, -32
-	sw $t2, 4($zero) #Expects: 20 in dm 2
+	sw $t2, 8($zero) #Expects: 20 in dm 2
 	sw $t1, 0($zero) #Expects: 10 in dm 0
 	sw $t1, 12($zero) #Expects: 10 in dm 3
 	sw $t1, 12($zero) #Expects: 10 in dm 3
