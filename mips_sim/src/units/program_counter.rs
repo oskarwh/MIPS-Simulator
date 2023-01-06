@@ -118,8 +118,6 @@ impl<'a>  ProgramCounter {
     pub fn has_address(&self)->bool{
         self.has_address
     }
-
-
 }
 
 /// ProgramCounter implementing Unit trait.
@@ -133,16 +131,13 @@ impl Unit for ProgramCounter {
     /// * `input_id` - Id to know what type of data is comming
     /// * `data` - The data
     /// 
-    fn receive(&mut self, input_id: u32, address : Word){
-        
+    fn receive(&mut self, input_id: u32, address : Word){  
         if input_id == PC_IN_ID{
-            //println!("\t Program-counter: received new address {}", address);
             self.current_address = address;
             self.has_address = true;
         }else{
             //Message came on undefined input
-        }
-        
+        }  
     }
 
     /// Receives signal from a Control, comes with ID to 
@@ -162,7 +157,6 @@ impl Unit for ProgramCounter {
     /// Untis to calculate next address.
     fn execute(&mut self){
         if self.has_address {
-            //println!("\t Program-counter: Im sending address {}", self.current_address);
             //Send address to instruction memory
             self.instruction_memory.as_mut().unwrap().lock().unwrap().receive(IM_READ_ADDRESS_ID, self.current_address.to_bitvec());
 

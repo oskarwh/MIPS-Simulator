@@ -2,6 +2,7 @@ use regex::Captures;
 use regex::Regex;
 use serde::ser::Error;
 use std::collections::hash_map;
+use std::f32::consts::E;
 use std::fs::File;
 use std::io::{self, BufRead};
 use std::path::Path;
@@ -161,7 +162,10 @@ pub fn parse_file(
                     let (label_index, label_found) = if let Some((label, index)) = locate_labels(&line, &regex_coms)
                     {   
                         //Label found, insert current address-index into label-table
-                        labels.insert(label, addr_index);
+                        // Check if label already exists
+                        if !labels.contains_key(&label) {
+                            labels.insert(label, addr_index);
+                        }
                         //set label index to where comment was found
                         (index, true)
                     } else {
@@ -175,6 +179,12 @@ pub fn parse_file(
                     // If the line contains an identifyable command, assemble the line to machine code and push it to vector
 
                     if let Some((cap, inst_type)) = identify_type(line_slice, &regex_coms) {
+                        
+                        // Check if instruction is a exit
+                        let mut is_exit = false;
+                        if matches!(inst_type, InstructionType::E) {
+                            is_exit = true;
+                        } 
 
                         if cap.is_some() {
                             let cap = cap.unwrap();
@@ -184,16 +194,17 @@ pub fn parse_file(
                                     &mut undefined_labels, &registers, &instructions);
 
                             if let Err(error) = line_code {
-                                // If true no need to give error
-                                if error.eq("Exit") {
-                                    exit_locations.push(file_row);
-                                } else {
+                                {
                                     //ERROR: Something went wrong trying to assemble the line
                                     line.push_str("     <-- Error: ");
                                     line.push_str(error);
                                     contains_errors = true;
                                 }
                             } else {
+                                // Check if command was exit
+                                if is_exit {
+                                    exit_locations.push(addr_index);
+                                }
                                 contain_code = true;
                                 machine_code.push(line_code.unwrap());
                             }
@@ -295,7 +306,7 @@ fn assemble_line(
             assemble_j2_type(cap, registers, instructions)
         }
         InstructionType::N => Ok(0),
-        InstructionType::E => handle_exit()
+        InstructionType::E => Ok(0)
     };
 
     line_code
@@ -618,11 +629,6 @@ fn assemble_j2_type(
 
     instr = instr | (parse_register(dest, registers)?) << RS_POS;
     Ok(instr)
-}
-
-fn handle_exit(
-) -> Result<u32, &'static str> {
-    Err("Exit")
 }
 
 /// Returns code for register as u32, if register is invalid, returns Err.

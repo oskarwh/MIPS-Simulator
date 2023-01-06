@@ -23,7 +23,7 @@ use crate::assembler::parse_file;
 pub struct SimulationController {
     simulation:Option<Simulation>,
     default_speed: f32,
-    exit_locations: Vec<u32>
+    exit_locations: Arc<Vec<u32>>
 }
 
 impl SimulationController {
@@ -42,7 +42,7 @@ impl SimulationController {
         SimulationController{
             simulation:None,
             default_speed: 1000 as f32,
-            exit_locations: Vec::new(),
+            exit_locations: Arc::new(Vec::new()),
         }
     }
 
@@ -60,12 +60,12 @@ impl SimulationController {
     ///  and a bool which tells if the assembler code contains errors wrapped in an Option.
     ///   
     /// 
-    pub fn setup_simulation(&mut self, file_path:&str)->Option<(Vec<u32>, Vec<(String,bool)>, HashMap<String, u32>, bool)>{
+    pub fn setup_simulation(&mut self, file_path:&str)->Option<(Vec<u32>, Vec<(String,bool)>, HashMap<String, u32>, bool, Arc<Vec<u32>>)>{
 
         if let Some((machine_code, assembler_code, labels, contains_error, exit_locations)) = parse_file(file_path){
 
             // Save exit_locations
-            self.exit_locations = exit_locations;
+            self.exit_locations = Arc::new(exit_locations);
 
             // Add vector with machine-code to a vector of Words
             let mut instructions: Vec<Word> = Vec::new();
@@ -75,7 +75,7 @@ impl SimulationController {
 
             self.simulation = Some(Simulation::set_up_simulation(instructions));
             self.simulation.as_mut().unwrap().start_simulation(self.default_speed);
-            return Some((machine_code, assembler_code, labels, contains_error));
+            return Some((machine_code, assembler_code, labels, contains_error, self.exit_locations.clone()));
         }else{
             return None;
         }
@@ -91,6 +91,7 @@ impl SimulationController {
         //Reset simulation if a simulation is running
         if self.simulation.is_some(){
             self.simulation.as_mut().unwrap().pause_simulation();
+            self.simulation.as_mut().unwrap().stop_unit_threads();
         }
         
         // Add vector with machine-code to a vector of Words
@@ -122,15 +123,16 @@ impl SimulationController {
         gui_data_memory:Arc<Mutex<Vec<i32>>>,
         gui_pc:Arc<Mutex<u32>>,
         gui_enable:Arc<Mutex<bool>>,
-        gui_changed_dm_index:Arc<Mutex<usize>>,
+        gui_changed_dm_index:Arc<Mutex<(usize, usize)>>,
         gui_changed_reg_index:Arc<Mutex<usize>>,
         reg_updated_bool:Arc<Mutex<bool>>,
         data_updated_bool:Arc<Mutex<bool>>,
+        word_leakage: Arc<Mutex<bool>>,
         exit_found: Arc<Mutex<bool>>
     ) {
         if !self.simulation.as_mut().unwrap().all_instructions_finished(){
             self.simulation.as_mut().unwrap().step_simulation(gui_registers, gui_data_memory, gui_pc, gui_enable,gui_changed_dm_index,gui_changed_reg_index
-                , reg_updated_bool, data_updated_bool, &self.exit_locations, exit_found);  
+                , reg_updated_bool, data_updated_bool, word_leakage, self.exit_locations.clone(), exit_found);  
         }
     }
 
@@ -156,10 +158,11 @@ impl SimulationController {
         gui_pc:Arc<Mutex<u32>>,
         gui_enable:Arc<Mutex<bool>>,
         gui_simulation_speed: f32,
-        gui_changed_dm_index:Arc<Mutex<usize>>,
+        gui_changed_dm_index:Arc<Mutex<(usize, usize)>>,
         gui_changed_reg_index:Arc<Mutex<usize>>,
         reg_updated_bool:Arc<Mutex<bool>>,
         data_updated_bool:Arc<Mutex<bool>>,
+        word_leakage: Arc<Mutex<bool>>,
         exit_found: Arc<Mutex<bool>>
     ){
         if !self.simulation.as_mut().unwrap().all_instructions_finished(){
@@ -167,7 +170,7 @@ impl SimulationController {
             self.simulation.as_mut().unwrap().stop_unit_threads();
             self.simulation.as_mut().unwrap().start_simulation(gui_simulation_speed);
             self.simulation.as_mut().unwrap().run_simulation(gui_registers, gui_data_memory, gui_pc, gui_enable,gui_changed_dm_index,gui_changed_reg_index
-                , reg_updated_bool, data_updated_bool, &self.exit_locations, exit_found);
+                , reg_updated_bool, data_updated_bool,word_leakage, self.exit_locations.clone(), exit_found);
         }
     }
 

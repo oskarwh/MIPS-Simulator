@@ -263,6 +263,9 @@ impl Simulation {
     /// * `gui_changed_reg_index` -The last changed register index that is updated to GUI
     /// * `reg_updated_bool` - Bool that is set to GUI if the register was updated after this function was run
     /// * `data_updated_bool` - Bool that is set to GUI if data-memory was updated after this function was run
+    /// * `word_leakage` - Bool that is true if previous save altered two words in memory
+    /// * `exit_locations` - Vector that holds all address which holds exit command
+    /// * `exit_found` - Bool that tells GUI that a exit command has been found 
     /// 
     ///
     pub fn step_simulation(&mut self, 
@@ -270,18 +273,19 @@ impl Simulation {
         gui_data_memory:Arc<Mutex<Vec<i32>>>,
         gui_pc:Arc<Mutex<u32>>,
         gui_enable:Arc<Mutex<bool>>,
-        gui_changed_dm_index:Arc<Mutex<usize>>,
+        gui_changed_dm_index:Arc<Mutex<(usize, usize)>>,
         gui_changed_reg_index:Arc<Mutex<usize>>,
         reg_updated_bool:Arc<Mutex<bool>>,
         data_updated_bool:Arc<Mutex<bool>>,
-        exit_locations: &Vec<u32>,
+        word_leakage: Arc<Mutex<bool>>,
+        exit_locations: Arc<Vec<u32>>,
         exit_found: Arc<Mutex<bool>>
     ) {
         
         if self.arc_pc.lock().unwrap().get_program_count()/4 < self.number_of_instructions {
             Self::step_simulation_thread(gui_registers, gui_data_memory, gui_pc, gui_enable,gui_changed_dm_index, gui_changed_reg_index, 
                 self.arc_pc.clone(), self.arc_registers.clone(), self.arc_data_memory.clone(), reg_updated_bool, data_updated_bool,
-                exit_locations, exit_found);
+                word_leakage, exit_locations, exit_found);
         }else {
             *gui_enable.lock().unwrap() = true;
         }
@@ -305,6 +309,9 @@ impl Simulation {
     /// * `data_memory` - Reference to data-memory unit
     /// * `reg_updated_bool` - Bool that is set to GUI if the register was updated after this function was run
     /// * `data_updated_bool` - Bool that is set to GUI if data-memory was updated after this function was run
+    /// * `word_leakage` - Bool that is true if previous save altered two words in memory
+    /// * `exit_locations` - Vector that holds all address which holds exit command
+    /// * `exit_found` - Bool that tells GUI that a exit command has been found 
     /// 
     ///
     fn step_simulation_thread(
@@ -312,14 +319,15 @@ impl Simulation {
         gui_data_memory:Arc<Mutex<Vec<i32>>>,
         gui_pc:Arc<Mutex<u32>>,
         gui_enable:Arc<Mutex<bool>>,
-        gui_changed_dm_index:Arc<Mutex<usize>>,
+        gui_changed_dm_index:Arc<Mutex<(usize, usize)>>,
         gui_changed_reg_index:Arc<Mutex<usize>>,
         pc: Arc<Mutex<ProgramCounter>>,
         reg_file: Arc<Mutex<Registers>>, 
         data_memory: Arc<Mutex<DataMemory>>,
         reg_updated_bool:Arc<Mutex<bool>>,
         data_updated_bool:Arc<Mutex<bool>>,
-        exit_locations: &Vec<u32>,
+        word_leakage: Arc<Mutex<bool>>,
+        exit_locations: Arc<Vec<u32>>,
         exit_found: Arc<Mutex<bool>>
         ){
         let mut reg_chain_completed  = false;
@@ -327,35 +335,47 @@ impl Simulation {
 
             let simulation_handle = thread::spawn(move||{
             {
-            pc.lock().unwrap().execute(); 
+                {
+                    // Check if a exit command is on current row
+                    let pc_count = &(pc.lock().unwrap().get_program_count()/4);
+                    if !exit_locations.clone().contains(pc_count){
+                        pc.lock().unwrap().execute(); 
+                    }else{
+                        *exit_found.lock().unwrap() = true;
+                        *gui_enable.lock().unwrap().deref_mut() = true;
+                        println!("EXit!");
+                        return;
+                    }
+                }
+
+                loop {
+                    // Check when instruction is done (both the PC has received ne address and register-file has
+                    // received write-data)
+                    if reg_file.lock().unwrap().instruction_completed(){
+                        reg_chain_completed = true;
+                    }
+                    if pc.lock().unwrap().has_address(){
+                        pc_chain_completed = true;
+                    }
+                    if pc_chain_completed && reg_chain_completed {
+                        Self::update_gui(
+                            gui_registers, 
+                            gui_data_memory,
+                            gui_pc,
+                            gui_changed_dm_index,
+                            gui_changed_reg_index,
+                            pc,
+                            reg_file, 
+                            data_memory,
+                            reg_updated_bool,
+                            data_updated_bool,
+                            word_leakage);
+                        
+                        *gui_enable.lock().unwrap().deref_mut() = true;
+                        break;
+                    }
+                }  
             } 
-            
-            loop {
-                // Check when instruction is done (both the PC has received ne address and register-file has
-                // received write-data)
-                if reg_file.lock().unwrap().instruction_completed(){
-                    reg_chain_completed = true;
-                }
-                if pc.lock().unwrap().has_address(){
-                    pc_chain_completed = true;
-                }
-                if pc_chain_completed && reg_chain_completed {
-                    Self::update_gui(
-                        gui_registers, 
-                        gui_data_memory,
-                        gui_pc,
-                        gui_changed_dm_index,
-                        gui_changed_reg_index,
-                        pc,
-                        reg_file, 
-                        data_memory,
-                        reg_updated_bool,
-                        data_updated_bool);
-                    
-                    *gui_enable.lock().unwrap().deref_mut() = true;
-                    break;
-                }
-            }  
         });
     }
 
@@ -371,19 +391,21 @@ impl Simulation {
     /// * `gui_changed_reg_index` -The last changed register index that is updated to GUI
     /// * `reg_updated_bool` - Bool that is set to GUI if the register was updated after this function was run
     /// * `data_updated_bool` - Bool that is set to GUI if data-memory was updated after this function was run
+    /// * `word_leakage` - Bool that is true if previous save altered two words in memory
     /// 
     ///
     fn update_gui( 
         gui_registers:Arc<Mutex<Vec<i32>>>, 
         gui_data_memory:Arc<Mutex<Vec<i32>>>,
         gui_pc:Arc<Mutex<u32>>,
-        gui_changed_dm_index:Arc<Mutex<usize>>,
+        gui_changed_dm_index:Arc<Mutex<(usize, usize)>>,
         gui_changed_reg_index:Arc<Mutex<usize>>,
         pc: Arc<Mutex<ProgramCounter>>,
         reg_file: Arc<Mutex<Registers>>, 
         data_memory: Arc<Mutex<DataMemory>>,
         reg_updated_bool:Arc<Mutex<bool>>,
         data_updated_bool:Arc<Mutex<bool>>,
+        word_leakage: Arc<Mutex<bool>>
     ){
         // Update data for GUI
         // Update changed register
@@ -398,14 +420,21 @@ impl Simulation {
 
         // Update changed data memory
         let changed_data = data_memory.lock().unwrap().get_changed_memory();
-        *gui_changed_dm_index.lock().unwrap() = changed_data.1;//update gui with changed index
-        gui_data_memory.lock().unwrap()[changed_data.1] = changed_data.0;
-        
-        // Update bool for data if they have been updated 
-        if changed_data.2 {
-            *data_updated_bool.lock().unwrap() = true;
-        }
+        // Check if data memory has been changed
+        if changed_data.3 {
+            gui_changed_dm_index.lock().unwrap().0 = changed_data.1.0 / 4;
+            gui_data_memory.lock().unwrap()[changed_data.1.0/ 4] = changed_data.0.0;
+            if changed_data.2 {
+                gui_changed_dm_index.lock().unwrap().1 = changed_data.1.1 / 4;
+                gui_data_memory.lock().unwrap()[changed_data.1.1 / 4] = changed_data.0.1;
+            }
+            
+            // Check if two word were updated
+            *word_leakage.lock().unwrap() = changed_data.2;
 
+            // Update bool for data if data have been updated 
+            *data_updated_bool.lock().unwrap() = changed_data.3;
+        }
         // Update PC 
         *gui_pc.lock().unwrap() = pc.lock().unwrap().get_program_count()/4;
         
@@ -426,6 +455,9 @@ impl Simulation {
     /// * `gui_changed_reg_index` -The last changed register index that is updated to GUI
     /// * `reg_updated_bool` - Bool that is set to GUI if the register was updated after this function was run
     /// * `data_updated_bool` - Bool that is set to GUI if data-memory was updated after this function was run
+    /// * `word_leakage` - Bool that is true if previous save altered two words in memory
+    /// * `exit_locations` - Vector that holds all address which holds exit command
+    /// * `exit_found` - Bool that tells GUI that a exit command has been found 
     /// 
     ///
     pub fn run_simulation(&mut self, 
@@ -433,18 +465,19 @@ impl Simulation {
         gui_data_memory:Arc<Mutex<Vec<i32>>>,
         gui_pc:Arc<Mutex<u32>>,
         gui_enable:Arc<Mutex<bool>>,
-        gui_changed_dm_index:Arc<Mutex<usize>>,
+        gui_changed_dm_index:Arc<Mutex<(usize, usize)>>,
         gui_changed_reg_index:Arc<Mutex<usize>>,
         reg_updated_bool:Arc<Mutex<bool>>,
         data_updated_bool:Arc<Mutex<bool>>,
-        exit_locations: &Vec<u32>,
+        word_leakage: Arc<Mutex<bool>>,
+        exit_locations: Arc<Vec<u32>>,
         exit_found: Arc<Mutex<bool>>
     ) {
         if self.arc_pc.lock().unwrap().get_program_count()/4 < self.number_of_instructions {
             *self.stop_run_simulation.lock().unwrap() = false;
             Self::run_simulation_thread(gui_registers, gui_data_memory, gui_pc, gui_enable,gui_changed_dm_index,gui_changed_reg_index, 
                 self.arc_pc.clone(), self.arc_registers.clone(), self.arc_data_memory.clone(), self.number_of_instructions, 
-    self.stop_run_simulation.clone(), reg_updated_bool, data_updated_bool, exit_locations, exit_found);
+    self.stop_run_simulation.clone(), reg_updated_bool, data_updated_bool, word_leakage, exit_locations, exit_found);
         }else {
             *gui_enable.lock().unwrap() = true;
         }
@@ -469,6 +502,9 @@ impl Simulation {
     /// * `stop_run` - Bool to stop the running of the simulation (the execution of instructions and not unit threads)
     /// * `reg_updated_bool` - Bool that is set to GUI if the register was updated after this function was run
     /// * `data_updated_bool` - Bool that is set to GUI if data-memory was updated after this function was run
+    /// * `word_leakage` - Bool that is true if previous save altered two words in memory
+    /// * `exit_locations` - Vector that holds all address which holds exit command
+    /// * `exit_found` - Bool that tells GUI that a exit command has been found 
     /// 
     ///
     fn run_simulation_thread(
@@ -476,7 +512,7 @@ impl Simulation {
         gui_data_memory:Arc<Mutex<Vec<i32>>>,
         gui_pc:Arc<Mutex<u32>>,
         gui_enable:Arc<Mutex<bool>>,
-        gui_changed_dm_index:Arc<Mutex<usize>>,
+        gui_changed_dm_index:Arc<Mutex<(usize, usize)>>,
         gui_changed_reg_index:Arc<Mutex<usize>>,
         pc: Arc<Mutex<ProgramCounter>>,
         reg_file: Arc<Mutex<Registers>>, 
@@ -485,16 +521,26 @@ impl Simulation {
         stop_run:Arc<Mutex<bool>>,
         reg_updated_bool:Arc<Mutex<bool>>,
         data_updated_bool:Arc<Mutex<bool>>,
-        exit_locations: &Vec<u32>,
+        word_leakage: Arc<Mutex<bool>>,
+        exit_locations: Arc<Vec<u32>>,
         exit_found: Arc<Mutex<bool>>
     ){
         
         let mut reg_chain_completed  = false;
         let mut pc_chain_completed = false;
+
             let simulation_handle = thread::spawn(move||{
             loop {
                 {
-                    pc.lock().unwrap().execute(); 
+                    // Check if a exit command is on current row
+                    let pc_count = &(pc.lock().unwrap().get_program_count()/4);
+                    if !exit_locations.clone().contains(pc_count){
+                        pc.lock().unwrap().execute(); 
+                    }else{
+                        *exit_found.lock().unwrap() = true;
+                        *gui_enable.lock().unwrap().deref_mut() = true;
+                        return;
+                    }
                 }  
 
                 loop {
@@ -516,7 +562,8 @@ impl Simulation {
                             reg_file.clone(), 
                             data_memory.clone(),
                             reg_updated_bool.clone(),
-                            data_updated_bool.clone());
+                            data_updated_bool.clone(),
+                            word_leakage.clone());
                             
                         pc_chain_completed = false;
                         reg_chain_completed = false;

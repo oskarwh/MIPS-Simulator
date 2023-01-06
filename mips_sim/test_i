@@ -2,7 +2,7 @@
 	addi $t1, $zero, 10
 	addi $t2, $zero, 32
 	addi $t3, $zero, 8
-
+	exit
 	addi $s1, $t1, 20 #Expected 30 in s1
 	addi $s2, $t2, -50 #Expected -18 in s2
 	addi $s3, $t3, 16 #Expected 2 in s3

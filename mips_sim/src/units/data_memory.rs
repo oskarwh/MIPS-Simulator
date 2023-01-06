@@ -1,3 +1,5 @@
+use std::f64::MAX;
+use std::ops::Range;
 use std::sync::Arc;
 use std::sync::Mutex;
 use bitvec::prelude::*;
@@ -18,7 +20,7 @@ const MAX_WORDS: usize = 250;
 
 /// DataMemory Struct
 pub struct DataMemory {
-    data: Vec<Word>,
+    data: BitVec<u32, Lsb0>,
 
     address : u32,
     write_data : Word,
@@ -27,6 +29,7 @@ pub struct DataMemory {
     has_write_data : bool,
     has_mem_read_signal:bool,
     has_mem_write_signal:bool,
+    word_leakage: bool,
     data_updated: bool,
 
     mux_mem_to_reg : Option<Arc<Mutex<dyn Unit>>>,
@@ -34,8 +37,8 @@ pub struct DataMemory {
     mem_write_signal : bool,
     mem_read_signal : bool,
 
-    prev_memory_index: usize,
-    prev_data: i32,
+    prev_memory_index: (usize, usize),
+    prev_data: (i32, i32),
 }
 
 /// DataMemory Implementation
@@ -51,7 +54,7 @@ impl DataMemory{
         //Make DataMemory and insert 0 into all of them
         const n_regs:usize = 32;
         // Create array with zeros
-        let mut data = vec![bitvec![u32, Lsb0; 0; 32]; MAX_WORDS];
+        let mut data = bitvec![u32, Lsb0; 0; 32*MAX_WORDS];
         //Create DataMemory object
         DataMemory{
             data: data,
@@ -63,28 +66,43 @@ impl DataMemory{
             has_write_data:false,
             has_mem_read_signal:false,
             has_mem_write_signal:false,
+            word_leakage: false,
             data_updated: false,
 
             mem_read_signal:false,
             mem_write_signal:false,
             mux_mem_to_reg:None,
 
-            prev_memory_index: 0,
-            prev_data: 0,
+            prev_memory_index: (0,0),
+            prev_data: (0,0)
 
         }
     }
 
     /// Returns last changed index in memory and the corresponding data, also returns a boolean
-    /// to know wether or not the change occured during the current instruction or not.
+    /// to know wether or not data was saved in a single word or two.
     /// 
     /// # Returns
     /// 
-    /// * (i32, usize, bool) - Data as a Word, Index in memory, Boolen if change occured during current instruction
-    pub fn get_changed_memory(&mut self) -> (i32, usize, bool) {
-        let temp = (self.prev_data, self.prev_memory_index, self.data_updated);
+    /// * ((i32,i32), (usize,usize), bool, bool) - Data as a Words, Indexes in memory, 
+    ///                    Boolen if memory where saved over two words, Bool that holds if data has been updated.
+    pub fn get_changed_memory(&mut self) -> ((i32,i32), (usize,usize), bool, bool) {
+        // Save changed data
+        let mut address = std::ops::RangeInclusive::new((self.prev_memory_index.0*8) as usize,
+                                                                     (self.prev_memory_index.0*8)+31 as usize);
+        self.prev_data.0 = self.data[address].to_bitvec().into_vec()[0] as i32;
+        if self.prev_memory_index.0 < ((MAX_WORDS as u32 *4)-4).try_into().unwrap() {
+            address = std::ops::RangeInclusive::new((self.prev_memory_index.1*8) as usize,
+                                               (self.prev_memory_index.1*8)+31 as usize);
+            self.prev_data.1 = self.data[address].to_bitvec().into_vec()[0] as i32;
+        }else {
+            self.prev_data.1 = 0;
+        }
+
+        let temp = (self.prev_data, self.prev_memory_index, self.word_leakage, self.data_updated);
 
         // Reset bool when GUI has gotten data.
+        self.word_leakage = false;
         self.data_updated = false;
 
         return temp;
@@ -123,7 +141,13 @@ impl Unit for DataMemory{
     /// 
     fn receive(&mut self, input_id: u32, data : Word){
         if input_id ==  DM_ADDR_ID{
-            self.address = data.into_vec()[0]/4;
+            self.address = data.into_vec()[0];
+            // Check if address is outside memory index
+            self.address = self.address % ((MAX_WORDS as u32)*4);
+
+            if self.address % 4 != 0 {
+                self.word_leakage = true;   
+            }
             self.has_address = true;
         }else if input_id ==  REG_READ_2_ID{
             self.write_data = data;
@@ -160,15 +184,27 @@ impl Unit for DataMemory{
         if self.has_address && self.has_write_data && self.has_mem_read_signal && self.has_mem_write_signal{
             if self.mem_write_signal{
                 
-                self.data[self.address as usize] = self.write_data.to_bitvec();
-                self.prev_memory_index = self.address as usize;
-                self.prev_data = self.write_data.to_bitvec().into_vec()[0] as i32;
+                // Save for address GUI
+                self.prev_memory_index.0 = (self.address as usize);
+                self.prev_memory_index.1 = ((self.address + 4) as usize);
+
+                let data_slice = self.data.as_mut_bitslice();
+                let offset = self.address*8 + 31;
+                for i in 0..=31 {
+                    data_slice.set(((offset)-i) as usize, self.write_data.pop().unwrap())
+                }
+                self.data = data_slice.to_bitvec();
 
                 // Set bool to let GUI know memory has been updated
                 self.data_updated = true;
               
             }else if self.mem_read_signal{
-                let data = self.data[self.address as usize].to_bitvec();
+
+               // let mut data_slice = self.data.as_mut_bitslice();
+                let address = std::ops::RangeInclusive::new(self.address as usize, (self.address+31) as usize);
+                let data = self.data[address].to_bitvec();
+
+                //let data = self.data[self.address as usize].to_bitvec();
                 self.mux_mem_to_reg.as_mut().unwrap().lock().unwrap().receive(MUX_IN_1_ID, data);
                 
             }

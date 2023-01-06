@@ -1,5 +1,4 @@
 use crate::{simulation_controller::SimulationController, units::unit};
-use eframe::epaint::text;
 use egui::{
     Align, Button, Color32, ComboBox, FontFamily, FontId, RichText, ScrollArea, Slider, TextStyle,
 };
@@ -10,7 +9,6 @@ use std::{
 };
 
 #[derive(Debug, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 enum DataFormat {
     Hex,
     Dec,
@@ -48,9 +46,15 @@ fn configure_text_styles(ctx: &egui::Context) {
 
 const LIGHT_GREEN: Color32 = Color32::from_rgba_premultiplied(60, 171, 60, 255);
 const LIGHT_BLUE: Color32 = Color32::from_rgba_premultiplied(61, 112, 186, 255);
-/// We derive Deserialize/Serialize so we can persist app state on shutdown.
-/// if we add new fields, give them default values when deserializing old state
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+/// Graphical interface for the MIPS app. Uses the immediate graphical library egui. 
+///
+/// Authors: Max Thorén (c20mtn@cs.umu.se)
+///          Jakob Lindehag (c20jlg@cs.umu.se)
+///          Oskar Westerlund Holmgren (c20own@cs.umu.se)
+/// 
+/// Version information:
+///    v1.0 2023-01-06: First complete version.
+/// 
 pub struct MipsApp {
     // All data that needs to be accessed while GUI is running.
     simulation_controller: SimulationController,
@@ -64,18 +68,26 @@ pub struct MipsApp {
     program_counter: Arc<Mutex<u32>>,
     simulation_paused: Arc<Mutex<bool>>,
     simulation_speed: f32,
-    data_index: Arc<Mutex<usize>>,
+    data_index: Arc<Mutex<(usize, usize)>>,
     register_index: Arc<Mutex<usize>>,
     valid_file: bool,
     initial_startup: bool,
     updated_data: Arc<Mutex<bool>>,
     updated_reg: Arc<Mutex<bool>>,
+    word_leakage: Arc<Mutex<bool>>,
     stepped: bool,
     exit_found: Arc<Mutex<bool>>,
+    exit_locations: Arc<Vec<u32>>
 }
 
 impl MipsApp {
-    /// Called once before the first frame.
+    /// Creates a new MipsApp and initilizes all  
+    /// 
+    /// # Arguments
+    /// 
+    /// * `cc` - The creation context of the program.
+    /// * `simulation_controller` - The controller which controls the simulation.
+    /// 
     pub fn new(
         cc: &eframe::CreationContext<'_>,
         simulation_controller: SimulationController,
@@ -94,14 +106,16 @@ impl MipsApp {
             program_counter: Arc::new(Mutex::new(0)),
             simulation_paused: Arc::new(Mutex::new(true)),
             simulation_speed: 8.0,
-            data_index: Arc::new(Mutex::new(1001)),
+            data_index: Arc::new(Mutex::new((1001, 0))),
             register_index: Arc::new(Mutex::new(33)),
             valid_file: true,
             initial_startup: true,
             updated_data: Arc::new(Mutex::new(false)),
             updated_reg: Arc::new(Mutex::new(false)),
+            word_leakage: Arc::new(Mutex::new(false)),
             stepped: false,
             exit_found: Arc::new(Mutex::new(false)),
+            exit_locations: Arc::new(Vec::new())
         }
     }
 
@@ -152,14 +166,29 @@ impl MipsApp {
         reg_table
     }
 
-    fn write_i32(number: i32, dformat: &DataFormat) -> String {
-        match dformat {
+    /// Formats the i32 number as either binary, decimal or hexadecimal
+    /// and returns a formatted string.
+    ///
+    /// # Arguments
+    ///
+    /// * `number` - The number being formatted.
+    /// * `data_format` - An enum for that decides how the data is to be formatted.
+    ///
+    fn write_i32(number: i32, data_format: &DataFormat) -> String {
+        match data_format {
             DataFormat::Dec => String::from(format!("{}", number)),
             DataFormat::Hex => String::from(format!("{:#010x}", number)),
             DataFormat::Bin => String::from(format!("{:#032b}", number)),
         }
     }
-
+    /// Formats the u32 number as either binary, decimal or hexadecimal
+    /// and returns a formatted string.
+    ///
+    /// # Arguments
+    ///
+    /// * `number` - The number being formatted.
+    /// * `data_format` - An enum for that decides how the data is to be formatted.
+    ///
     fn write_u32(number: u32, dformat: &DataFormat) -> String {
         match dformat {
             DataFormat::Dec => String::from(format!("{}", number)),
@@ -167,29 +196,47 @@ impl MipsApp {
             DataFormat::Bin => String::from(format!("{:#032b}", number)),
         }
     }
-
+    /// Resets all the gui variables to the intial state of the program.
+    ///
+    /// # Arguments
+    ///
+    /// * `self` - The MipsApp itself.
+    ///
     fn reset_gui(&mut self) {
         self.data_memory = Arc::new(Mutex::new(vec![0; unit::MAX_WORDS]));
         self.program_counter = Arc::new(Mutex::new(0));
         self.registers = Arc::new(Mutex::new(vec![0; 32]));
         self.data_memory = Arc::new(Mutex::new(vec![0; unit::MAX_WORDS]));
         self.simulation_paused = Arc::new(Mutex::new(true));
-        self.data_index = Arc::new(Mutex::new(1001));
+        self.data_index = Arc::new(Mutex::new((1001,1002)));
         self.register_index = Arc::new(Mutex::new(33));
         self.updated_data = Arc::new(Mutex::new(false));
         self.updated_reg = Arc::new(Mutex::new(false));
+        self.exit_found = Arc::new(Mutex::new(false));
     }
-
+    /// Creates table that holds the data memory.
+    ///
+    /// # Arguments
+    ///
+    /// * `data_format` - The format of the data to be displayed.
+    /// * `ui` - The UI that is to hold the table.
+    /// * `data_memory` - The data memory.
+    /// * `data_index` - Index of data changed.
+    /// * `updated` - Bool for when data memory was updated.
+    /// * `word_leakage` - Bool for if data was written to two words.
+    ///
     fn memory_table(
         data_format: &DataFormat,
         ui: &mut egui::Ui,
         data_memory: &mut Arc<Mutex<Vec<i32>>>,
-        data_index: &mut Arc<Mutex<usize>>,
+        data_index: &mut Arc<Mutex<(usize, usize)>>,
         updated: &mut Arc<Mutex<bool>>,
+        word_leakage: &mut Arc<Mutex<bool>>,
     ) {
         // Setup table
-        let locked_data_index = *data_index.lock().unwrap();
+        let (locked_data_index, locked_word_leakage_index) = *data_index.lock().unwrap();
         let locked_data_memory = data_memory.lock().unwrap();
+        let locked_word_leakage = *word_leakage.lock().unwrap();
         ui.push_id(1, |ui| {
             // Create table builder
             let mut tbb = TableBuilder::new(ui);
@@ -218,8 +265,8 @@ impl MipsApp {
                 // Iterate data memory
                 body.rows(30.0, locked_data_memory.len(), |row_index, mut row| {
                     let mut text_color = Some(Color32::WHITE);
-                    // Change color of row changed.
-                    if row_index == locked_data_index {
+                    // Change color of row changed. Also highlight word_leakage row. 
+                    if row_index == locked_data_index || (locked_word_leakage && row_index == locked_word_leakage_index) {
                         text_color = Some(LIGHT_GREEN);
                     }
                     row.col(|ui| {
@@ -237,7 +284,18 @@ impl MipsApp {
             });
         });
     }
-
+    /// Creates table that holds the instruction memory.
+    ///
+    /// # Arguments
+    ///
+    /// * `data_format` - The format of the data to be displayed.
+    /// * `ui` - The UI that is to hold the table.
+    /// * `instructions` - The instructions of the program memory.
+    /// * `mips_instructions` - The mips intructions.
+    /// * `program_counter` - The program counter.
+    /// * `stepped` - If program stepped. 
+    /// * `exit_locations` - Index for the exit directives.
+    ///
     fn instruction_table(
         data_format: &DataFormat,
         ui: &mut egui::Ui,
@@ -245,6 +303,7 @@ impl MipsApp {
         mips_instructions: &Vec<(String, bool)>,
         program_counter: &Arc<Mutex<u32>>,
         stepped: &mut bool,
+        exit_locations: Arc<Vec<u32>>
     ) {
         let locked_program_counter = *program_counter.lock().unwrap();
         ui.push_id(2, |ui| {
@@ -302,13 +361,21 @@ impl MipsApp {
                                 ui.label(MipsApp::write_u32(machine_index * 4, data_format));
                             });
 
-                            row.col(|ui| {
-                                ui.visuals_mut().override_text_color = text_color;
-                                ui.label(MipsApp::write_u32(
-                                    instructions[machine_index as usize],
-                                    data_format,
-                                ));
-                            });
+                             // Check if exit should be on row 
+                             if exit_locations.contains(&machine_index) {
+                                row.col(|ui| {
+                                    ui.visuals_mut().override_text_color = text_color;
+                                    ui.label("exit");
+                                });
+                            } else {
+                                row.col(|ui| {
+                                    ui.visuals_mut().override_text_color = text_color;
+                                    ui.label(MipsApp::write_u32(
+                                        instructions[machine_index as usize],
+                                        data_format,
+                                    ));
+                                });
+                            }
 
                             row.col(|ui| {
                                 ui.visuals_mut().override_text_color = text_color;
@@ -321,7 +388,17 @@ impl MipsApp {
             });
         });
     }
-
+    /// Creates table that holds the registers.
+    ///
+    /// # Arguments
+    ///
+    /// * `data_format` - The format of the data to be displayed.
+    /// * `ui` - The UI that is to hold the table.
+    /// * `register_table` - The registers.
+    /// * `registers` - The registers.
+    /// * `register_index` Index of register changed.
+    /// * `updated` - Bool for when data memory was updated.. 
+    ///
     fn register_table(
         data_format: &DataFormat,
         ui: &mut egui::Ui,
@@ -345,7 +422,6 @@ impl MipsApp {
                 .resizable(true);
             // If data was updated, scroll to row.
             if *updated.lock().unwrap() {
-                println!("Jump to row: {}", locked_reg_index);
                 tbb = tbb.scroll_to_row(locked_reg_index, Some(Align::Center));
                 *updated.lock().unwrap() = false;
             }
@@ -391,7 +467,14 @@ impl MipsApp {
             });
         });
     }
-
+    /// Creates table that holds the labels.
+    ///
+    /// # Arguments
+    ///
+    /// * `data_format` - The format of the data to be displayed.
+    /// * `ui` - The UI that is to hold the table.
+    /// * `labels` - The labels of the program. 
+    ///
     fn symbol_table(
         data_format: &DataFormat,
         ui: &mut egui::Ui,
@@ -428,7 +511,15 @@ impl MipsApp {
                 });
         });
     }
-
+    /// Creates table that holds the input file.
+    ///
+    /// # Arguments
+    ///
+    /// * `ui` - The UI that is to hold the table.
+    /// * `mips_instructions` - Vector containing the lines of the original file. 
+    /// * `program_counter` - The program counter of the program.
+    /// * `stepped` - If program stepped.
+    ///
     fn mips_code(
         ui: &mut egui::Ui,
         mips_instructions: &Vec<(String, bool)>,
@@ -490,6 +581,13 @@ impl MipsApp {
 
 impl eframe::App for MipsApp {
     /// Called each time the UI needs repainting, which may be many times per second.
+    ///
+    /// # Arguments
+    ///
+    /// * `self` - The MipsApp itself.
+    /// * `ctx` - The context of the frame. 
+    /// * `_frame` - The surroundings of the app.
+    ///
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         // Do not show processor interface until file provided is valid.
         if self.initial_startup {
@@ -515,13 +613,14 @@ impl eframe::App for MipsApp {
                                 None => open_file = "null".to_string(),
                             }
 
-                            if let Some((machine_code, assembler_code, labels, contains_errors)) =
+                            if let Some((machine_code, assembler_code, labels, contains_errors, exit_locations)) =
                                 self.simulation_controller.setup_simulation(&open_file)
                             {
                                 self.initial_startup = false;
                                 self.instructions = machine_code;
                                 self.mips_instructions = assembler_code;
                                 self.labels = labels;
+                                self.exit_locations = exit_locations;
                                 // Is valid if file contains no errors.
                                 self.valid_file = !contains_errors;
                             } else {
@@ -548,12 +647,13 @@ impl eframe::App for MipsApp {
                                 Some(file) => open_file = file,
                                 None => open_file = "null".to_string(),
                             }
-                            if let Some((machine_code, assembler_code, labels, contains_error)) =
+                            if let Some((machine_code, assembler_code, labels, contains_error, exit_locations)) =
                                 self.simulation_controller.setup_simulation(&open_file)
                             {
                                 self.instructions = machine_code;
                                 self.mips_instructions = assembler_code;
                                 self.labels = labels;
+                                self.exit_locations = exit_locations;
                                 // Reset tables
                                 self.valid_file = !contains_error;
                                 MipsApp::reset_gui(self);
@@ -572,7 +672,7 @@ impl eframe::App for MipsApp {
                 // Create left side panel containing data memory
                 egui::SidePanel::left("left_side_panel")
                     .resizable(true)
-                    .width_range(300.0..=600.0)
+                    .width_range(300.0..=1000.0)
                     .show(ctx, |ui| {
                         ui.heading("Data memory");
                         ui.vertical(|ui| {
@@ -585,6 +685,7 @@ impl eframe::App for MipsApp {
                                         &mut self.data_memory,
                                         &mut self.data_index,
                                         &mut self.updated_data,
+                                        &mut self.word_leakage,
                                     );
                                 });
                         });
@@ -593,7 +694,7 @@ impl eframe::App for MipsApp {
                 // Create right panel
                 egui::SidePanel::right("right_side_panel")
                     .resizable(true)
-                    .width_range(200.0..=500.0)
+                    .width_range(200.0..=1000.0)
                     .show(ctx, |ui| {
                         // The right panel holding information about registers.
                         ui.horizontal(|ui| {
@@ -642,17 +743,22 @@ impl eframe::App for MipsApp {
                                 ui.heading(format!("PC: {}", locked_program_counter));
                             }
 
+                            // Fetch bool that holds if a exit has been found
+                            let exit_found_bool = *self.exit_found.lock().unwrap();
+
                             if ui
-                                .add_enabled(
+                                .add_enabled 
+                                (
                                     *self.simulation_paused.lock().unwrap(),
                                     Button::new("Reset"),
                                 )
-                                .clicked()
+                                .clicked() || 
+                                exit_found_bool
                             {
                                 // Reset simulation & GUI
                                 self.simulation_controller
                                     .reset_simulation(&mut self.instructions);
-                                MipsApp::reset_gui(self);
+                                MipsApp::reset_gui(self); 
                             }
                             // Add run/pause button depending on the state of the simulation.
                             if *self.simulation_paused.lock().unwrap() {
@@ -670,6 +776,7 @@ impl eframe::App for MipsApp {
                                         self.register_index.clone(),
                                         self.updated_reg.clone(),
                                         self.updated_data.clone(),
+                                        self.word_leakage.clone(),
                                         self.exit_found.clone()
                                     );
                                 }
@@ -701,6 +808,7 @@ impl eframe::App for MipsApp {
                                     self.register_index.clone(),
                                     self.updated_reg.clone(),
                                     self.updated_data.clone(),
+                                    self.word_leakage.clone(),
                                     self.exit_found.clone()
                                 );
                                 self.stepped = true;
@@ -732,6 +840,7 @@ impl eframe::App for MipsApp {
                                             &self.mips_instructions,
                                             &self.program_counter,
                                             &mut self.stepped,
+                                            self.exit_locations.clone()
                                         );
                                     });
                             });
@@ -822,10 +931,8 @@ impl eframe::App for MipsApp {
 }
 
 const GREETING_MESSAGE: &str = r#"
-This is a MIPS emulator that emulates a single cycle MIPS processor. 
-It displays intruction memory, data memory, registers, and labels.
-You may step through each instruction, run the program or reset it. 
-But first, you need to select a valid MIPS assembler file which adhere
+This is a MIPS emulator that emulates a single cycle MIPS processor. It displays intruction memory, data memory, registers, and labels.
+You may step through each instruction, run the program or reset it. But first, you need to select a valid MIPS assembler file which adhere
 to the following criteria:
     • May contain empty lines
     • May contain a comment lines which are defined with ”#” that denotes 
