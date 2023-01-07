@@ -149,7 +149,7 @@ impl Unit for ProgramCounter {
     /// * `signal` - Bool which holds state of signal (high/low)
     /// 
     fn receive_signal(&mut self ,signal_id:u32, signal: bool) {
-        todo!()
+        
     }
 
     /// Checks if a address is found.

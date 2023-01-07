@@ -257,8 +257,8 @@ impl Unit for AluControl {
                     // Sra instruction
                     0b000011 =>
                         self.set_sra_signals(),
-                    //DO NOTHING
-                    _ =>(),
+                    //Standard:Set add signals
+                    _ =>self.set_add_signals(),
                 }
             // Check for ori
             } else if self.alu_op2 && !self.alu_op1 && !self.alu_op0 {

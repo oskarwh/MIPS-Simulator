@@ -349,7 +349,7 @@ impl Simulation {
                 }
 
                 loop {
-                    // Check when instruction is done (both the PC has received ne address and register-file has
+                    // Check when instruction is done (both the PC has received new address and register-file has
                     // received write-data)
                     if reg_file.lock().unwrap().instruction_completed(){
                         reg_chain_completed = true;

@@ -191,7 +191,7 @@ impl ALU {
         };
 
         //Check if result is zero with same method as in hardware
-        
+        println!("\t Alu res {}",res);
         let zero = Self::is_zero(res.to_bitvec());
         (res, overflow,zero)
     }  
