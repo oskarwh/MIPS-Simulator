@@ -5,6 +5,7 @@ use egui::{
 use egui_extras::{Column, Size, StripBuilder, TableBuilder};
 use std::{
     collections::hash_map,
+    fmt::format,
     sync::{Arc, Mutex},
 };
 
@@ -46,15 +47,15 @@ fn configure_text_styles(ctx: &egui::Context) {
 
 const LIGHT_GREEN: Color32 = Color32::from_rgba_premultiplied(60, 171, 60, 255);
 const LIGHT_BLUE: Color32 = Color32::from_rgba_premultiplied(61, 112, 186, 255);
-/// Graphical interface for the MIPS app. Uses the immediate graphical library egui. 
+/// Graphical interface for the MIPS app. Uses the immediate graphical library egui.
 ///
 /// Authors: Max Thorén (c20mtn@cs.umu.se)
 ///          Jakob Lindehag (c20jlg@cs.umu.se)
 ///          Oskar Westerlund Holmgren (c20own@cs.umu.se)
-/// 
+///
 /// Version information:
 ///    v1.0 2023-01-06: First complete version.
-/// 
+///
 pub struct MipsApp {
     // All data that needs to be accessed while GUI is running.
     simulation_controller: SimulationController,
@@ -77,17 +78,17 @@ pub struct MipsApp {
     word_leakage: Arc<Mutex<bool>>,
     stepped: bool,
     exit_found: Arc<Mutex<bool>>,
-    exit_locations: Arc<Vec<u32>>
+    exit_locations: Arc<Vec<u32>>,
 }
 
 impl MipsApp {
     /// Creates a new MipsApp and initilizes all  
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `cc` - The creation context of the program.
     /// * `simulation_controller` - The controller which controls the simulation.
-    /// 
+    ///
     pub fn new(
         cc: &eframe::CreationContext<'_>,
         simulation_controller: SimulationController,
@@ -115,7 +116,7 @@ impl MipsApp {
             word_leakage: Arc::new(Mutex::new(false)),
             stepped: false,
             exit_found: Arc::new(Mutex::new(false)),
-            exit_locations: Arc::new(Vec::new())
+            exit_locations: Arc::new(Vec::new()),
         }
     }
 
@@ -208,7 +209,7 @@ impl MipsApp {
         self.registers = Arc::new(Mutex::new(vec![0; 32]));
         self.data_memory = Arc::new(Mutex::new(vec![0; unit::MAX_WORDS]));
         self.simulation_paused = Arc::new(Mutex::new(true));
-        self.data_index = Arc::new(Mutex::new((1001,1002)));
+        self.data_index = Arc::new(Mutex::new((1001, 1002)));
         self.register_index = Arc::new(Mutex::new(33));
         self.updated_data = Arc::new(Mutex::new(false));
         self.updated_reg = Arc::new(Mutex::new(false));
@@ -265,8 +266,10 @@ impl MipsApp {
                 // Iterate data memory
                 body.rows(30.0, locked_data_memory.len(), |row_index, mut row| {
                     let mut text_color = Some(Color32::WHITE);
-                    // Change color of row changed. Also highlight word_leakage row. 
-                    if row_index == locked_data_index || (locked_word_leakage && row_index == locked_word_leakage_index) {
+                    // Change color of row changed. Also highlight word_leakage row.
+                    if row_index == locked_data_index
+                        || (locked_word_leakage && row_index == locked_word_leakage_index)
+                    {
                         text_color = Some(LIGHT_GREEN);
                     }
                     row.col(|ui| {
@@ -293,7 +296,7 @@ impl MipsApp {
     /// * `instructions` - The instructions of the program memory.
     /// * `mips_instructions` - The mips intructions.
     /// * `program_counter` - The program counter.
-    /// * `stepped` - If program stepped. 
+    /// * `stepped` - If program stepped.
     /// * `exit_locations` - Index for the exit directives.
     ///
     fn instruction_table(
@@ -303,7 +306,7 @@ impl MipsApp {
         mips_instructions: &Vec<(String, bool)>,
         program_counter: &Arc<Mutex<u32>>,
         stepped: &mut bool,
-        exit_locations: Arc<Vec<u32>>
+        exit_locations: Arc<Vec<u32>>,
     ) {
         let locked_program_counter = *program_counter.lock().unwrap();
         ui.push_id(2, |ui| {
@@ -361,8 +364,8 @@ impl MipsApp {
                                 ui.label(MipsApp::write_u32(machine_index * 4, data_format));
                             });
 
-                             // Check if exit should be on row 
-                             if exit_locations.contains(&machine_index) {
+                            // Check if exit should be on row
+                            if exit_locations.contains(&machine_index) {
                                 row.col(|ui| {
                                     ui.visuals_mut().override_text_color = text_color;
                                     ui.label("exit");
@@ -397,7 +400,7 @@ impl MipsApp {
     /// * `register_table` - The registers.
     /// * `registers` - The registers.
     /// * `register_index` Index of register changed.
-    /// * `updated` - Bool for when data memory was updated.. 
+    /// * `updated` - Bool for when data memory was updated..
     ///
     fn register_table(
         data_format: &DataFormat,
@@ -473,7 +476,7 @@ impl MipsApp {
     ///
     /// * `data_format` - The format of the data to be displayed.
     /// * `ui` - The UI that is to hold the table.
-    /// * `labels` - The labels of the program. 
+    /// * `labels` - The labels of the program.
     ///
     fn symbol_table(
         data_format: &DataFormat,
@@ -516,7 +519,7 @@ impl MipsApp {
     /// # Arguments
     ///
     /// * `ui` - The UI that is to hold the table.
-    /// * `mips_instructions` - Vector containing the lines of the original file. 
+    /// * `mips_instructions` - Vector containing the lines of the original file.
     /// * `program_counter` - The program counter of the program.
     /// * `stepped` - If program stepped.
     ///
@@ -531,6 +534,7 @@ impl MipsApp {
             let mut tbb = TableBuilder::new(ui);
             tbb = tbb
                 .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
+                .column(Column::auto())
                 .column(Column::auto())
                 .column(Column::remainder())
                 .resizable(false)
@@ -552,6 +556,7 @@ impl MipsApp {
             .body(|mut body| {
                 // Iterate over listing file, only add rows containing machine code
                 let mut machine_index = 0;
+                let mut row_index = 0;
                 for (line, contains_code) in mips_instructions {
                     let mut text_color = Some(Color32::WHITE);
                     body.row(30.0, |mut row| {
@@ -570,9 +575,14 @@ impl MipsApp {
                         });
                         row.col(|ui| {
                             ui.visuals_mut().override_text_color = text_color;
+                            ui.label(String::from(format!(" {} ", row_index)));
+                        });
+                        row.col(|ui| {
+                            ui.visuals_mut().override_text_color = text_color;
                             ui.label(line.clone());
                         });
                     });
+                    row_index += 1;
                 }
             });
         });
@@ -585,7 +595,7 @@ impl eframe::App for MipsApp {
     /// # Arguments
     ///
     /// * `self` - The MipsApp itself.
-    /// * `ctx` - The context of the frame. 
+    /// * `ctx` - The context of the frame.
     /// * `_frame` - The surroundings of the app.
     ///
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
@@ -602,7 +612,7 @@ impl eframe::App for MipsApp {
                         ui.label(GREETING_MESSAGE);
                     });
                     // Add a bit of spacing.
-                    ui.add_space(10.0);
+                    ui.add_space(5.0);
                     // Button for selecting assembly file
                     ui.horizontal_centered(|ui| {
                         ui.visuals_mut().override_text_color = Some(Color32::WHITE);
@@ -613,8 +623,13 @@ impl eframe::App for MipsApp {
                                 None => open_file = "null".to_string(),
                             }
 
-                            if let Some((machine_code, assembler_code, labels, contains_errors, exit_locations)) =
-                                self.simulation_controller.setup_simulation(&open_file)
+                            if let Some((
+                                machine_code,
+                                assembler_code,
+                                labels,
+                                contains_errors,
+                                exit_locations,
+                            )) = self.simulation_controller.setup_simulation(&open_file)
                             {
                                 self.initial_startup = false;
                                 self.instructions = machine_code;
@@ -647,8 +662,13 @@ impl eframe::App for MipsApp {
                                 Some(file) => open_file = file,
                                 None => open_file = "null".to_string(),
                             }
-                            if let Some((machine_code, assembler_code, labels, contains_error, exit_locations)) =
-                                self.simulation_controller.setup_simulation(&open_file)
+                            if let Some((
+                                machine_code,
+                                assembler_code,
+                                labels,
+                                contains_error,
+                                exit_locations,
+                            )) = self.simulation_controller.setup_simulation(&open_file)
                             {
                                 self.instructions = machine_code;
                                 self.mips_instructions = assembler_code;
@@ -747,18 +767,17 @@ impl eframe::App for MipsApp {
                             let exit_found_bool = *self.exit_found.lock().unwrap();
 
                             if ui
-                                .add_enabled 
-                                (
+                                .add_enabled(
                                     *self.simulation_paused.lock().unwrap(),
                                     Button::new("Reset"),
                                 )
-                                .clicked() || 
-                                exit_found_bool
+                                .clicked()
+                                || exit_found_bool
                             {
                                 // Reset simulation & GUI
                                 self.simulation_controller
                                     .reset_simulation(&mut self.instructions);
-                                MipsApp::reset_gui(self); 
+                                MipsApp::reset_gui(self);
                             }
                             // Add run/pause button depending on the state of the simulation.
                             if *self.simulation_paused.lock().unwrap() {
@@ -777,7 +796,7 @@ impl eframe::App for MipsApp {
                                         self.updated_reg.clone(),
                                         self.updated_data.clone(),
                                         self.word_leakage.clone(),
-                                        self.exit_found.clone()
+                                        self.exit_found.clone(),
                                     );
                                 }
                             } else {
@@ -809,10 +828,9 @@ impl eframe::App for MipsApp {
                                     self.updated_reg.clone(),
                                     self.updated_data.clone(),
                                     self.word_leakage.clone(),
-                                    self.exit_found.clone()
+                                    self.exit_found.clone(),
                                 );
                                 self.stepped = true;
-                                
                             }
                             // Add slider for simulation speed
                             ui.add_enabled(
@@ -840,7 +858,7 @@ impl eframe::App for MipsApp {
                                             &self.mips_instructions,
                                             &self.program_counter,
                                             &mut self.stepped,
-                                            self.exit_locations.clone()
+                                            self.exit_locations.clone(),
                                         );
                                     });
                             });
